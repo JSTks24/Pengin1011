@@ -1,0 +1,78 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>QingQiu1011</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <DefaultItemExcludes>$(DefaultItemExcludes);Tests\**;Modules\**;BuildTemplates\**;tools\**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="QingQiu1011.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Discord.Net" Version="3.20.1" />
+    <PackageReference Include="Google.GenAI" Version="1.21.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="OpenAI" Version="2.13.0" />
+  </ItemGroup>
+
+  <Target Name="NewModule">
+    <Error Condition="'$(Module)' == ''" Text="用法：dotnet build -t:NewModule -p:Module=&lt;模块名&gt;" />
+    <Error Condition="Exists('$(MSBuildProjectDirectory)/Modules/$(Module)')" Text="模块目录已存在：Modules/$(Module)" />
+    <MakeDir Directories="$(MSBuildProjectDirectory)/Modules/$(Module)" />
+    <Exec Command="dotnet run --project tools/Scaffolder -c Release -- $(Module) $(MSBuildProjectDirectory)/BuildTemplates $(MSBuildProjectDirectory)/Modules/$(Module)" />
+    <Exec Command="dotnet sln QingQiu1011.sln add Modules/$(Module)/$(Module).csproj" />
+    <Message Importance="high" Text="模块骨架已生成：Modules/$(Module)/（已加入 QingQiu1011.sln）" />
+    <Message Importance="high" Text="下一步：dotnet build -t:AddModuleMigration -p:Module=$(Module) -p:MigrationName=Init（有数据库需求时）" />
+  </Target>
+
+  <Target Name="BuildModule">
+    <Error Condition="'$(Module)' == ''" Text="用法：dotnet build -t:BuildModule -p:Module=&lt;模块名&gt;" />
+    <Error Condition="!Exists('$(MSBuildProjectDirectory)/Modules/$(Module)/$(Module).csproj')" Text="模块项目不存在：Modules/$(Module)/$(Module).csproj" />
+    <Exec Command="dotnet build Modules/$(Module)/$(Module).csproj -c $(Configuration)" />
+  </Target>
+
+  <Target Name="BuildAllModules">
+    <ItemGroup>
+      <_ModuleProject Include="Modules/*/*.csproj" />
+    </ItemGroup>
+    <Exec Command="dotnet build %(_ModuleProject.FullPath) -c $(Configuration)" />
+  </Target>
+
+  <Target Name="AddModuleMigration">
+    <Error Condition="'$(Module)' == '' Or '$(MigrationName)' == ''" Text="用法：dotnet build -t:AddModuleMigration -p:Module=&lt;模块名&gt; -p:MigrationName=&lt;迁移名&gt;" />
+    <Error Condition="!Exists('$(MSBuildProjectDirectory)/Modules/$(Module)/$(Module).csproj')" Text="模块项目不存在：Modules/$(Module)/$(Module).csproj" />
+    <Exec Command="dotnet restore Modules/$(Module)/$(Module).csproj" />
+    <Exec Command="dotnet ef migrations add $(MigrationName) --project Modules/$(Module)/$(Module).csproj --startup-project Modules/$(Module)/$(Module).csproj --context $(Module)DbContext --output-dir Migrations" />
+  </Target>
+
+  <Target Name="AddAllModuleMigrations">
+    <Error Condition="'$(MigrationName)' == ''" Text="用法：dotnet build -t:AddAllModuleMigrations -p:MigrationName=&lt;迁移名&gt;" />
+    <ItemGroup>
+      <_ModuleProjectFile Include="Modules/*/*.csproj" />
+    </ItemGroup>
+    <ItemGroup>
+      <_ModuleDbContextFile Include="Modules/*/*DbContext.cs" />
+    </ItemGroup>
+    <Exec Command="dotnet restore %(_ModuleProjectFile.FullPath)" Condition="'@(_ModuleProjectFile)' != ''" />
+    <Exec Command="dotnet ef migrations add $(MigrationName) --project Modules/$([System.String]::Copy('%(_ModuleDbContextFile.Filename)').Replace('DbContext',''))/$([System.String]::Copy('%(_ModuleDbContextFile.Filename)').Replace('DbContext','')).csproj --startup-project Modules/$([System.String]::Copy('%(_ModuleDbContextFile.Filename)').Replace('DbContext',''))/$([System.String]::Copy('%(_ModuleDbContextFile.Filename)').Replace('DbContext','')).csproj --context %(_ModuleDbContextFile.Filename) --output-dir Migrations" />
+  </Target>
+
+  <Target Name="PublishAll">
+    <Exec Command="dotnet publish QingQiu1011.csproj -c $(Configuration)" />
+    <Exec Command="dotnet build QingQiu1011.csproj -t:BuildAllModules -c $(Configuration)" />
+    <ItemGroup>
+      <_ModuleDll Include="bin/$(Configuration)/$(TargetFramework)/module/*.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_ModuleDll)" DestinationFolder="bin/$(Configuration)/$(TargetFramework)/publish/module/" />
+  </Target>
+
+</Project>

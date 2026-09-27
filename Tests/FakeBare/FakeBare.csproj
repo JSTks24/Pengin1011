@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>QingQiu1011.Modules.FakeBare</RootNamespace>
+    <AssemblyName>FakeBare</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <BareOutputDir>$(MSBuildThisFileDirectory)..\QingQiu1011.Tests\bin\$(Configuration)\$(TargetFramework)\baremodule\</BareOutputDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\QingQiu1011.csproj" />
+  </ItemGroup>
+
+  <Target Name="CopyToBareModuleDir" AfterTargets="Build">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(BareOutputDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

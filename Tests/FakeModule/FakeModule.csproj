@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>QingQiu1011.Modules.FakeModule</RootNamespace>
+    <AssemblyName>FakeModule</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <ModuleOutputDir>$(MSBuildThisFileDirectory)..\QingQiu1011.Tests\bin\$(Configuration)\$(TargetFramework)\module\</ModuleOutputDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\QingQiu1011.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+  </ItemGroup>
+
+  <Target Name="CopyToTestModuleDir" AfterTargets="Build">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModuleOutputDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

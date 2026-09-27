@@ -1,0 +1,8 @@
+* text=auto
+*.cs text eol=lf
+*.tpl text eol=lf
+*.csproj text eol=lf
+*.json text eol=lf
+*.gitignore text eol=lf
+*.gitattributes text eol=lf
+*.sln text eol=crlf

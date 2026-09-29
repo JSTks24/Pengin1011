@@ -1,5 +1,6 @@
 using System.Net.Http;
 using Discord;
+using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 
 namespace Pengin1011.Services.Discord;
@@ -17,7 +18,7 @@ public static class Attachments {
 			var data = await Http.GetByteArrayAsync(attachment.Url);
 			return new AttachmentData(data, attachment.ContentType ?? "", attachment.Filename);
 		} catch (Exception e) {
-			Logger.Error(typeof(Attachments), e, $"下载附件失败：{attachment.Url}");
+			Logger.Error(typeof(Attachments), e, Localizer.Format("AttachmentDownloadFailed", attachment.Url));
 			return null;
 		}
 	}

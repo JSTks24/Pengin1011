@@ -3,6 +3,7 @@ using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
 using Pengin1011;
 using Pengin1011.Core;
+using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 using Pengin1011.Services.AI;
 using Pengin1011.Services.Discord;
@@ -34,7 +35,7 @@ try {
 		return await FinishAsync(started);
 	}
 	var model = AppConfig.AI.Provider == AIProvider.OpenAI ? AppConfig.AI.OpenAI.Model : AppConfig.AI.Gemini.Model;
-	Logger.Info(typeof(Program), $"配置加载成功 Provider={AppConfig.AI.Provider} Model={model} MaxParallel={AppConfig.AI.MaxParallel}");
+	Logger.Info(typeof(Program), Localizer.Format("ConfigLoaded", AppConfig.AI.Provider, model, AppConfig.AI.MaxParallel));
 
 	Databases.Init();
 	AIClient.Init(AppConfig.AI.OpenAI, AppConfig.AI.Gemini, AppConfig.AI.Provider, AppConfig.AI.MaxParallel);
@@ -53,12 +54,12 @@ try {
 				return await FinishAsync(started);
 			}
 		} catch (OperationCanceledException) when (gatewayStart.IsCancellationRequested) {
-			Logger.Error(typeof(Program), $"网关未在 {GatewayStartTimeout.TotalSeconds}s 内就绪，按启动失败处理");
+			Logger.Error(typeof(Program), Localizer.Format("GatewayStartupTimeout", GatewayStartTimeout.TotalSeconds));
 			return await FinishAsync(started);
 		}
 	}
 	started = true;
-	Logger.Info(typeof(Program), "Pengin1011 已启动，输入 help 查看命令，Ctrl+C 退出");
+	Logger.Info(typeof(Program), Localizer.Get("StartedHint"));
 
 	CliDispatcher.StartedAt = DateTimeOffset.Now;
 	_ = CliLoop.RunAsync(() => exitRequested.TrySetResult(), stopCts.Token, () => HostExit.Requested);
@@ -69,7 +70,7 @@ try {
 	}
 	return await FinishAsync(started);
 } catch (Exception e) {
-	Logger.Error(typeof(Program), e, "启动失败");
+	Logger.Error(typeof(Program), e, Localizer.Get("StartupFailed"));
 	return await FinishAsync(started);
 } finally {
 	await HostExit.StopAsync();
@@ -80,7 +81,7 @@ async Task<int> StartupPersistProbeAsync(string baseDir, bool verify) {
 	var probe = RunStartupPersistProbeAsync(baseDir, verify, watchdog.Token);
 	var finished = await Task.WhenAny(probe, Task.Delay(Timeout.Infinite, watchdog.Token));
 	if (finished != probe) {
-		Logger.Error(typeof(Program), "子进程探测未在 2 分钟内结束，强制结束进程");
+		Logger.Error(typeof(Program), "Child process probe did not finish within 2 minutes; forcing process exit");
 		Environment.Exit(6);
 	}
 	return await probe;
@@ -89,7 +90,7 @@ async Task<int> StartupPersistProbeAsync(string baseDir, bool verify) {
 async Task<int> RunStartupPersistProbeAsync(string baseDir, bool verify, CancellationToken ct) {
 	Databases.SetDataDirectoryForTest(baseDir);
 	if (!AppConfig.TryLoad(Path.Combine(baseDir, "config.json"), out var errors)) {
-		Logger.Error(typeof(Program), $"子进程配置加载失败：{string.Join("；", errors)}");
+		Logger.Error(typeof(Program), $"Child process config load failed: {string.Join("; ", errors)}");
 		return 2;
 	}
 	Databases.Init();
@@ -102,18 +103,18 @@ async Task<int> RunStartupPersistProbeAsync(string baseDir, bool verify, Cancell
 		if (run.InitTask == null) continue;
 		try {
 			await run.InitTask.WaitAsync(TimeSpan.FromSeconds(5));
-		} catch (Exception e) {
-			Logger.Error(typeof(Program), e, $"子进程模块初始化未完成：{run.Name}");
-		}
+			} catch (Exception e) {
+				Logger.Error(typeof(Program), e, $"Child process module initialization did not complete: {run.Name}");
+			}
 	}
 	var moduleRun = ModuleHost.Modules.FirstOrDefault(module => module.Name == "FakeModule");
 	if (moduleRun == null) {
-		Logger.Error(typeof(Program), "子进程未装载 FakeModule，无法验证数据库契约");
+		Logger.Error(typeof(Program), "Child process did not load FakeModule; cannot verify the database contract");
 		return 3;
 	}
 	var contextType = moduleRun.Assembly.GetType("Pengin1011.Modules.FakeModule.FakeModuleDbContext");
 	if (contextType == null) {
-		Logger.Error(typeof(Program), "子进程未找到 FakeModuleDbContext");
+		Logger.Error(typeof(Program), "Child process could not find FakeModuleDbContext");
 		return 4;
 	}
 	var open = typeof(Databases).GetMethod(nameof(Databases.Open))!.MakeGenericMethod(contextType);
@@ -122,25 +123,25 @@ async Task<int> RunStartupPersistProbeAsync(string baseDir, bool verify, Cancell
 		ct.ThrowIfCancellationRequested();
 		if (verify) {
 			var names = await context.Database.SqlQuery<string>($"SELECT \"Name\" AS \"Value\" FROM \"Items\"").ToListAsync();
-			if (names.Count != 1 || names[0] != "进程A写入") {
-				Logger.Error(typeof(Program), $"子进程未能读到进程 A 的写入：[{string.Join("、", names)}]");
+			if (names.Count != 1 || names[0] != "ProcessAWrite") {
+				Logger.Error(typeof(Program), $"Child process could not read process A's write: [{string.Join(", ", names)}]");
 				return 5;
 			}
 		} else {
 			var itemType = moduleRun.Assembly.GetType("Pengin1011.Modules.FakeModule.FakeItem");
 			if (itemType == null) {
-				Logger.Error(typeof(Program), "子进程未找到 FakeItem 实体类型");
+				Logger.Error(typeof(Program), "Child process could not find the FakeItem entity type");
 				return 7;
 			}
 			var item = Activator.CreateInstance(itemType)!;
-			itemType.GetProperty("Name")!.SetValue(item, "进程A写入");
+			itemType.GetProperty("Name")!.SetValue(item, "ProcessAWrite");
 			context.Add(item);
 			await context.SaveChangesAsync(ct);
 		}
 	}
 	var report = await HostExit.StopAsync();
 	if (!report.Success) {
-		Logger.Error(typeof(Program), $"子进程退出报告失败：{string.Join("；", report.Failures)}");
+		Logger.Error(typeof(Program), $"Child process exit report failed: {string.Join("; ", report.Failures)}");
 		return 6;
 	}
 	return 0;

@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.Loader;
+using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 using Pengin1011.Core.Modules;
 using Pengin1011.Services.Discord;
@@ -35,13 +36,13 @@ public static class ModuleHost {
 	public static void LoadAll() {
 		lock (Gate) {
 			if (_scanned) {
-				Logger.Info(typeof(ModuleHost), "模块目录已完成扫描，本次启动不再装载新模块");
+				Logger.Info(typeof(ModuleHost), Localizer.Get("ModuleScanAlreadyDone"));
 				return;
 			}
 			_scanned = true;
 		}
 		if (!Directory.Exists(ModuleDirectory)) {
-			Logger.Info(typeof(ModuleHost), $"模块目录不存在（{ModuleDirectory}），框架以零模块运行");
+			Logger.Info(typeof(ModuleHost), Localizer.Format("ModuleDirectoryMissing", ModuleDirectory));
 			return;
 		}
 		var files = Directory.EnumerateFiles(ModuleDirectory, "*.dll", SearchOption.TopDirectoryOnly)
@@ -55,7 +56,7 @@ public static class ModuleHost {
 			try {
 				Adopt(LoadOne(name, file));
 			} catch (Exception e) {
-				Logger.Error(typeof(ModuleHost), e, $"模块加载失败：{file}");
+				Logger.Error(typeof(ModuleHost), e, Localizer.Format("ModuleLoadFailed", file));
 			}
 		}
 	}
@@ -83,8 +84,8 @@ public static class ModuleHost {
 		try {
 			return await task.WaitAsync(StopTimeout);
 		} catch (TimeoutException) {
-			Logger.Error(typeof(ModuleHost), $"模块停止等待超时（{StopTimeout.TotalSeconds}s），实际清理任务保留：{run.Name}");
-			return new ModuleStopResult(run, ModuleStopOutcome.PendingTimeout, "等待超时，实际清理任务仍在运行");
+			Logger.Error(typeof(ModuleHost), Localizer.Format("ModuleStopWaitTimeout", StopTimeout.TotalSeconds, run.Name));
+			return new ModuleStopResult(run, ModuleStopOutcome.PendingTimeout, Localizer.Get("ModuleStopWaitTimeoutReason"));
 		}
 	}
 
@@ -110,12 +111,12 @@ public static class ModuleHost {
 		try {
 			assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(Path.GetFullPath(file));
 		} catch (Exception e) {
-			Logger.Error(typeof(ModuleHost), e, $"模块程序集读取失败：{name}");
+			Logger.Error(typeof(ModuleHost), e, Localizer.Format("ModuleAssemblyReadFailed", name));
 			throw;
 		}
 		lock (Gate) {
 			if (Assemblies.TryGetValue(assembly.FullName ?? name, out var existing) && !ReferenceEquals(existing, assembly)) {
-				throw new InvalidOperationException($"模块程序集身份冲突：{name} 的程序集 {assembly.FullName} 已由另一个文件装载");
+				throw new InvalidOperationException(Localizer.Format("ModuleAssemblyIdentityConflict", name, assembly.FullName));
 			}
 			Assemblies[assembly.FullName ?? name] = assembly;
 		}
@@ -128,18 +129,18 @@ public static class ModuleHost {
 			await run.InitTask!;
 			initOk = true;
 		} catch (OperationCanceledException) when (run.Lifecycle.IsCancellationRequested) {
-			Logger.Info(typeof(ModuleHost), $"模块初始化随生命周期取消：{run.Name}");
+			Logger.Info(typeof(ModuleHost), Localizer.Format("ModuleInitCancelled", run.Name));
 		} catch (Exception e) {
-			Logger.Error(typeof(ModuleHost), e, $"模块初始化失败，已请求唯一停止清理：{run.Name}");
-			run.MarkInitFailed("初始化失败");
+			Logger.Error(typeof(ModuleHost), e, Localizer.Format("ModuleInitFailed", run.Name));
+			run.MarkInitFailed(Localizer.Get("InitFailed"));
 		}
 		if (initOk && InteractionHost.TryMarkModuleReady(run)) {
-			Logger.Info(typeof(ModuleHost), $"模块初始化完成：{run.Name}");
+			Logger.Info(typeof(ModuleHost), Localizer.Format("ModuleInitCompleted", run.Name));
 			return;
 		}
 		var result = await run.GetOrStartStop(ct => run.Runtime.StopAsync(ct));
 		if (!result.Clean) {
-			Logger.Error(typeof(ModuleHost), $"模块 {run.Name} 清理未干净结束（{result.Outcome}）：{result.Reason}");
+			Logger.Error(typeof(ModuleHost), Localizer.Format("ModuleCleanupUnclean", run.Name, result.Outcome, result.Reason));
 		}
 	}
 
@@ -148,11 +149,11 @@ public static class ModuleHost {
 		try {
 			types = assembly.GetTypes();
 		} catch (ReflectionTypeLoadException e) {
-			throw new InvalidOperationException($"模块类型扫描失败：{name}：{string.Join("; ", e.LoaderExceptions.Select(ex => ex?.Message))}");
+			throw new InvalidOperationException(Localizer.Format("ModuleTypeScanFailed", name, string.Join("; ", e.LoaderExceptions.Select(ex => ex?.Message))));
 		}
 		var runtimeTypes = types.Where(type => !type.IsAbstract && !type.IsInterface && typeof(IModuleRuntime).IsAssignableFrom(type)).ToList();
 		if (runtimeTypes.Count != 1) {
-			throw new InvalidOperationException($"模块必须且只能有一个 IModuleRuntime 实现（发现 {runtimeTypes.Count} 个）：{name}");
+			throw new InvalidOperationException(Localizer.Format("ModuleRuntimeCountInvalid", runtimeTypes.Count, name));
 		}
 		return (IModuleRuntime)Activator.CreateInstance(runtimeTypes[0])!;
 	}

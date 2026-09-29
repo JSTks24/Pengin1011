@@ -1,0 +1,599 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<resheader name="resmimetype">
+		<value>text/microsoft-resx</value>
+	</resheader>
+	<resheader name="version">
+		<value>2.0</value>
+	</resheader>
+	<resheader name="reader">
+		<value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+	</resheader>
+	<resheader name="writer">
+		<value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+	</resheader>
+	<data name="ConfigLoaded" xml:space="preserve">
+		<value>配置加载成功 Provider={0} Model={1} MaxParallel={2}</value>
+	</data>
+	<data name="GatewayStartupTimeout" xml:space="preserve">
+		<value>网关未在 {0}s 内就绪，按启动失败处理。</value>
+	</data>
+	<data name="StartedHint" xml:space="preserve">
+		<value>Pengin1011 已启动，输入 help 查看命令，Ctrl+C 退出</value>
+	</data>
+	<data name="StartupFailed" xml:space="preserve">
+		<value>启动失败</value>
+	</data>
+	<data name="ListSeparatorErrors" xml:space="preserve">
+		<value>；</value>
+	</data>
+	<data name="ListSeparatorItems" xml:space="preserve">
+		<value>、</value>
+	</data>
+	<data name="ReloadRemoved" xml:space="preserve">
+		<value>热重载已移除：模块属于当前进程，改动模块后请 exit 退出进程，确认进程结束后替换产物，再用原命令启动</value>
+	</data>
+	<data name="CliHelp" xml:space="preserve">
+		<value>help                 显示本帮助
+status               框架运行概况
+modules              列出已加载模块
+db backup            立即执行全库备份
+db status            查看各数据库状态
+sync                 重新注册当前进程已加载的 Discord 命令树
+exit                 退出框架</value>
+	</data>
+	<data name="CommandTreeSynced" xml:space="preserve">
+		<value>命令树已重新注册</value>
+	</data>
+	<data name="CommandTreeSyncFailed" xml:space="preserve">
+		<value>注册失败：{0}</value>
+	</data>
+	<data name="ExitingNow" xml:space="preserve">
+		<value>正在退出……</value>
+	</data>
+	<data name="UnknownCommand" xml:space="preserve">
+		<value>未知命令：{0}（输入 help 查看命令列表）</value>
+	</data>
+	<data name="CliStatus" xml:space="preserve">
+		<value>运行时长：{0:dd\.hh\:mm\:ss}（启动于 {1:yyyy-MM-dd HH:mm:ss}）
+网关状态：{2}
+AI：{3} / {4}
+模块：{5} 个
+数据库：{6} 个</value>
+	</data>
+	<data name="NoModulesLoaded" xml:space="preserve">
+		<value>当前没有已加载的模块</value>
+	</data>
+	<data name="ModuleListEntry" xml:space="preserve">
+		<value>{0}（{1}，{2}，加载于 {3:HH:mm:ss}）</value>
+	</data>
+	<data name="DbBackupPartial" xml:space="preserve">
+		<value>备份完成（成功 {0}/{1} 库）：
+{2}</value>
+	</data>
+	<data name="DbBackupCompleted" xml:space="preserve">
+		<value>全库备份完成（成功 {0}/{1} 库）</value>
+	</data>
+	<data name="NoDatabases" xml:space="preserve">
+		<value>当前没有任何数据库</value>
+	</data>
+	<data name="DbStatusLine" xml:space="preserve">
+		<value>{0}：{1}，迁移 {2}，最近备份 {3}</value>
+	</data>
+	<data name="DbStatusNoMigration" xml:space="preserve">
+		<value>无记录</value>
+	</data>
+	<data name="DbStatusNoBackup" xml:space="preserve">
+		<value>无</value>
+	</data>
+	<data name="DbUsage" xml:space="preserve">
+		<value>用法：db backup / db status</value>
+	</data>
+	<data name="CliInputDiscarded" xml:space="preserve">
+		<value>停止进行中，丢弃 CLI 输入：{0}</value>
+	</data>
+	<data name="CliCommandFailed" xml:space="preserve">
+		<value>CLI 命令执行失败：{0}</value>
+	</data>
+	<data name="CliCommandError" xml:space="preserve">
+		<value>命令执行失败：{0}</value>
+	</data>
+	<data name="ConfigCreatedFromTemplate" xml:space="preserve">
+		<value>配置文件不存在，已从模板新建：{0}，请填写后重新启动</value>
+	</data>
+	<data name="ConfigTemplateWriteFailed" xml:space="preserve">
+		<value>配置模板落盘失败：{0}</value>
+	</data>
+	<data name="ConfigRootMustBeObject" xml:space="preserve">
+		<value>配置文件根节点必须为 JSON 对象，不能是 null：{0}</value>
+	</data>
+	<data name="ConfigReadFailed" xml:space="preserve">
+		<value>配置文件读取或解析失败：{0}</value>
+	</data>
+	<data name="DiscordTokenRequired" xml:space="preserve">
+		<value>Discord.Token 不能为空</value>
+	</data>
+	<data name="AIProviderRequired" xml:space="preserve">
+		<value>AI.Provider 不能为空（openai / gemini）</value>
+	</data>
+	<data name="AIProviderInvalid" xml:space="preserve">
+		<value>AI.Provider 无效：{0}（仅支持 openai / gemini）</value>
+	</data>
+	<data name="AIMaxParallelInvalid" xml:space="preserve">
+		<value>AI.MaxParallel 必须大于 0，当前 {0}</value>
+	</data>
+	<data name="OpenAIApiKeyRequired" xml:space="preserve">
+		<value>AI.OpenAI.ApiKey 不能为空</value>
+	</data>
+	<data name="OpenAIModelRequired" xml:space="preserve">
+		<value>AI.OpenAI.Model 不能为空</value>
+	</data>
+	<data name="OpenAIBaseUrlRequired" xml:space="preserve">
+		<value>AI.OpenAI.BaseUrl 不能为空</value>
+	</data>
+	<data name="OpenAIBaseUrlInvalid" xml:space="preserve">
+		<value>AI.OpenAI.BaseUrl 不是合法的 HTTP(S) 地址：{0}</value>
+	</data>
+	<data name="OpenAISectionRequired" xml:space="preserve">
+		<value>AI.OpenAI 节未配置（Provider 为 openai 时必填）</value>
+	</data>
+	<data name="GeminiModelRequired" xml:space="preserve">
+		<value>AI.Gemini.Model 不能为空</value>
+	</data>
+	<data name="GeminiAuthExclusive" xml:space="preserve">
+		<value>AI.Gemini 的 ApiKey 与 Project/Location 只能二选一</value>
+	</data>
+	<data name="GeminiAuthIncomplete" xml:space="preserve">
+		<value>AI.Gemini 鉴权不完整：ApiKey 或 Project+Location 二选一</value>
+	</data>
+	<data name="GeminiSectionRequired" xml:space="preserve">
+		<value>AI.Gemini 节未配置（Provider 为 gemini 时必填）</value>
+	</data>
+	<data name="MigrationContractText" xml:space="preserve">
+		<value>凡有持久化需求的模块一律使用 EF Core Migration</value>
+	</data>
+	<data name="DbFileConflict" xml:space="preserve">
+		<value>库文件冲突：{0} 已被 {1} 占用，{2} 无法使用同一文件</value>
+	</data>
+	<data name="DbMigrationContractViolated" xml:space="preserve">
+		<value>数据库契约违约：{0} 没有任何 Migration（{1}）</value>
+	</data>
+	<data name="ReadMigrationIdFailed" xml:space="preserve">
+		<value>读取迁移版本失败：{0}</value>
+	</data>
+	<data name="BackupSkippedBusy" xml:space="preserve">
+		<value>上一轮备份仍在进行，本轮定时备份跳过</value>
+	</data>
+	<data name="ModuleNameDeriveFailed" xml:space="preserve">
+		<value>DbContext 类型名 {0} 无法推导模块名</value>
+	</data>
+	<data name="BackupFailedSeeLog" xml:space="preserve">
+		<value>备份失败，详见错误日志</value>
+	</data>
+	<data name="BackupFailed" xml:space="preserve">
+		<value>备份失败：{0}</value>
+	</data>
+	<data name="CheckpointBusy" xml:space="preserve">
+		<value>退出 checkpoint 报告忙碌：{0}（busy={1}）</value>
+	</data>
+	<data name="CheckpointFailed" xml:space="preserve">
+		<value>退出保存失败：{0}</value>
+	</data>
+	<data name="LogFileWriteFailed" xml:space="preserve">
+		<value>[Logger] 写入日志文件失败：{0}</value>
+	</data>
+	<data name="ControlSectionWaitFailed" xml:space="preserve">
+		<value>等待控制操作退出临界段失败</value>
+	</data>
+	<data name="ControlSectionWaitFailedDetail" xml:space="preserve">
+		<value>等待控制操作退出临界段失败：{0}</value>
+	</data>
+	<data name="ControlSectionTimeout" xml:space="preserve">
+		<value>控制操作未在 {0}s 内退出临界段</value>
+	</data>
+	<data name="ExitOrchestrationFailed" xml:space="preserve">
+		<value>退出编排异常，按不完整退出处理</value>
+	</data>
+	<data name="ExitOrchestrationFailedDetail" xml:space="preserve">
+		<value>退出编排异常：{0}</value>
+	</data>
+	<data name="ExitFailureItem" xml:space="preserve">
+		<value>退出失败：{0}</value>
+	</data>
+	<data name="BlockerControlSection" xml:space="preserve">
+		<value>控制操作未在预算内退出临界段</value>
+	</data>
+	<data name="BlockerBusinessTasks" xml:space="preserve">
+		<value>业务任务未确认结束</value>
+	</data>
+	<data name="BlockerModuleCleanup" xml:space="preserve">
+		<value>模块清理未确认完成</value>
+	</data>
+	<data name="ExitStepComponents" xml:space="preserve">
+		<value>组件清理</value>
+	</data>
+	<data name="ExitStepGatewayStop" xml:space="preserve">
+		<value>网关停止</value>
+	</data>
+	<data name="ExitStepDatabaseFinalize" xml:space="preserve">
+		<value>数据库收尾</value>
+	</data>
+	<data name="ExitStepInteractionRelease" xml:space="preserve">
+		<value>交互服务释放</value>
+	</data>
+	<data name="ExitStepAIRelease" xml:space="preserve">
+		<value>AI 释放</value>
+	</data>
+	<data name="FinalBackupIncomplete" xml:space="preserve">
+		<value>终备份不完整：成功 {0}/{1} 库</value>
+	</data>
+	<data name="InteractionReleaseIncomplete" xml:space="preserve">
+		<value>交互服务释放未完成：{0}</value>
+	</data>
+	<data name="CancelActiveWorkFailed" xml:space="preserve">
+		<value>取消在途业务工作失败</value>
+	</data>
+	<data name="CancelActiveWorkFailedDetail" xml:space="preserve">
+		<value>取消在途业务工作失败：{0}</value>
+	</data>
+	<data name="BusinessTasksUnfinishedAfterCancel" xml:space="preserve">
+		<value>业务任务在取消后仍未全部完成（执行尽力备份，不承诺包含这些任务的后续写入）</value>
+	</data>
+	<data name="ModuleStopUnclean" xml:space="preserve">
+		<value>模块 {0} 停止结果 {1}：{2}</value>
+	</data>
+	<data name="ModuleStopSummaryFailed" xml:space="preserve">
+		<value>模块停止汇总失败</value>
+	</data>
+	<data name="ModuleCleanupSkipped" xml:space="preserve">
+		<value>模块清理未开始（{0}）：运行记录、模块资源与在途任务保持原样，不标记为已停止，也不记为清理失败</value>
+	</data>
+	<data name="ExitStepSkipped" xml:space="preserve">
+		<value>跳过{0}：{1}；相关资源保持原样，由进程结束回收</value>
+	</data>
+	<data name="ExitStepFailed" xml:space="preserve">
+		<value>退出清理步骤失败：{0}</value>
+	</data>
+	<data name="ExitStepFailedDetail" xml:space="preserve">
+		<value>清理步骤 {0} 失败：{1}</value>
+	</data>
+	<data name="InteractionServiceNotInitialized" xml:space="preserve">
+		<value>交互服务尚未初始化</value>
+	</data>
+	<data name="StartupAttachContractError" xml:space="preserve">
+		<value>启动装载契约错误：{0}</value>
+	</data>
+	<data name="StartupRebuildContractError" xml:space="preserve">
+		<value>启动重建后仍存在契约错误：{0}</value>
+	</data>
+	<data name="StartupContractCheckFailed" xml:space="preserve">
+		<value>启动契约检查未通过</value>
+	</data>
+	<data name="ReadySyncFailed" xml:space="preserve">
+		<value>Ready 命令树同步失败</value>
+	</data>
+	<data name="CommandGlobalRegisterCompleted" xml:space="preserve">
+		<value>命令全局注册完成</value>
+	</data>
+	<data name="CommandGlobalRegisterFailed" xml:space="preserve">
+		<value>命令全局注册失败</value>
+	</data>
+	<data name="FrameworkExiting" xml:space="preserve">
+		<value>框架正在退出</value>
+	</data>
+	<data name="ReadySyncStopTimeout" xml:space="preserve">
+		<value>Ready 同步控制任务未在 {0}s 内结束，保留交互服务与当前快照（进行中的命令注册请求不可取消）</value>
+	</data>
+	<data name="ModuleCommandsAttached" xml:space="preserve">
+		<value>模块命令装载完成：{0}（{1} 个交互模块）</value>
+	</data>
+	<data name="ModuleAttachContractFailed" xml:space="preserve">
+		<value>模块装载契约检查未通过：{0}（{1} 项）</value>
+	</data>
+	<data name="ModuleAttachFailed" xml:space="preserve">
+		<value>模块命令装载失败：{0}</value>
+	</data>
+	<data name="ContractRunModeOverride" xml:space="preserve">
+		<value>{0}: 命令 {1} 覆盖了 RunMode={2}，宿主统一使用 Sync 以纳入任务跟踪</value>
+	</data>
+	<data name="ContractMissingAvailability" xml:space="preserve">
+		<value>{0}: 命令模块 {1} 缺少 ModuleAvailability 特性</value>
+	</data>
+	<data name="ContractAvailabilityMismatch" xml:space="preserve">
+		<value>{0}: 模块 {1} 的 ModuleAvailability 指向 {2}，不是本程序集选中的运行类型 {3}</value>
+	</data>
+	<data name="ContractComponentCommands" xml:space="preserve">
+		<value>{0}: 模块 {1} 声明了 {2} 个组件特性命令；宿主不路由组件特性，请使用 Components.Register 运行时注册</value>
+	</data>
+	<data name="DiscordClientNotInitialized" xml:space="preserve">
+		<value>Discord 客户端未初始化</value>
+	</data>
+	<data name="InteractionServiceLog" xml:space="preserve">
+		<value>交互服务日志 {0}: {1}</value>
+	</data>
+	<data name="LogMessageNoText" xml:space="preserve">
+		<value>(无消息)</value>
+	</data>
+	<data name="CommandExecutionException" xml:space="preserve">
+		<value>命令执行异常：{0}</value>
+	</data>
+	<data name="CommandExecutionFailed" xml:space="preserve">
+		<value>命令执行失败：{0} {1}: {2}</value>
+	</data>
+	<data name="ModuleUnavailableNoticeSendFailed" xml:space="preserve">
+		<value>模块暂不可用提示发送失败</value>
+	</data>
+	<data name="ModuleLifecycleCancelFailed" xml:space="preserve">
+		<value>模块生命周期取消失败：{0}</value>
+	</data>
+	<data name="ModuleInitEndedFaulted" xml:space="preserve">
+		<value>模块 {0} 初始化任务以异常结束，清理继续：{1}</value>
+	</data>
+	<data name="CleanupBudgetExceeded" xml:space="preserve">
+		<value>清理预算到期</value>
+	</data>
+	<data name="CleanupBudgetExceededDetail" xml:space="preserve">
+		<value>清理预算到期，清理未确认完成</value>
+	</data>
+	<data name="ModuleCleanupFailed" xml:space="preserve">
+		<value>模块实际清理失败：{0}</value>
+	</data>
+	<data name="ModuleToString" xml:space="preserve">
+		<value>{0}（{1}）</value>
+	</data>
+	<data name="ModuleScanAlreadyDone" xml:space="preserve">
+		<value>模块目录已完成扫描，本次启动不再装载新模块</value>
+	</data>
+	<data name="ModuleDirectoryMissing" xml:space="preserve">
+		<value>模块目录不存在（{0}），框架以零模块运行</value>
+	</data>
+	<data name="ModuleLoadFailed" xml:space="preserve">
+		<value>模块加载失败：{0}</value>
+	</data>
+	<data name="ModuleStopWaitTimeout" xml:space="preserve">
+		<value>模块停止等待超时（{0}s），实际清理任务保留：{1}</value>
+	</data>
+	<data name="ModuleStopWaitTimeoutReason" xml:space="preserve">
+		<value>等待超时，实际清理任务仍在运行</value>
+	</data>
+	<data name="ModuleAssemblyReadFailed" xml:space="preserve">
+		<value>模块程序集读取失败：{0}</value>
+	</data>
+	<data name="ModuleAssemblyIdentityConflict" xml:space="preserve">
+		<value>模块程序集身份冲突：{0} 的程序集 {1} 已由另一个文件装载</value>
+	</data>
+	<data name="ModuleInitCancelled" xml:space="preserve">
+		<value>模块初始化随生命周期取消：{0}</value>
+	</data>
+	<data name="ModuleInitFailed" xml:space="preserve">
+		<value>模块初始化失败，已请求唯一停止清理：{0}</value>
+	</data>
+	<data name="InitFailed" xml:space="preserve">
+		<value>初始化失败</value>
+	</data>
+	<data name="ModuleInitCompleted" xml:space="preserve">
+		<value>模块初始化完成：{0}</value>
+	</data>
+	<data name="ModuleCleanupUnclean" xml:space="preserve">
+		<value>模块 {0} 清理未干净结束（{1}）：{2}</value>
+	</data>
+	<data name="ModuleTypeScanFailed" xml:space="preserve">
+		<value>模块类型扫描失败：{0}：{1}</value>
+	</data>
+	<data name="ModuleRuntimeCountInvalid" xml:space="preserve">
+		<value>模块必须且只能有一个 IModuleRuntime 实现（发现 {0} 个）：{1}</value>
+	</data>
+	<data name="WorkReopenAfterExitRejected" xml:space="preserve">
+		<value>退出关闭后拒绝恢复接单</value>
+	</data>
+	<data name="WorkHandlerFaulted" xml:space="preserve">
+		<value>业务任务异常：{0}.{1}</value>
+	</data>
+	<data name="WorkItemMissingOnComplete" xml:space="preserve">
+		<value>工作条目完成时未在集合中找到（调度状态异常）</value>
+	</data>
+	<data name="ModuleUnavailable" xml:space="preserve">
+		<value>模块暂不可用（未就绪或已停用）</value>
+	</data>
+	<data name="ModuleRunDuplicateRegistration" xml:space="preserve">
+		<value>模块运行记录重复注册：{0}（旧运行对象仍存活，禁止覆盖）</value>
+	</data>
+	<data name="JsonRootMustBeObject" xml:space="preserve">
+		<value>JSON 根节点必须为对象，不能是 null：{0}</value>
+	</data>
+	<data name="JsonWriteFailed" xml:space="preserve">
+		<value>写入 JSON 失败：{0}</value>
+	</data>
+	<data name="JsonTempCleanupFailed" xml:space="preserve">
+		<value>清理 JSON 临时文件失败：{0}</value>
+	</data>
+	<data name="AICallTransientFailure" xml:space="preserve">
+		<value>AI 非流式调用临时失败（第 {0} 次尝试）</value>
+	</data>
+	<data name="AICallFailed" xml:space="preserve">
+		<value>AI 非流式调用失败</value>
+	</data>
+	<data name="AIMaxOutputTokensInvalid" xml:space="preserve">
+		<value>AIRequest.MaxOutputTokens 必须大于 0，当前 {0}</value>
+	</data>
+	<data name="AITemperatureInvalid" xml:space="preserve">
+		<value>AIRequest.Temperature 不能为负数，当前 {0}</value>
+	</data>
+	<data name="AITopPInvalid" xml:space="preserve">
+		<value>AIRequest.TopP 不能为负数，当前 {0}</value>
+	</data>
+	<data name="EndpointModelRequired" xml:space="preserve">
+		<value>指定 Endpoint 覆盖端点时必须同时指定 Model</value>
+	</data>
+	<data name="EndpointBaseUrlInvalid" xml:space="preserve">
+		<value>Endpoint.BaseUrl 必须为 HTTP(S) 地址：{0}</value>
+	</data>
+	<data name="OpenAIEndpointMissingApiKey" xml:space="preserve">
+		<value>OpenAI 端点覆盖缺少 ApiKey</value>
+	</data>
+	<data name="OpenAIEndpointMissingBaseUrl" xml:space="preserve">
+		<value>OpenAI 端点覆盖缺少 BaseUrl</value>
+	</data>
+	<data name="OpenAIEndpointProjectLocationUnsupported" xml:space="preserve">
+		<value>OpenAI 端点覆盖不支持 Project / Location</value>
+	</data>
+	<data name="GeminiEndpointAuthExclusive" xml:space="preserve">
+		<value>Gemini 端点覆盖的 ApiKey 与 Project/Location 只能二选一</value>
+	</data>
+	<data name="GeminiEndpointAuthIncomplete" xml:space="preserve">
+		<value>Gemini 端点覆盖鉴权不完整：ApiKey 或 Project+Location 二选一</value>
+	</data>
+	<data name="AttachmentDownloadFailed" xml:space="preserve">
+		<value>下载附件失败：{0}</value>
+	</data>
+	<data name="ChannelResolveRestFailed" xml:space="preserve">
+		<value>REST 解析频道失败：{0}</value>
+	</data>
+	<data name="CustomIdRequired" xml:space="preserve">
+		<value>customId 不能为空</value>
+	</data>
+	<data name="DisableComponentsFailed" xml:space="preserve">
+		<value>禁用消息组件失败：message={0}</value>
+	</data>
+	<data name="InteractionExpired" xml:space="preserve">
+		<value>该交互已过期</value>
+	</data>
+	<data name="ExpiredNoticeSendFailed" xml:space="preserve">
+		<value>过期提示发送失败</value>
+	</data>
+	<data name="GatewayConnectFailed" xml:space="preserve">
+		<value>Gateway 连接失败</value>
+	</data>
+	<data name="GatewayStopAndLogoutFailed" xml:space="preserve">
+		<value>网关停止与退出登录均失败</value>
+	</data>
+	<data name="DiscordClientLog" xml:space="preserve">
+		<value>Discord 客户端日志 {0}: {1}</value>
+	</data>
+	<data name="KindMessage" xml:space="preserve">
+		<value>消息</value>
+	</data>
+	<data name="KindInteraction" xml:space="preserve">
+		<value>交互</value>
+	</data>
+	<data name="KindGuildAvailable" xml:space="preserve">
+		<value>服务器可用</value>
+	</data>
+	<data name="KindGuildJoined" xml:space="preserve">
+		<value>加入服务器</value>
+	</data>
+	<data name="KindButton" xml:space="preserve">
+		<value>按钮</value>
+	</data>
+	<data name="KindSelectMenu" xml:space="preserve">
+		<value>下拉</value>
+	</data>
+	<data name="WorkRejected" xml:space="preserve">
+		<value>接单拒绝（{0}）：{1}，累计 {2}</value>
+	</data>
+	<data name="RejectedPaused" xml:space="preserve">
+		<value>服务尚未就绪，请稍后重试</value>
+	</data>
+	<data name="RejectedExiting" xml:space="preserve">
+		<value>框架正在退出，请稍后</value>
+	</data>
+	<data name="RejectedBusy" xml:space="preserve">
+		<value>服务忙碌，请稍后重试</value>
+	</data>
+	<data name="RejectionNoticeSendFailed" xml:space="preserve">
+		<value>拒绝接单提示发送失败</value>
+	</data>
+	<data name="GuildLeaveFailed" xml:space="preserve">
+		<value>退出服务器失败：{0}</value>
+	</data>
+	<data name="HistoryBatchReadFailed" xml:space="preserve">
+		<value>读取历史消息批次失败：channel={0} cursor={1}</value>
+	</data>
+	<data name="DeferFailed" xml:space="preserve">
+		<value>Defer 交互失败</value>
+	</data>
+	<data name="FollowupFailed" xml:space="preserve">
+		<value>Followup 交互失败</value>
+	</data>
+	<data name="FollowupFileFailed" xml:space="preserve">
+		<value>Followup 交互文件失败：{0}</value>
+	</data>
+	<data name="EditOriginalFailed" xml:space="preserve">
+		<value>编辑交互原始响应失败</value>
+	</data>
+	<data name="MemberResolveRestFailed" xml:space="preserve">
+		<value>REST 解析成员失败：guild={0} user={1}</value>
+	</data>
+	<data name="RoleRemoveFailed" xml:space="preserve">
+		<value>移除身份组失败：guild={0} user={1} roles=[{2}]</value>
+	</data>
+	<data name="RoleAddFailed" xml:space="preserve">
+		<value>添加身份组失败：guild={0} user={1} roles=[{2}]</value>
+	</data>
+	<data name="MemberDownloadFailed" xml:space="preserve">
+		<value>下载服务器成员失败：guild={0}</value>
+	</data>
+	<data name="MessageSendFailed" xml:space="preserve">
+		<value>发送消息失败：channel={0}</value>
+	</data>
+	<data name="MessageChunkSendFailed" xml:space="preserve">
+		<value>发送续片失败：channel={0} 第 {1}/{2} 片</value>
+	</data>
+	<data name="EmbedSendFailed" xml:space="preserve">
+		<value>发送 Embed 消息失败：channel={0}</value>
+	</data>
+	<data name="FileSendFailed" xml:space="preserve">
+		<value>发送文件消息失败：channel={0} file={1}</value>
+	</data>
+	<data name="MessageEditFailed" xml:space="preserve">
+		<value>编辑消息失败：message={0}</value>
+	</data>
+	<data name="MessageDeleteFailed" xml:space="preserve">
+		<value>删除消息失败：message={0}</value>
+	</data>
+	<data name="MessageForwardFailed" xml:space="preserve">
+		<value>转发消息失败：message={0} destination={1}</value>
+	</data>
+	<data name="UserResolveRestFailed" xml:space="preserve">
+		<value>REST 解析用户失败：{0}</value>
+	</data>
+	<data name="DirectMessageBlocked" xml:space="preserve">
+		<value>私信被拒（对方关闭私信）：user={0}</value>
+	</data>
+	<data name="DirectMessageSendFailed" xml:space="preserve">
+		<value>发送私信失败：user={0}</value>
+	</data>
+	<data name="DirectMessageChunkSendFailed" xml:space="preserve">
+		<value>发送私信续片失败：user={0} 第 {1}/{2} 片</value>
+	</data>
+	<data name="DirectMessageFileSendFailed" xml:space="preserve">
+		<value>发送私信文件失败：user={0} file={1}</value>
+	</data>
+	<data name="MessageFetchFailed" xml:space="preserve">
+		<value>获取消息失败：channel={0} message={1}</value>
+	</data>
+	<data name="StreamTailDeleteFailed" xml:space="preserve">
+		<value>删除流式余帖失败：post={0}</value>
+	</data>
+	<data name="StreamPartialDelivery" xml:space="preserve">
+		<value>流式回复部分送达（{0}/{1} 片），不能作为单帖继续</value>
+	</data>
+	<data name="ThreadJoinFailed" xml:space="preserve">
+		<value>加入子区失败：{0}</value>
+	</data>
+	<data name="ThreadArchiveSetFailed" xml:space="preserve">
+		<value>子区归档状态修改失败：{0} archived={1}</value>
+	</data>
+	<data name="ThreadTagsSetFailed" xml:space="preserve">
+		<value>子区标签修改失败：{0}</value>
+	</data>
+	<data name="ThreadArchiveRestoreFailed" xml:space="preserve">
+		<value>子区归档状态恢复失败：{0}</value>
+	</data>
+	<data name="ActiveThreadsEnumFailed" xml:space="preserve">
+		<value>枚举活跃子区失败：{0}</value>
+	</data>
+	<data name="ArchivedThreadsEnumFailed" xml:space="preserve">
+		<value>枚举归档子区失败：{0}</value>
+	</data>
+</root>

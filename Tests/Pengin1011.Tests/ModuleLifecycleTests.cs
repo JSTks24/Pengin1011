@@ -161,10 +161,10 @@ public sealed class ModuleLifecycleTests {
 			Assert.True(run.InitTask!.IsCompleted);
 			Assert.Equal(ModuleState.Disabled, run.State);
 
-			var log = await ReadLogWhenContainsAsync(logPath, "模块初始化失败");
-			Assert.Contains("模块初始化失败", log);
+			var log = await ReadLogWhenContainsAsync(logPath, L.Prefix("ModuleInitFailed"));
+			Assert.Contains(L.Prefix("ModuleInitFailed"), log);
 			Assert.Contains("初始化故障-测试", log);
-			Assert.Contains("模块实际清理失败", log);
+			Assert.Contains(L.Prefix("ModuleCleanupFailed"), log);
 		} finally {
 			Logger.SetLogPathForTest(null);
 			await RestoreAndResetAsync(run);
@@ -266,7 +266,7 @@ public sealed class ModuleLifecycleTests {
 
 			var result = await stop;
 			Assert.Equal(ModuleStopOutcome.Failed, result.Outcome);
-			Assert.Contains("清理预算到期", result.Reason);
+			Assert.Contains(L.Prefix("CleanupBudgetExceededDetail"), result.Reason);
 			Assert.False(Static<bool>(run, "StopEntryTokenCancelled"));
 			Assert.Equal(1, ModuleProbe.RuntimeStaticInt(run, "StopCount"));
 			Assert.Equal(ModuleState.Disabled, run.State);

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Pengin1011;
 using Pengin1011.Core;
 
@@ -14,18 +15,32 @@ public sealed class CliDispatcherTests {
 		Assert.False(result.ShouldExit);
 	}
 
-	[Fact]
-	public async Task Status_ShowsGatewayAndCounters() {
-		var result = await CliDispatcher.ExecuteAsync("status");
-		Assert.Contains("网关状态", result.Output);
-		Assert.Contains("模块", result.Output);
+	[Theory]
+	[InlineData("en-US")]
+	[InlineData("zh-CN")]
+	public async Task Status_ShowsGatewayAndCounters(string cultureName) {
+		var culture = CultureInfo.GetCultureInfo(cultureName);
+		var originalCulture = CultureInfo.CurrentCulture;
+		var originalUICulture = CultureInfo.CurrentUICulture;
+		CultureInfo.CurrentCulture = culture;
+		CultureInfo.CurrentUICulture = culture;
+		try {
+			var result = await CliDispatcher.ExecuteAsync("status");
+			var statusLines = L.Get("CliStatus").Split('\n');
+			Assert.Contains(statusLines[1].Split('{')[0].TrimEnd(), result.Output);
+			Assert.Contains(statusLines[3].Split('{')[0].TrimEnd(), result.Output);
+			Assert.Contains(statusLines[4].Split('{')[0].TrimEnd(), result.Output);
+		} finally {
+			CultureInfo.CurrentCulture = originalCulture;
+			CultureInfo.CurrentUICulture = originalUICulture;
+		}
 	}
 
 	[Fact]
 	public async Task Modules_WithNoneLoaded() {
 		ModuleHost.ResetForTest();
 		var result = await CliDispatcher.ExecuteAsync("modules");
-		Assert.Contains("没有已加载的模块", result.Output);
+		Assert.Contains(L.Get("NoModulesLoaded"), result.Output);
 	}
 
 	[Fact]
@@ -37,8 +52,7 @@ public sealed class CliDispatcherTests {
 			ModuleHost.LoadAll();
 			var before = ModuleHost.Modules.Select(module => module.Name).ToList();
 			var result = await CliDispatcher.ExecuteAsync("reload all");
-			Assert.Contains("热重载已移除", result.Output);
-			Assert.Contains("启动", result.Output);
+			Assert.Contains(L.Get("ReloadRemoved"), result.Output);
 			Assert.False(result.ShouldExit);
 			Assert.Equal(before, ModuleHost.Modules.Select(module => module.Name));
 			Assert.DoesNotContain(ModuleHost.Modules, module => module.Name == "FakeAdded");
@@ -51,13 +65,13 @@ public sealed class CliDispatcherTests {
 	[Fact]
 	public async Task Db_WithoutSubcommand_UsageHint() {
 		var result = await CliDispatcher.ExecuteAsync("db");
-		Assert.Contains("用法", result.Output);
+		Assert.Contains(L.Get("DbUsage"), result.Output);
 	}
 
 	[Fact]
 	public async Task UnknownCommand_Hinted() {
 		var result = await CliDispatcher.ExecuteAsync("foobar");
-		Assert.Contains("未知命令", result.Output);
+		Assert.Contains(L.Prefix("UnknownCommand"), result.Output);
 	}
 
 	[Fact]

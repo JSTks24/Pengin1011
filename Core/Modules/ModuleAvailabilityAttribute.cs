@@ -1,5 +1,6 @@
 using Discord;
 using Discord.Interactions;
+using Pengin1011.Core.Localization;
 
 namespace Pengin1011.Core.Modules;
 
@@ -16,7 +17,7 @@ public sealed class ModuleAvailabilityAttribute : PreconditionAttribute {
 	public override Task<PreconditionResult> CheckRequirementsAsync(IInteractionContext context, ICommandInfo commandInfo, IServiceProvider services) {
 		var run = ModuleRegistry.RunOf(_runtimeType.Assembly);
 		if (run == null || run.State != ModuleState.Ready) {
-			return Task.FromResult(PreconditionResult.FromError("模块暂不可用（未就绪或已停用）"));
+			return Task.FromResult(PreconditionResult.FromError(Localizer.Get("ModuleUnavailable")));
 		}
 		return Task.FromResult(PreconditionResult.FromSuccess());
 	}

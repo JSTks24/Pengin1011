@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Reflection;
+using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 
 namespace Pengin1011.Core.Modules;
@@ -9,7 +10,7 @@ public static class ModuleRegistry {
 
 	public static void Register(LoadedModule run) {
 		if (Runs.TryGetValue(run.Assembly, out var existing) && !ReferenceEquals(existing, run)) {
-			var message = $"模块运行记录重复注册：{run.Name}（旧运行对象仍存活，禁止覆盖）";
+			var message = Localizer.Format("ModuleRunDuplicateRegistration", run.Name);
 			Logger.Error(typeof(ModuleRegistry), message);
 			throw new InvalidOperationException(message);
 		}

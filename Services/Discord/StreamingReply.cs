@@ -1,6 +1,7 @@
 using System.Text;
 using Discord;
 using Discord.Net;
+using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 
 namespace Pengin1011.Services.Discord;
@@ -147,7 +148,7 @@ public sealed class StreamingReply {
 			} catch (OperationCanceledException) {
 				throw;
 			} catch (Exception e) {
-				Logger.Error(typeof(StreamingReply), e, $"删除流式余帖失败：post={post.Id}");
+				Logger.Error(typeof(StreamingReply), e, Localizer.Format("StreamTailDeleteFailed", post.Id));
 				removed = false;
 			}
 			if (!removed) {
@@ -177,7 +178,7 @@ internal sealed class MessageReplySink : IReplySink {
 		var result = await Messages.SendAsync(_channel, content, ct: ct);
 		if (!result.Success) {
 			if (result.Status == MessageSendStatus.Partial) {
-				Logger.Error(typeof(StreamingReply), $"流式回复部分送达（{result.Sent.Count}/{result.PlannedChunks} 片），不能作为单帖继续");
+				Logger.Error(typeof(StreamingReply), Localizer.Format("StreamPartialDelivery", result.Sent.Count, result.PlannedChunks));
 			}
 			return null;
 		}

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 using Pengin1011.Helper;
 
@@ -90,11 +91,12 @@ public static class AppConfig {
 		if (!File.Exists(path)) {
 			try {
 				if (JsonHelper.EnsureTemplateFile(path, Template)) {
-					Logger.Info(typeof(AppConfig), $"配置文件不存在，已从模板新建：{path}，请填写后重新启动");
-					errors.Add(new ConfigError($"配置文件不存在，已从模板新建：{path}"));
+					var created = Localizer.Format("ConfigCreatedFromTemplate", path);
+					Logger.Info(typeof(AppConfig), created);
+					errors.Add(new ConfigError(created));
 				}
 			} catch (Exception e) {
-				errors.Add(new ConfigError($"配置模板落盘失败：{path}", e));
+				errors.Add(new ConfigError(Localizer.Format("ConfigTemplateWriteFailed", path), e));
 			}
 			return null;
 		}
@@ -102,12 +104,12 @@ public static class AppConfig {
 			using var stream = File.OpenRead(path);
 			var file = JsonSerializer.Deserialize<ConfigFile>(stream, JsonHelper.Options);
 			if (file == null) {
-				errors.Add(new ConfigError($"配置文件根节点必须为 JSON 对象，不能是 null：{path}"));
+				errors.Add(new ConfigError(Localizer.Format("ConfigRootMustBeObject", path)));
 				return null;
 			}
 			return file;
 		} catch (Exception e) {
-			errors.Add(new ConfigError($"配置文件读取或解析失败：{path}", e));
+			errors.Add(new ConfigError(Localizer.Format("ConfigReadFailed", path), e));
 			return null;
 		}
 	}
@@ -117,18 +119,18 @@ public static class AppConfig {
 		ai = new AIConfig();
 
 		var token = (file.Discord?.Token ?? "").Trim();
-		if (token.Length == 0) errors.Add(new ConfigError("Discord.Token 不能为空"));
+		if (token.Length == 0) errors.Add(new ConfigError(Localizer.Get("DiscordTokenRequired")));
 
 		var aiNode = file.AI;
 		var providerText = (aiNode?.Provider ?? "").Trim().ToLowerInvariant();
 		if (providerText.Length == 0) {
-			errors.Add(new ConfigError("AI.Provider 不能为空（openai / gemini）"));
+			errors.Add(new ConfigError(Localizer.Get("AIProviderRequired")));
 		} else if (providerText != "openai" && providerText != "gemini") {
-			errors.Add(new ConfigError($"AI.Provider 无效：{providerText}（仅支持 openai / gemini）"));
+			errors.Add(new ConfigError(Localizer.Format("AIProviderInvalid", providerText)));
 		}
 
 		var maxParallel = aiNode?.MaxParallel ?? 5;
-		if (maxParallel <= 0) errors.Add(new ConfigError($"AI.MaxParallel 必须大于 0，当前 {maxParallel}"));
+		if (maxParallel <= 0) errors.Add(new ConfigError(Localizer.Format("AIMaxParallelInvalid", maxParallel)));
 
 		var openAINode = aiNode?.OpenAI;
 		var openAIKey = (openAINode?.ApiKey ?? "").Trim();
@@ -136,15 +138,15 @@ public static class AppConfig {
 		var openAIModel = (openAINode?.Model ?? "").Trim();
 		var openAITouched = openAINode != null && (openAIKey.Length > 0 || openAIUrl.Length > 0 || openAIModel.Length > 0);
 		if (openAITouched) {
-			if (openAIKey.Length == 0) errors.Add(new ConfigError("AI.OpenAI.ApiKey 不能为空"));
-			if (openAIModel.Length == 0) errors.Add(new ConfigError("AI.OpenAI.Model 不能为空"));
+			if (openAIKey.Length == 0) errors.Add(new ConfigError(Localizer.Get("OpenAIApiKeyRequired")));
+			if (openAIModel.Length == 0) errors.Add(new ConfigError(Localizer.Get("OpenAIModelRequired")));
 			if (openAIUrl.Length == 0) {
-				errors.Add(new ConfigError("AI.OpenAI.BaseUrl 不能为空"));
+				errors.Add(new ConfigError(Localizer.Get("OpenAIBaseUrlRequired")));
 			} else if (!Uri.TryCreate(openAIUrl, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https")) {
-				errors.Add(new ConfigError($"AI.OpenAI.BaseUrl 不是合法的 HTTP(S) 地址：{openAIUrl}"));
+				errors.Add(new ConfigError(Localizer.Format("OpenAIBaseUrlInvalid", openAIUrl)));
 			}
 		}
-		if (providerText == "openai" && !openAITouched) errors.Add(new ConfigError("AI.OpenAI 节未配置（Provider 为 openai 时必填）"));
+		if (providerText == "openai" && !openAITouched) errors.Add(new ConfigError(Localizer.Get("OpenAISectionRequired")));
 
 		var geminiNode = aiNode?.Gemini;
 		var geminiKey = (geminiNode?.ApiKey ?? "").Trim();
@@ -153,16 +155,16 @@ public static class AppConfig {
 		var geminiModel = (geminiNode?.Model ?? "").Trim();
 		var geminiTouched = geminiNode != null && (geminiKey.Length > 0 || geminiProject.Length > 0 || geminiLocation.Length > 0 || geminiModel.Length > 0);
 		if (geminiTouched) {
-			if (geminiModel.Length == 0) errors.Add(new ConfigError("AI.Gemini.Model 不能为空"));
+			if (geminiModel.Length == 0) errors.Add(new ConfigError(Localizer.Get("GeminiModelRequired")));
 			var hasKey = geminiKey.Length > 0;
 			var hasVertex = geminiProject.Length > 0 || geminiLocation.Length > 0;
 			if (hasKey && hasVertex) {
-				errors.Add(new ConfigError("AI.Gemini 的 ApiKey 与 Project/Location 只能二选一"));
+				errors.Add(new ConfigError(Localizer.Get("GeminiAuthExclusive")));
 			} else if (!hasKey && (geminiProject.Length == 0 || geminiLocation.Length == 0)) {
-				errors.Add(new ConfigError("AI.Gemini 鉴权不完整：ApiKey 或 Project+Location 二选一"));
+				errors.Add(new ConfigError(Localizer.Get("GeminiAuthIncomplete")));
 			}
 		}
-		if (providerText == "gemini" && !geminiTouched) errors.Add(new ConfigError("AI.Gemini 节未配置（Provider 为 gemini 时必填）"));
+		if (providerText == "gemini" && !geminiTouched) errors.Add(new ConfigError(Localizer.Get("GeminiSectionRequired")));
 
 		if (errors.Count > 0) return false;
 

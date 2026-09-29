@@ -1,4 +1,5 @@
 using Discord;
+using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 
 namespace Pengin1011.Services.Discord;
@@ -18,7 +19,7 @@ public static class Channels {
 		try {
 			return await client.GetChannelAsync(channelId);
 		} catch (Exception e) {
-			Logger.Error(typeof(Channels), e, $"REST 解析频道失败：{channelId}");
+			Logger.Error(typeof(Channels), e, Localizer.Format("ChannelResolveRestFailed", channelId));
 			return null;
 		}
 	}

@@ -1,3 +1,4 @@
+using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 using Pengin1011.Services.AI;
 using Pengin1011.Services.Discord;
@@ -24,11 +25,11 @@ public sealed class ExitCoordinator {
 		try {
 			controlSectionHeld = await InteractionHost.EnterControlSectionAsync(ControlSectionBudget);
 		} catch (Exception e) {
-			Logger.Error(typeof(ExitCoordinator), e, "等待控制操作退出临界段失败");
-			failures.Add($"等待控制操作退出临界段失败：{e.Message}");
+			Logger.Error(typeof(ExitCoordinator), e, Localizer.Get("ControlSectionWaitFailed"));
+			failures.Add(Localizer.Format("ControlSectionWaitFailedDetail", e.Message));
 		}
 		if (!controlSectionHeld) {
-			var message = $"控制操作未在 {ControlSectionBudget.TotalSeconds}s 内退出临界段";
+			var message = Localizer.Format("ControlSectionTimeout", ControlSectionBudget.TotalSeconds);
 			Logger.Error(typeof(ExitCoordinator), message);
 			failures.Add(message);
 		}
@@ -39,8 +40,8 @@ public sealed class ExitCoordinator {
 			}
 			await RunCoreAsync(failures, controlSectionHeld);
 		} catch (Exception e) {
-			Logger.Error(typeof(ExitCoordinator), e, "退出编排异常，按不完整退出处理");
-			failures.Add($"退出编排异常：{e.Message}");
+			Logger.Error(typeof(ExitCoordinator), e, Localizer.Get("ExitOrchestrationFailed"));
+			failures.Add(Localizer.Format("ExitOrchestrationFailedDetail", e.Message));
 		} finally {
 			if (controlSectionHeld) {
 				InteractionHost.LeaveControlSection();
@@ -48,7 +49,7 @@ public sealed class ExitCoordinator {
 		}
 
 		foreach (var failure in failures) {
-			Logger.Error(typeof(ExitCoordinator), $"退出失败：{failure}");
+			Logger.Error(typeof(ExitCoordinator), Localizer.Format("ExitFailureItem", failure));
 		}
 		return new ExitReport(failures.Count == 0, failures);
 	}
@@ -65,52 +66,52 @@ public sealed class ExitCoordinator {
 
 		var blockers = new List<string>();
 		if (!controlSectionHeld) {
-			blockers.Add("控制操作未在预算内退出临界段");
+			blockers.Add(Localizer.Get("BlockerControlSection"));
 		}
 		if (!businessSettled) {
-			blockers.Add("业务任务未确认结束");
+			blockers.Add(Localizer.Get("BlockerBusinessTasks"));
 		}
 
 		var modulesSettled = blockers.Count == 0 && await StopModulesAsync(failures);
 		if (blockers.Count > 0) {
 			SkipModules(failures, blockers);
 		} else if (!modulesSettled) {
-			blockers.Add("模块清理未确认完成");
+			blockers.Add(Localizer.Get("BlockerModuleCleanup"));
 		}
 
-		await StepAsync(failures, "组件清理", async () => {
+		await StepAsync(failures, Localizer.Get("ExitStepComponents"), async () => {
 			Components.Detach();
 			await Components.ShutdownAsync();
 		});
 
 		if (blockers.Count == 0) {
-			await StepAsync(failures, "网关停止", DiscordGateway.StopAsync);
+			await StepAsync(failures, Localizer.Get("ExitStepGatewayStop"), DiscordGateway.StopAsync);
 		} else {
-			SkipStep(failures, "网关停止", blockers);
+			SkipStep(failures, Localizer.Get("ExitStepGatewayStop"), blockers);
 		}
 
 		BackupResult? backup = null;
-		await StepAsync(failures, "数据库收尾", async () => {
+		await StepAsync(failures, Localizer.Get("ExitStepDatabaseFinalize"), async () => {
 			backup = await Databases.ShutdownAsync();
 		});
 		if (backup != null && !backup.Success) {
-			failures.Add($"终备份不完整：成功 {backup.Succeeded}/{backup.Total} 库");
+			failures.Add(Localizer.Format("FinalBackupIncomplete", backup.Succeeded, backup.Total));
 		}
 
 		if (blockers.Count == 0) {
-			await StepAsync(failures, "交互服务释放", async () => {
+			await StepAsync(failures, Localizer.Get("ExitStepInteractionRelease"), async () => {
 				var release = await InteractionHost.ShutdownAsync();
 				if (!release.Released && release.Reason != null) {
-					failures.Add($"交互服务释放未完成：{release.Reason}");
+					failures.Add(Localizer.Format("InteractionReleaseIncomplete", release.Reason));
 				}
 			});
-			await StepAsync(failures, "AI 释放", () => {
+			await StepAsync(failures, Localizer.Get("ExitStepAIRelease"), () => {
 				AIClient.Shutdown();
 				return Task.CompletedTask;
 			});
 		} else {
-			SkipStep(failures, "交互服务释放", blockers);
-			SkipStep(failures, "AI 释放", blockers);
+			SkipStep(failures, Localizer.Get("ExitStepInteractionRelease"), blockers);
+			SkipStep(failures, Localizer.Get("ExitStepAIRelease"), blockers);
 		}
 	}
 
@@ -121,13 +122,13 @@ public sealed class ExitCoordinator {
 		try {
 			DiscordGateway.CancelActiveWork();
 		} catch (Exception e) {
-			Logger.Error(typeof(ExitCoordinator), e, "取消在途业务工作失败");
-			failures.Add($"取消在途业务工作失败：{e.Message}");
+			Logger.Error(typeof(ExitCoordinator), e, Localizer.Get("CancelActiveWorkFailed"));
+			failures.Add(Localizer.Format("CancelActiveWorkFailedDetail", e.Message));
 		}
 		if (await DrainBusinessOnceAsync(BusinessCancelDrainBudget)) {
 			return true;
 		}
-		failures.Add("业务任务在取消后仍未全部完成（执行尽力备份，不承诺包含这些任务的后续写入）");
+		failures.Add(Localizer.Get("BusinessTasksUnfinishedAfterCancel"));
 		return false;
 	}
 
@@ -142,24 +143,24 @@ public sealed class ExitCoordinator {
 		try {
 			var stopResults = await ModuleHost.StopAllAsync();
 			foreach (var result in stopResults.Where(result => !result.Clean)) {
-				failures.Add($"模块 {result.Module.Name} 停止结果 {result.Outcome}：{result.Reason}");
+				failures.Add(Localizer.Format("ModuleStopUnclean", result.Module.Name, result.Outcome, result.Reason));
 			}
 			return stopResults.All(result => result.Clean);
 		} catch (Exception e) {
-			Logger.Error(typeof(ExitCoordinator), e, "模块停止汇总失败");
-			failures.Add("模块停止汇总失败");
+			Logger.Error(typeof(ExitCoordinator), e, Localizer.Get("ModuleStopSummaryFailed"));
+			failures.Add(Localizer.Get("ModuleStopSummaryFailed"));
 			return false;
 		}
 	}
 
 	private static void SkipModules(List<string> failures, IReadOnlyList<string> blockers) {
-		var message = $"模块清理未开始（{string.Join("、", blockers)}）：运行记录、模块资源与在途任务保持原样，不标记为已停止，也不记为清理失败";
+		var message = Localizer.Format("ModuleCleanupSkipped", string.Join(Localizer.Get("ListSeparatorItems"), blockers));
 		Logger.Error(typeof(ExitCoordinator), message);
 		failures.Add(message);
 	}
 
 	private static void SkipStep(List<string> failures, string name, IReadOnlyList<string> blockers) {
-		var message = $"跳过{name}：{string.Join("、", blockers)}；相关资源保持原样，由进程结束回收";
+		var message = Localizer.Format("ExitStepSkipped", name, string.Join(Localizer.Get("ListSeparatorItems"), blockers));
 		Logger.Error(typeof(ExitCoordinator), message);
 		failures.Add(message);
 	}
@@ -168,8 +169,8 @@ public sealed class ExitCoordinator {
 		try {
 			await step();
 		} catch (Exception e) {
-			Logger.Error(typeof(ExitCoordinator), e, $"退出清理步骤失败：{name}");
-			failures.Add($"清理步骤 {name} 失败：{e.Message}");
+			Logger.Error(typeof(ExitCoordinator), e, Localizer.Format("ExitStepFailed", name));
+			failures.Add(Localizer.Format("ExitStepFailedDetail", name, e.Message));
 		}
 	}
 }

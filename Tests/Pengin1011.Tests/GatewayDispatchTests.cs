@@ -82,8 +82,8 @@ public sealed class GatewayDispatchTests : IDisposable {
 	public void Gateway_PausedRejection_NotReadyText_NoReloadWording() {
 		var interaction = new FakeInteraction("fakeping");
 		DiscordGateway.DispatchInteractionRejectionForTest(WorkRejectReason.Paused, interaction);
-		Assert.Contains(interaction.Responses, static response => response.Contains("服务尚未就绪"));
-		Assert.DoesNotContain(interaction.Responses, static response => response.Contains("重载"));
+		Assert.Contains(interaction.Responses, static response => response.Contains(L.Get("RejectedPaused")));
+		Assert.DoesNotContain(interaction.Responses, static response => response.Contains(L.Get("ReloadRemoved")));
 	}
 
 	[Fact]
@@ -110,7 +110,7 @@ public sealed class GatewayDispatchTests : IDisposable {
 		var interaction = new FakeInteraction("fakeping");
 		DiscordGateway.DispatchInteractionRejectionForTest(WorkRejectReason.Exiting, interaction);
 		await Task.Delay(200);
-		Assert.Contains(interaction.Responses, static response => response.Contains("框架正在退出"));
+		Assert.Contains(interaction.Responses, static response => response.Contains(L.Get("RejectedExiting")));
 	}
 
 	[Fact]

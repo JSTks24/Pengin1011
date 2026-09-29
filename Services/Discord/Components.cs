@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using Discord;
 using Discord.WebSocket;
 using Pengin1011.Core;
+using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 using Pengin1011.Core.Modules;
 
@@ -60,7 +61,7 @@ public static class Components {
 	}
 
 	public static void Register(LoadedModule? owner, string customId, Func<SocketInteraction, CancellationToken, Task> handler, TimeSpan? ttl = null) {
-		if (string.IsNullOrEmpty(customId)) throw new ArgumentException("customId 不能为空", nameof(customId));
+		if (string.IsNullOrEmpty(customId)) throw new ArgumentException(Localizer.Get("CustomIdRequired"), nameof(customId));
 		ArgumentNullException.ThrowIfNull(handler);
 		RegisterEntry(owner, customId, null, handler, ttl);
 	}
@@ -70,7 +71,7 @@ public static class Components {
 	}
 
 	public static void Register<TState>(LoadedModule? owner, string customId, TState state, TimeSpan? ttl, Func<TState, SocketInteraction, CancellationToken, Task> handler) {
-		if (string.IsNullOrEmpty(customId)) throw new ArgumentException("customId 不能为空", nameof(customId));
+		if (string.IsNullOrEmpty(customId)) throw new ArgumentException(Localizer.Get("CustomIdRequired"), nameof(customId));
 		ArgumentNullException.ThrowIfNull(handler);
 		RegisterEntry(owner, customId, state, (interaction, ct) => handler(state, interaction, ct), ttl);
 	}
@@ -163,7 +164,7 @@ public static class Components {
 			await userMessage.ModifyAsync(properties => properties.Components = builder.Build());
 			return true;
 		} catch (Exception e) {
-			Logger.Error(typeof(Components), e, $"禁用消息组件失败：message={message.Id}");
+			Logger.Error(typeof(Components), e, Localizer.Format("DisableComponentsFailed", message.Id));
 			return false;
 		}
 	}
@@ -233,18 +234,18 @@ public static class Components {
 	private static async Task RespondExpiredAsync(SocketInteraction? interaction) {
 		if (interaction == null || interaction.HasResponded) return;
 		try {
-			await interaction.RespondAsync("该交互已过期", ephemeral: true);
+			await interaction.RespondAsync(Localizer.Get("InteractionExpired"), ephemeral: true);
 		} catch (Exception e) {
-			Logger.Error(typeof(Components), e, "过期提示发送失败");
+			Logger.Error(typeof(Components), e, Localizer.Get("ExpiredNoticeSendFailed"));
 		}
 	}
 
 	internal static async Task RespondUnavailableAsync(IDiscordInteraction? interaction) {
 		if (interaction == null || interaction.HasResponded) return;
 		try {
-			await interaction.RespondAsync("模块暂不可用（未就绪或已停用）", ephemeral: true);
+			await interaction.RespondAsync(Localizer.Get("ModuleUnavailable"), ephemeral: true);
 		} catch (Exception e) {
-			Logger.Error(typeof(Components), e, "模块暂不可用提示发送失败");
+			Logger.Error(typeof(Components), e, Localizer.Get("ModuleUnavailableNoticeSendFailed"));
 		}
 	}
 

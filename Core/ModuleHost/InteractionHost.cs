@@ -1,6 +1,7 @@
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 using Pengin1011.Core.Modules;
 using Pengin1011.Services.Discord;
@@ -35,7 +36,7 @@ public static class InteractionHost {
 		}
 	}
 
-	public static InteractionSnapshot Current => _current ?? throw new InvalidOperationException("交互服务尚未初始化");
+	public static InteractionSnapshot Current => _current ?? throw new InvalidOperationException(Localizer.Get("InteractionServiceNotInitialized"));
 
 	public static void RequestShutdown() {
 		lock (ExitSync) {
@@ -75,18 +76,18 @@ public static class InteractionHost {
 			var attach = await AttachAsync(service, runs);
 			var routable = attach.Valid;
 			foreach (var error in attach.Errors) {
-				Logger.Error(typeof(InteractionHost), $"启动装载契约错误：{error}");
+				Logger.Error(typeof(InteractionHost), Localizer.Format("StartupAttachContractError", error));
 			}
 			if (attach.Invalid.Count > 0) {
 				RetireService(service);
 				service = CreateService();
 				var rebuilt = await AttachAsync(service, attach.Valid);
 				foreach (var error in rebuilt.Errors) {
-					Logger.Error(typeof(InteractionHost), $"启动重建后仍存在契约错误：{error}");
+					Logger.Error(typeof(InteractionHost), Localizer.Format("StartupRebuildContractError", error));
 				}
 				routable = rebuilt.Valid;
 				foreach (var run in attach.Invalid.Concat(rebuilt.Invalid)) {
-					run.MarkInitFailed("启动契约检查未通过");
+					run.MarkInitFailed(Localizer.Get("StartupContractCheckFailed"));
 				}
 			}
 			var published = false;
@@ -168,7 +169,7 @@ public static class InteractionHost {
 				}
 			} catch (OperationCanceledException) {
 			} catch (Exception e) {
-				Logger.Error(typeof(InteractionHost), e, "Ready 命令树同步失败");
+				Logger.Error(typeof(InteractionHost), e, Localizer.Get("ReadySyncFailed"));
 			}
 			lock (SyncGate) {
 				if (!_syncPending || Exiting) {
@@ -201,19 +202,19 @@ public static class InteractionHost {
 	public static async Task<string?> RegisterCommandsSafeAsync() {
 		try {
 			await Current.Service.RegisterCommandsGloballyAsync();
-			Logger.Info(typeof(InteractionHost), "命令全局注册完成");
+			Logger.Info(typeof(InteractionHost), Localizer.Get("CommandGlobalRegisterCompleted"));
 			return null;
 		} catch (Exception e) {
-			Logger.Error(typeof(InteractionHost), e, "命令全局注册失败");
+			Logger.Error(typeof(InteractionHost), e, Localizer.Get("CommandGlobalRegisterFailed"));
 			return e.Message;
 		}
 	}
 
 	public static async Task<string?> SyncAsync(CancellationToken ct) {
-		if (Exiting) return "框架正在退出";
+		if (Exiting) return Localizer.Get("FrameworkExiting");
 		await ControlGate.WaitAsync(ct);
 		try {
-			if (Exiting) return "框架正在退出";
+			if (Exiting) return Localizer.Get("FrameworkExiting");
 			return await RegisterCommandsSafeAsync();
 		} finally {
 			ControlGate.Release();
@@ -251,7 +252,7 @@ public static class InteractionHost {
 			try {
 				await syncTask.WaitAsync(SyncStopWaitForTest);
 			} catch (TimeoutException) {
-				var reason = $"Ready 同步控制任务未在 {SyncStopWaitForTest.TotalSeconds}s 内结束，保留交互服务与当前快照（进行中的命令注册请求不可取消）";
+				var reason = Localizer.Format("ReadySyncStopTimeout", SyncStopWaitForTest.TotalSeconds);
 				Logger.Error(typeof(InteractionHost), reason);
 				return new ServiceReleaseResult(false, reason);
 			} catch (OperationCanceledException) {
@@ -281,14 +282,14 @@ public static class InteractionHost {
 				}
 				if (runErrors.Count == 0) {
 					valid.Add(run);
-					Logger.Info(typeof(InteractionHost), $"模块命令装载完成：{run.Name}（{built.Count()} 个交互模块）");
+					Logger.Info(typeof(InteractionHost), Localizer.Format("ModuleCommandsAttached", run.Name, built.Count()));
 				} else {
 					invalid.Add(run);
 					errors.AddRange(runErrors);
-					Logger.Error(typeof(InteractionHost), $"模块装载契约检查未通过：{run.Name}（{runErrors.Count} 项）");
+					Logger.Error(typeof(InteractionHost), Localizer.Format("ModuleAttachContractFailed", run.Name, runErrors.Count));
 				}
 			} catch (Exception e) {
-				Logger.Error(typeof(InteractionHost), e, $"模块命令装载失败：{run.Name}");
+				Logger.Error(typeof(InteractionHost), e, Localizer.Format("ModuleAttachFailed", run.Name));
 				invalid.Add(run);
 				errors.Add($"{run.Name}: {e.Message}");
 			}
@@ -301,20 +302,20 @@ public static class InteractionHost {
 			.Concat(module.ContextCommands.Cast<ICommandInfo>())
 			.Concat(module.ComponentCommands.Cast<ICommandInfo>())) {
 			if (command.RunMode != RunMode.Sync) {
-				errors.Add($"{run.Name}: 命令 {command.Name} 覆盖了 RunMode={command.RunMode}，宿主统一使用 Sync 以纳入任务跟踪");
+				errors.Add(Localizer.Format("ContractRunModeOverride", run.Name, command.Name, command.RunMode));
 			}
 		}
 		var attributes = module.Preconditions.OfType<ModuleAvailabilityAttribute>().ToList();
 		if (!module.IsSubModule && attributes.Count == 0) {
-			errors.Add($"{run.Name}: 命令模块 {module.Name} 缺少 ModuleAvailability 特性");
+			errors.Add(Localizer.Format("ContractMissingAvailability", run.Name, module.Name));
 		}
 		foreach (var attribute in attributes) {
 			if (attribute.RuntimeType != run.Runtime.GetType()) {
-				errors.Add($"{run.Name}: 模块 {module.Name} 的 ModuleAvailability 指向 {attribute.RuntimeType.Name}，不是本程序集选中的运行类型 {run.Runtime.GetType().Name}");
+				errors.Add(Localizer.Format("ContractAvailabilityMismatch", run.Name, module.Name, attribute.RuntimeType.Name, run.Runtime.GetType().Name));
 			}
 		}
 		if (module.ComponentCommands.Count > 0) {
-			errors.Add($"{run.Name}: 模块 {module.Name} 声明了 {module.ComponentCommands.Count} 个组件特性命令；宿主不路由组件特性，请使用 Components.Register 运行时注册");
+			errors.Add(Localizer.Format("ContractComponentCommands", run.Name, module.Name, module.ComponentCommands.Count));
 		}
 		foreach (var sub in module.SubModules) {
 			CheckCommandContracts(sub, errors, run);
@@ -323,7 +324,7 @@ public static class InteractionHost {
 
 	private static InteractionService CreateService() {
 		Interlocked.Increment(ref _createdServices);
-		var client = DiscordGateway.Client ?? throw new InvalidOperationException("Discord 客户端未初始化");
+		var client = DiscordGateway.Client ?? throw new InvalidOperationException(Localizer.Get("DiscordClientNotInitialized"));
 		var interactions = new InteractionService(client.Rest, new InteractionServiceConfig {
 			AutoServiceScopes = false,
 			DefaultRunMode = RunMode.Sync,
@@ -342,7 +343,7 @@ public static class InteractionHost {
 	}
 
 	private static Task OnServiceLog(LogMessage message) {
-		var text = $"交互服务日志 {message.Severity}: {message.Message ?? "(无消息)"}";
+		var text = Localizer.Format("InteractionServiceLog", message.Severity, message.Message ?? Localizer.Get("LogMessageNoText"));
 		if (message.Exception != null) {
 			Logger.Error(typeof(InteractionHost), message.Exception, text);
 		} else if (message.Severity is LogSeverity.Error or LogSeverity.Critical) {
@@ -362,9 +363,9 @@ public static class InteractionHost {
 			return Task.CompletedTask;
 		}
 		if (result is ExecuteResult { Exception: { } executedException }) {
-			Logger.Error(typeof(InteractionHost), executedException, $"命令执行异常：{command?.Name ?? "?"}");
+			Logger.Error(typeof(InteractionHost), executedException, Localizer.Format("CommandExecutionException", command?.Name ?? "?"));
 		} else {
-			Logger.Error(typeof(InteractionHost), $"命令执行失败：{command?.Name ?? "?"} {result.Error}: {result.ErrorReason}");
+			Logger.Error(typeof(InteractionHost), Localizer.Format("CommandExecutionFailed", command?.Name ?? "?", result.Error, result.ErrorReason));
 		}
 		return Task.CompletedTask;
 	}
@@ -373,7 +374,7 @@ public static class InteractionHost {
 		try {
 			await interaction.RespondAsync(reason, ephemeral: true);
 		} catch (Exception e) {
-			Logger.Error(typeof(InteractionHost), e, "模块不可用提示发送失败");
+			Logger.Error(typeof(InteractionHost), e, Localizer.Get("ModuleUnavailableNoticeSendFailed"));
 		}
 	}
 }

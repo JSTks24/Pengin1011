@@ -1,4 +1,5 @@
 using System.Reflection;
+using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 using Pengin1011.Core.Modules;
 
@@ -82,14 +83,14 @@ public sealed class LoadedModule {
 				try {
 					lifecycle.Cancel();
 				} catch (Exception e) {
-					Logger.Error(typeof(LoadedModule), e, $"模块生命周期取消失败：{name}");
+					Logger.Error(typeof(LoadedModule), e, Localizer.Format("ModuleLifecycleCancelFailed", name));
 				}
 				var init = InitTask;
 				if (init != null) {
 					try {
 						await init;
 					} catch (Exception e) {
-						Logger.Info(typeof(LoadedModule), $"模块 {name} 初始化任务以异常结束，清理继续：{e.Message}");
+						Logger.Info(typeof(LoadedModule), Localizer.Format("ModuleInitEndedFaulted", name, e.Message));
 					}
 				}
 				using var budget = new CancellationTokenSource(ModuleHost.CleanupBudget);
@@ -102,11 +103,11 @@ public sealed class LoadedModule {
 				} catch (OperationCanceledException) when (budget.IsCancellationRequested) {
 					lock (SyncGate) {
 						State = ModuleState.Disabled;
-						DisabledReason = "清理预算到期";
+						DisabledReason = Localizer.Get("CleanupBudgetExceeded");
 					}
-					return new ModuleStopResult(this, ModuleStopOutcome.Failed, "清理预算到期，清理未确认完成");
+					return new ModuleStopResult(this, ModuleStopOutcome.Failed, Localizer.Get("CleanupBudgetExceededDetail"));
 				} catch (Exception e) {
-					Logger.Error(typeof(LoadedModule), e, $"模块实际清理失败：{name}");
+					Logger.Error(typeof(LoadedModule), e, Localizer.Format("ModuleCleanupFailed", name));
 					lock (SyncGate) {
 						State = ModuleState.Disabled;
 						DisabledReason = e.Message;
@@ -119,6 +120,6 @@ public sealed class LoadedModule {
 	}
 
 	public override string ToString() {
-		return $"{Name}（{State}）";
+		return Localizer.Format("ModuleToString", Name, State);
 	}
 }

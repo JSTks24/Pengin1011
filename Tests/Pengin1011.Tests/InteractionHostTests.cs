@@ -126,7 +126,7 @@ public sealed class InteractionHostTests {
 			var bareRun = Run("FakeBare");
 			Assert.Equal(ModuleState.Disabled, bareRun.State);
 			Assert.Null(bareRun.InitTask);
-			Assert.Equal("启动契约检查未通过", bareRun.DisabledReason);
+			Assert.Equal(L.Get("StartupContractCheckFailed"), bareRun.DisabledReason);
 			Assert.Equal(retiredBefore + 1, InteractionHost.RetiredServiceCountForTest);
 			Assert.DoesNotContain(InteractionHost.Current.Modules, run => run.Name == "FakeBare");
 			Assert.Equal(3, InteractionHost.Current.Modules.Count);
@@ -490,7 +490,7 @@ public sealed class InteractionHostTests {
 			Assert.Equal(0, InteractionHost.ControlGateCountForTest);
 
 			InteractionHost.RequestShutdown();
-			Assert.Equal("框架正在退出", await InteractionHost.SyncAsync(CancellationToken.None));
+			Assert.Equal(L.Get("FrameworkExiting"), await InteractionHost.SyncAsync(CancellationToken.None));
 			Assert.Equal(0, InteractionHost.ControlGateCountForTest);
 
 			hold.SetResult();
@@ -521,7 +521,7 @@ public sealed class InteractionHostTests {
 			var report = await new ExitCoordinator().RunAsync();
 
 			Assert.False(report.Success);
-			Assert.Contains(report.Failures, failure => failure.Contains("控制操作") && failure.Contains("临界段"));
+			Assert.Contains(report.Failures, failure => failure.Contains(L.Prefix("ControlSectionTimeout")));
 			Assert.Equal(0, InteractionHost.ControlGateCountForTest);
 		} finally {
 			hold.TrySetResult();
@@ -581,7 +581,7 @@ public sealed class InteractionHostTests {
 			var (blockedContext, blockedInteraction) = MakeContext("fakeping");
 			await InteractionHost.Current.Service.ExecuteCommandAsync(blockedContext, EmptyServiceProvider.Instance);
 			Assert.Equal(0, ModuleProbe.CommandStaticInt(gated, "FakeModule", "CommandCount"));
-			Assert.Contains((IReadOnlyList<string>)blockedInteraction.GetType().GetProperty("Responses")!.GetValue(blockedInteraction)!, response => response.Contains("模块暂不可用"));
+			Assert.Contains((IReadOnlyList<string>)blockedInteraction.GetType().GetProperty("Responses")!.GetValue(blockedInteraction)!, response => response.Contains(L.Get("ModuleUnavailable")));
 
 			initGate.SetResult();
 			await ModuleHostTests.WaitStateAsync(gated, ModuleState.Ready);
@@ -612,7 +612,7 @@ public sealed class InteractionHostTests {
 			var (context, interaction) = MakeContext("fakethird");
 			await InteractionHost.Current.Service.ExecuteCommandAsync(context, EmptyServiceProvider.Instance);
 			Assert.Equal(0, ModuleProbe.CommandStaticInt(gated, "FakeThird", "CommandCount"));
-			Assert.Contains((IReadOnlyList<string>)interaction.GetType().GetProperty("Responses")!.GetValue(interaction)!, response => response.Contains("模块暂不可用"));
+			Assert.Contains((IReadOnlyList<string>)interaction.GetType().GetProperty("Responses")!.GetValue(interaction)!, response => response.Contains(L.Get("ModuleUnavailable")));
 		} finally {
 			await TeardownAsync();
 		}

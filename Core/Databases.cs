@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
+using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 
 namespace Pengin1011.Core;
@@ -7,7 +8,6 @@ namespace Pengin1011.Core;
 public static class Databases {
 	private const int BackupIntervalMinutes = 30;
 	private const int BackupKeepCount = 5;
-	private const string MigrationContract = "凡有持久化需求的模块一律使用 EF Core Migration";
 
 	private static readonly object Gate = new();
 	internal static readonly SemaphoreSlim BackupGate = new(1, 1);
@@ -40,7 +40,7 @@ public static class Databases {
 		var owner = FileOwners.GetOrAdd(file, typeof(TContext));
 		if (owner != typeof(TContext)) {
 			context.Dispose();
-			var message = $"库文件冲突：{file} 已被 {owner.Name} 占用，{typeof(TContext).Name} 无法使用同一文件";
+			var message = Localizer.Format("DbFileConflict", file, owner.Name, typeof(TContext).Name);
 			Logger.Error(typeof(Databases), message);
 			throw new InvalidOperationException(message);
 		}
@@ -48,7 +48,7 @@ public static class Databases {
 		KnownFiles.TryAdd(file, 0);
 		if (!context.Database.GetMigrations().Any()) {
 			context.Dispose();
-			var message = $"数据库契约违约：{typeof(TContext).Name} 没有任何 Migration（{MigrationContract}）";
+			var message = Localizer.Format("DbMigrationContractViolated", typeof(TContext).Name, Localizer.Get("MigrationContractText"));
 			Logger.Error(typeof(Databases), message);
 			throw new InvalidOperationException(message);
 		}
@@ -129,7 +129,7 @@ public static class Databases {
 				.OrderByDescending(migration => migration, StringComparer.Ordinal)
 				.FirstOrDefault();
 		} catch (Exception e) {
-			Logger.Error(typeof(Databases), e, $"读取迁移版本失败：{Path.GetFileName(path)}");
+			Logger.Error(typeof(Databases), e, Localizer.Format("ReadMigrationIdFailed", Path.GetFileName(path)));
 			return null;
 		}
 	}
@@ -144,7 +144,7 @@ public static class Databases {
 
 	private static void OnBackupTimer(object? state) {
 		if (!BackupGate.Wait(0)) {
-			Logger.Info(typeof(Databases), "上一轮备份仍在进行，本轮定时备份跳过");
+			Logger.Info(typeof(Databases), Localizer.Get("BackupSkippedBusy"));
 			return;
 		}
 		try {
@@ -162,7 +162,7 @@ public static class Databases {
 			name = name[..^7];
 		}
 		if (name.Length == 0) {
-			var message = $"DbContext 类型名 {contextType.Name} 无法推导模块名";
+			var message = Localizer.Format("ModuleNameDeriveFailed", contextType.Name);
 			Logger.Error(typeof(Databases), message);
 			throw new ArgumentException(message, nameof(contextType));
 		}
@@ -175,7 +175,7 @@ public static class Databases {
 		var succeeded = 0;
 		foreach (var file in files) {
 			if (BackupOne(file)) succeeded++;
-			else failures.Add(new BackupFailure(file, "备份失败，详见错误日志"));
+			else failures.Add(new BackupFailure(file, Localizer.Get("BackupFailedSeeLog")));
 		}
 		return new BackupResult(files.Count, succeeded, failures);
 	}
@@ -194,7 +194,7 @@ public static class Databases {
 			PruneBackups(Path.GetFileNameWithoutExtension(file));
 			return true;
 		} catch (Exception e) {
-			Logger.Error(typeof(Databases), e, $"备份失败：{file}");
+			Logger.Error(typeof(Databases), e, Localizer.Format("BackupFailed", file));
 			return false;
 		}
 	}
@@ -221,10 +221,10 @@ public static class Databases {
 			command.CommandText = "PRAGMA wal_checkpoint(TRUNCATE)";
 			var result = await command.ExecuteScalarAsync();
 			if (result is not (0 or 0L)) {
-				Logger.Error(typeof(Databases), $"退出 checkpoint 报告忙碌：{file}（busy={result}）");
+				Logger.Error(typeof(Databases), Localizer.Format("CheckpointBusy", file, result));
 			}
 		} catch (Exception e) {
-			Logger.Error(typeof(Databases), e, $"退出保存失败：{file}");
+			Logger.Error(typeof(Databases), e, Localizer.Format("CheckpointFailed", file));
 		}
 	}
 

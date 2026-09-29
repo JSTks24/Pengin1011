@@ -1,0 +1,599 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<resheader name="resmimetype">
+		<value>text/microsoft-resx</value>
+	</resheader>
+	<resheader name="version">
+		<value>2.0</value>
+	</resheader>
+	<resheader name="reader">
+		<value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+	</resheader>
+	<resheader name="writer">
+		<value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+	</resheader>
+	<data name="ConfigLoaded" xml:space="preserve">
+		<value>Configuration loaded Provider={0} Model={1} MaxParallel={2}</value>
+	</data>
+	<data name="GatewayStartupTimeout" xml:space="preserve">
+		<value>Gateway did not become ready within {0}s; startup failed.</value>
+	</data>
+	<data name="StartedHint" xml:space="preserve">
+		<value>Pengin1011 started; type help for commands, Ctrl+C to exit</value>
+	</data>
+	<data name="StartupFailed" xml:space="preserve">
+		<value>Startup failed</value>
+	</data>
+	<data name="ListSeparatorErrors" xml:space="preserve">
+		<value>; </value>
+	</data>
+	<data name="ListSeparatorItems" xml:space="preserve">
+		<value>, </value>
+	</data>
+	<data name="ReloadRemoved" xml:space="preserve">
+		<value>Hot reload has been removed: modules live in this process. Exit, confirm the process has ended, replace the build output, then start again with the original command</value>
+	</data>
+	<data name="CliHelp" xml:space="preserve">
+		<value>help                 Show this help
+status               Framework overview
+modules              List loaded modules
+db backup            Run a full database backup now
+db status            Show per-database status
+sync                 Re-register the Discord command tree loaded in this process
+exit                 Exit the framework</value>
+	</data>
+	<data name="CommandTreeSynced" xml:space="preserve">
+		<value>Command tree re-registered</value>
+	</data>
+	<data name="CommandTreeSyncFailed" xml:space="preserve">
+		<value>Registration failed: {0}</value>
+	</data>
+	<data name="ExitingNow" xml:space="preserve">
+		<value>Exiting…</value>
+	</data>
+	<data name="UnknownCommand" xml:space="preserve">
+		<value>Unknown command: {0} (type help to see the command list)</value>
+	</data>
+	<data name="CliStatus" xml:space="preserve">
+		<value>Uptime: {0:dd\.hh\:mm\:ss} (started at {1:yyyy-MM-dd HH:mm:ss})
+Gateway state: {2}
+AI: {3} / {4}
+Modules: {5}
+Databases: {6}</value>
+	</data>
+	<data name="NoModulesLoaded" xml:space="preserve">
+		<value>No modules loaded</value>
+	</data>
+	<data name="ModuleListEntry" xml:space="preserve">
+		<value>{0} ({1}, {2}, loaded at {3:HH:mm:ss})</value>
+	</data>
+	<data name="DbBackupPartial" xml:space="preserve">
+		<value>Backup finished ({0}/{1} databases succeeded):
+{2}</value>
+	</data>
+	<data name="DbBackupCompleted" xml:space="preserve">
+		<value>Full database backup finished ({0}/{1} databases succeeded)</value>
+	</data>
+	<data name="NoDatabases" xml:space="preserve">
+		<value>No databases</value>
+	</data>
+	<data name="DbStatusLine" xml:space="preserve">
+		<value>{0}: {1}, migration {2}, last backup {3}</value>
+	</data>
+	<data name="DbStatusNoMigration" xml:space="preserve">
+		<value>none recorded</value>
+	</data>
+	<data name="DbStatusNoBackup" xml:space="preserve">
+		<value>never</value>
+	</data>
+	<data name="DbUsage" xml:space="preserve">
+		<value>Usage: db backup / db status</value>
+	</data>
+	<data name="CliInputDiscarded" xml:space="preserve">
+		<value>Shutdown in progress; discarding CLI input: {0}</value>
+	</data>
+	<data name="CliCommandFailed" xml:space="preserve">
+		<value>CLI command failed: {0}</value>
+	</data>
+	<data name="CliCommandError" xml:space="preserve">
+		<value>Command failed: {0}</value>
+	</data>
+	<data name="ConfigCreatedFromTemplate" xml:space="preserve">
+		<value>Config file not found; created from template: {0}. Fill it in and restart</value>
+	</data>
+	<data name="ConfigTemplateWriteFailed" xml:space="preserve">
+		<value>Failed to write the config template: {0}</value>
+	</data>
+	<data name="ConfigRootMustBeObject" xml:space="preserve">
+		<value>Config file root must be a JSON object, not null: {0}</value>
+	</data>
+	<data name="ConfigReadFailed" xml:space="preserve">
+		<value>Failed to read or parse the config file: {0}</value>
+	</data>
+	<data name="DiscordTokenRequired" xml:space="preserve">
+		<value>Discord.Token must not be empty</value>
+	</data>
+	<data name="AIProviderRequired" xml:space="preserve">
+		<value>AI.Provider must not be empty (openai / gemini)</value>
+	</data>
+	<data name="AIProviderInvalid" xml:space="preserve">
+		<value>AI.Provider invalid: {0} (only openai / gemini are supported)</value>
+	</data>
+	<data name="AIMaxParallelInvalid" xml:space="preserve">
+		<value>AI.MaxParallel must be greater than 0, current value {0}</value>
+	</data>
+	<data name="OpenAIApiKeyRequired" xml:space="preserve">
+		<value>AI.OpenAI.ApiKey must not be empty</value>
+	</data>
+	<data name="OpenAIModelRequired" xml:space="preserve">
+		<value>AI.OpenAI.Model must not be empty</value>
+	</data>
+	<data name="OpenAIBaseUrlRequired" xml:space="preserve">
+		<value>AI.OpenAI.BaseUrl must not be empty</value>
+	</data>
+	<data name="OpenAIBaseUrlInvalid" xml:space="preserve">
+		<value>AI.OpenAI.BaseUrl is not a valid HTTP(S) URL: {0}</value>
+	</data>
+	<data name="OpenAISectionRequired" xml:space="preserve">
+		<value>AI.OpenAI section not configured (required when Provider is openai)</value>
+	</data>
+	<data name="GeminiModelRequired" xml:space="preserve">
+		<value>AI.Gemini.Model must not be empty</value>
+	</data>
+	<data name="GeminiAuthExclusive" xml:space="preserve">
+		<value>AI.Gemini: ApiKey and Project/Location are mutually exclusive</value>
+	</data>
+	<data name="GeminiAuthIncomplete" xml:space="preserve">
+		<value>AI.Gemini authentication incomplete: provide ApiKey or Project+Location</value>
+	</data>
+	<data name="GeminiSectionRequired" xml:space="preserve">
+		<value>AI.Gemini section not configured (required when Provider is gemini)</value>
+	</data>
+	<data name="MigrationContractText" xml:space="preserve">
+		<value>Modules requiring persistence must all use EF Core migrations</value>
+	</data>
+	<data name="DbFileConflict" xml:space="preserve">
+		<value>Database file conflict: {0} is already owned by {1}; {2} cannot use the same file</value>
+	</data>
+	<data name="DbMigrationContractViolated" xml:space="preserve">
+		<value>Database contract violation: {0} has no migrations ({1})</value>
+	</data>
+	<data name="ReadMigrationIdFailed" xml:space="preserve">
+		<value>Failed to read the applied migration: {0}</value>
+	</data>
+	<data name="BackupSkippedBusy" xml:space="preserve">
+		<value>Previous backup still running; skipping this scheduled round</value>
+	</data>
+	<data name="ModuleNameDeriveFailed" xml:space="preserve">
+		<value>Cannot derive a module name from DbContext type name {0}</value>
+	</data>
+	<data name="BackupFailedSeeLog" xml:space="preserve">
+		<value>Backup failed; see the error log for details</value>
+	</data>
+	<data name="BackupFailed" xml:space="preserve">
+		<value>Backup failed: {0}</value>
+	</data>
+	<data name="CheckpointBusy" xml:space="preserve">
+		<value>Exit checkpoint reported busy: {0} (busy={1})</value>
+	</data>
+	<data name="CheckpointFailed" xml:space="preserve">
+		<value>Exit save failed: {0}</value>
+	</data>
+	<data name="LogFileWriteFailed" xml:space="preserve">
+		<value>[Logger] Failed to write log file: {0}</value>
+	</data>
+	<data name="ControlSectionWaitFailed" xml:space="preserve">
+		<value>Failed to wait for control operations to leave the control section</value>
+	</data>
+	<data name="ControlSectionWaitFailedDetail" xml:space="preserve">
+		<value>Failed to wait for control operations to leave the control section: {0}</value>
+	</data>
+	<data name="ControlSectionTimeout" xml:space="preserve">
+		<value>Control operations did not leave the control section within {0}s</value>
+	</data>
+	<data name="ExitOrchestrationFailed" xml:space="preserve">
+		<value>Exit orchestration threw; treating exit as incomplete</value>
+	</data>
+	<data name="ExitOrchestrationFailedDetail" xml:space="preserve">
+		<value>Exit orchestration threw: {0}</value>
+	</data>
+	<data name="ExitFailureItem" xml:space="preserve">
+		<value>Exit failure: {0}</value>
+	</data>
+	<data name="BlockerControlSection" xml:space="preserve">
+		<value>Control operations did not leave the control section within budget</value>
+	</data>
+	<data name="BlockerBusinessTasks" xml:space="preserve">
+		<value>Business tasks not confirmed finished</value>
+	</data>
+	<data name="BlockerModuleCleanup" xml:space="preserve">
+		<value>Module cleanup not confirmed complete</value>
+	</data>
+	<data name="ExitStepComponents" xml:space="preserve">
+		<value>Components cleanup</value>
+	</data>
+	<data name="ExitStepGatewayStop" xml:space="preserve">
+		<value>Gateway stop</value>
+	</data>
+	<data name="ExitStepDatabaseFinalize" xml:space="preserve">
+		<value>Database finalization</value>
+	</data>
+	<data name="ExitStepInteractionRelease" xml:space="preserve">
+		<value>Interaction service release</value>
+	</data>
+	<data name="ExitStepAIRelease" xml:space="preserve">
+		<value>AI release</value>
+	</data>
+	<data name="FinalBackupIncomplete" xml:space="preserve">
+		<value>Final backup incomplete: {0}/{1} databases succeeded</value>
+	</data>
+	<data name="InteractionReleaseIncomplete" xml:space="preserve">
+		<value>Interaction service release incomplete: {0}</value>
+	</data>
+	<data name="CancelActiveWorkFailed" xml:space="preserve">
+		<value>Failed to cancel in-flight business work</value>
+	</data>
+	<data name="CancelActiveWorkFailedDetail" xml:space="preserve">
+		<value>Failed to cancel in-flight business work: {0}</value>
+	</data>
+	<data name="BusinessTasksUnfinishedAfterCancel" xml:space="preserve">
+		<value>Business tasks still unfinished after cancellation (best-effort backup runs; later writes from those tasks are not guaranteed to be included)</value>
+	</data>
+	<data name="ModuleStopUnclean" xml:space="preserve">
+		<value>Module {0} stop result {1}: {2}</value>
+	</data>
+	<data name="ModuleStopSummaryFailed" xml:space="preserve">
+		<value>Failed to summarize module stops</value>
+	</data>
+	<data name="ModuleCleanupSkipped" xml:space="preserve">
+		<value>Module cleanup not started ({0}): run records, module resources and in-flight tasks stay as-is; not marked stopped and not counted as cleanup failure</value>
+	</data>
+	<data name="ExitStepSkipped" xml:space="preserve">
+		<value>Skipped {0}: {1}; related resources stay as-is and are reclaimed at process exit</value>
+	</data>
+	<data name="ExitStepFailed" xml:space="preserve">
+		<value>Exit cleanup step failed: {0}</value>
+	</data>
+	<data name="ExitStepFailedDetail" xml:space="preserve">
+		<value>Cleanup step {0} failed: {1}</value>
+	</data>
+	<data name="InteractionServiceNotInitialized" xml:space="preserve">
+		<value>Interaction service not yet initialized</value>
+	</data>
+	<data name="StartupAttachContractError" xml:space="preserve">
+		<value>Startup attach contract error: {0}</value>
+	</data>
+	<data name="StartupRebuildContractError" xml:space="preserve">
+		<value>Contract errors remain after startup rebuild: {0}</value>
+	</data>
+	<data name="StartupContractCheckFailed" xml:space="preserve">
+		<value>Startup contract check failed</value>
+	</data>
+	<data name="ReadySyncFailed" xml:space="preserve">
+		<value>Ready command-tree sync failed</value>
+	</data>
+	<data name="CommandGlobalRegisterCompleted" xml:space="preserve">
+		<value>Global command registration completed</value>
+	</data>
+	<data name="CommandGlobalRegisterFailed" xml:space="preserve">
+		<value>Global command registration failed</value>
+	</data>
+	<data name="FrameworkExiting" xml:space="preserve">
+		<value>Framework is exiting</value>
+	</data>
+	<data name="ReadySyncStopTimeout" xml:space="preserve">
+		<value>Ready sync control task did not finish within {0}s; keeping the interaction service and current snapshot (in-flight command registration requests cannot be cancelled)</value>
+	</data>
+	<data name="ModuleCommandsAttached" xml:space="preserve">
+		<value>Module commands attached: {0} ({1} interaction modules)</value>
+	</data>
+	<data name="ModuleAttachContractFailed" xml:space="preserve">
+		<value>Module attach contract check failed: {0} ({1} issues)</value>
+	</data>
+	<data name="ModuleAttachFailed" xml:space="preserve">
+		<value>Module command attach failed: {0}</value>
+	</data>
+	<data name="ContractRunModeOverride" xml:space="preserve">
+		<value>{0}: command {1} overrides RunMode={2}; the host enforces Sync so work stays tracked</value>
+	</data>
+	<data name="ContractMissingAvailability" xml:space="preserve">
+		<value>{0}: command module {1} is missing the ModuleAvailability attribute</value>
+	</data>
+	<data name="ContractAvailabilityMismatch" xml:space="preserve">
+		<value>{0}: ModuleAvailability of module {1} points to {2}, not the selected runtime type {3} of this assembly</value>
+	</data>
+	<data name="ContractComponentCommands" xml:space="preserve">
+		<value>{0}: module {1} declares {2} component-attribute commands; the host does not route component attributes, register at runtime with Components.Register</value>
+	</data>
+	<data name="DiscordClientNotInitialized" xml:space="preserve">
+		<value>Discord client not initialized</value>
+	</data>
+	<data name="InteractionServiceLog" xml:space="preserve">
+		<value>Interaction service log {0}: {1}</value>
+	</data>
+	<data name="LogMessageNoText" xml:space="preserve">
+		<value>(no message)</value>
+	</data>
+	<data name="CommandExecutionException" xml:space="preserve">
+		<value>Command execution exception: {0}</value>
+	</data>
+	<data name="CommandExecutionFailed" xml:space="preserve">
+		<value>Command execution failed: {0} {1}: {2}</value>
+	</data>
+	<data name="ModuleUnavailableNoticeSendFailed" xml:space="preserve">
+		<value>Failed to send the module-unavailable notice</value>
+	</data>
+	<data name="ModuleLifecycleCancelFailed" xml:space="preserve">
+		<value>Failed to cancel the module lifecycle: {0}</value>
+	</data>
+	<data name="ModuleInitEndedFaulted" xml:space="preserve">
+		<value>Module {0} init task ended with an exception; cleanup continues: {1}</value>
+	</data>
+	<data name="CleanupBudgetExceeded" xml:space="preserve">
+		<value>Cleanup budget expired</value>
+	</data>
+	<data name="CleanupBudgetExceededDetail" xml:space="preserve">
+		<value>Cleanup budget expired; cleanup not confirmed complete</value>
+	</data>
+	<data name="ModuleCleanupFailed" xml:space="preserve">
+		<value>Module cleanup failed: {0}</value>
+	</data>
+	<data name="ModuleToString" xml:space="preserve">
+		<value>{0} ({1})</value>
+	</data>
+	<data name="ModuleScanAlreadyDone" xml:space="preserve">
+		<value>Module directory already scanned; no new modules will be loaded on this startup</value>
+	</data>
+	<data name="ModuleDirectoryMissing" xml:space="preserve">
+		<value>Module directory does not exist ({0}); the framework runs with zero modules</value>
+	</data>
+	<data name="ModuleLoadFailed" xml:space="preserve">
+		<value>Module load failed: {0}</value>
+	</data>
+	<data name="ModuleStopWaitTimeout" xml:space="preserve">
+		<value>Module stop wait timed out ({0}s); the actual cleanup task keeps running: {1}</value>
+	</data>
+	<data name="ModuleStopWaitTimeoutReason" xml:space="preserve">
+		<value>Wait timed out; the actual cleanup task is still running</value>
+	</data>
+	<data name="ModuleAssemblyReadFailed" xml:space="preserve">
+		<value>Failed to read the module assembly: {0}</value>
+	</data>
+	<data name="ModuleAssemblyIdentityConflict" xml:space="preserve">
+		<value>Module assembly identity conflict: assembly {1} of {0} is already loaded from another file</value>
+	</data>
+	<data name="ModuleInitCancelled" xml:space="preserve">
+		<value>Module initialization cancelled with its lifecycle: {0}</value>
+	</data>
+	<data name="ModuleInitFailed" xml:space="preserve">
+		<value>Module initialization failed; single stop cleanup requested: {0}</value>
+	</data>
+	<data name="InitFailed" xml:space="preserve">
+		<value>Initialization failed</value>
+	</data>
+	<data name="ModuleInitCompleted" xml:space="preserve">
+		<value>Module initialization completed: {0}</value>
+	</data>
+	<data name="ModuleCleanupUnclean" xml:space="preserve">
+		<value>Module {0} cleanup did not finish cleanly ({1}): {2}</value>
+	</data>
+	<data name="ModuleTypeScanFailed" xml:space="preserve">
+		<value>Module type scan failed: {0}: {1}</value>
+	</data>
+	<data name="ModuleRuntimeCountInvalid" xml:space="preserve">
+		<value>Module must have exactly one IModuleRuntime implementation (found {0}): {1}</value>
+	</data>
+	<data name="WorkReopenAfterExitRejected" xml:space="preserve">
+		<value>Refusing to reopen after exit close</value>
+	</data>
+	<data name="WorkHandlerFaulted" xml:space="preserve">
+		<value>Business task faulted: {0}.{1}</value>
+	</data>
+	<data name="WorkItemMissingOnComplete" xml:space="preserve">
+		<value>Work item not found in the collection on completion (scheduler state inconsistent)</value>
+	</data>
+	<data name="ModuleUnavailable" xml:space="preserve">
+		<value>Module is unavailable (not ready or stopped)</value>
+	</data>
+	<data name="ModuleRunDuplicateRegistration" xml:space="preserve">
+		<value>Duplicate module run registration: {0} (the previous run object is still alive; overwriting is forbidden)</value>
+	</data>
+	<data name="JsonRootMustBeObject" xml:space="preserve">
+		<value>JSON root must be an object, not null: {0}</value>
+	</data>
+	<data name="JsonWriteFailed" xml:space="preserve">
+		<value>Failed to write JSON: {0}</value>
+	</data>
+	<data name="JsonTempCleanupFailed" xml:space="preserve">
+		<value>Failed to clean up the JSON temp file: {0}</value>
+	</data>
+	<data name="AICallTransientFailure" xml:space="preserve">
+		<value>AI non-streaming call transient failure (attempt {0})</value>
+	</data>
+	<data name="AICallFailed" xml:space="preserve">
+		<value>AI non-streaming call failed</value>
+	</data>
+	<data name="AIMaxOutputTokensInvalid" xml:space="preserve">
+		<value>AIRequest.MaxOutputTokens must be greater than 0, current value {0}</value>
+	</data>
+	<data name="AITemperatureInvalid" xml:space="preserve">
+		<value>AIRequest.Temperature must not be negative, current value {0}</value>
+	</data>
+	<data name="AITopPInvalid" xml:space="preserve">
+		<value>AIRequest.TopP must not be negative, current value {0}</value>
+	</data>
+	<data name="EndpointModelRequired" xml:space="preserve">
+		<value>Model must be specified when overriding the endpoint with Endpoint</value>
+	</data>
+	<data name="EndpointBaseUrlInvalid" xml:space="preserve">
+		<value>Endpoint.BaseUrl must be an HTTP(S) URL: {0}</value>
+	</data>
+	<data name="OpenAIEndpointMissingApiKey" xml:space="preserve">
+		<value>OpenAI endpoint override is missing ApiKey</value>
+	</data>
+	<data name="OpenAIEndpointMissingBaseUrl" xml:space="preserve">
+		<value>OpenAI endpoint override is missing BaseUrl</value>
+	</data>
+	<data name="OpenAIEndpointProjectLocationUnsupported" xml:space="preserve">
+		<value>OpenAI endpoint override does not support Project / Location</value>
+	</data>
+	<data name="GeminiEndpointAuthExclusive" xml:space="preserve">
+		<value>Gemini endpoint override: ApiKey and Project/Location are mutually exclusive</value>
+	</data>
+	<data name="GeminiEndpointAuthIncomplete" xml:space="preserve">
+		<value>Gemini endpoint override authentication incomplete: provide ApiKey or Project+Location</value>
+	</data>
+	<data name="AttachmentDownloadFailed" xml:space="preserve">
+		<value>Failed to download the attachment: {0}</value>
+	</data>
+	<data name="ChannelResolveRestFailed" xml:space="preserve">
+		<value>Failed to resolve the channel via REST: {0}</value>
+	</data>
+	<data name="CustomIdRequired" xml:space="preserve">
+		<value>customId must not be empty</value>
+	</data>
+	<data name="DisableComponentsFailed" xml:space="preserve">
+		<value>Failed to disable message components: message={0}</value>
+	</data>
+	<data name="InteractionExpired" xml:space="preserve">
+		<value>This interaction has expired</value>
+	</data>
+	<data name="ExpiredNoticeSendFailed" xml:space="preserve">
+		<value>Failed to send the expiry notice</value>
+	</data>
+	<data name="GatewayConnectFailed" xml:space="preserve">
+		<value>Gateway connection failed</value>
+	</data>
+	<data name="GatewayStopAndLogoutFailed" xml:space="preserve">
+		<value>Gateway stop and logout both failed</value>
+	</data>
+	<data name="DiscordClientLog" xml:space="preserve">
+		<value>Discord client log {0}: {1}</value>
+	</data>
+	<data name="KindMessage" xml:space="preserve">
+		<value>message</value>
+	</data>
+	<data name="KindInteraction" xml:space="preserve">
+		<value>interaction</value>
+	</data>
+	<data name="KindGuildAvailable" xml:space="preserve">
+		<value>guild available</value>
+	</data>
+	<data name="KindGuildJoined" xml:space="preserve">
+		<value>guild joined</value>
+	</data>
+	<data name="KindButton" xml:space="preserve">
+		<value>button</value>
+	</data>
+	<data name="KindSelectMenu" xml:space="preserve">
+		<value>select menu</value>
+	</data>
+	<data name="WorkRejected" xml:space="preserve">
+		<value>Work rejected ({0}): {1}, total {2}</value>
+	</data>
+	<data name="RejectedPaused" xml:space="preserve">
+		<value>Service not ready yet; please try again later</value>
+	</data>
+	<data name="RejectedExiting" xml:space="preserve">
+		<value>Framework is exiting; please try again later</value>
+	</data>
+	<data name="RejectedBusy" xml:space="preserve">
+		<value>Service busy; please try again later</value>
+	</data>
+	<data name="RejectionNoticeSendFailed" xml:space="preserve">
+		<value>Failed to send the rejection notice</value>
+	</data>
+	<data name="GuildLeaveFailed" xml:space="preserve">
+		<value>Failed to leave the guild: {0}</value>
+	</data>
+	<data name="HistoryBatchReadFailed" xml:space="preserve">
+		<value>Failed to read a history message batch: channel={0} cursor={1}</value>
+	</data>
+	<data name="DeferFailed" xml:space="preserve">
+		<value>Defer interaction failed</value>
+	</data>
+	<data name="FollowupFailed" xml:space="preserve">
+		<value>Followup interaction failed</value>
+	</data>
+	<data name="FollowupFileFailed" xml:space="preserve">
+		<value>Followup file interaction failed: {0}</value>
+	</data>
+	<data name="EditOriginalFailed" xml:space="preserve">
+		<value>Failed to edit the original interaction response</value>
+	</data>
+	<data name="MemberResolveRestFailed" xml:space="preserve">
+		<value>Failed to resolve the member via REST: guild={0} user={1}</value>
+	</data>
+	<data name="RoleRemoveFailed" xml:space="preserve">
+		<value>Failed to remove roles: guild={0} user={1} roles=[{2}]</value>
+	</data>
+	<data name="RoleAddFailed" xml:space="preserve">
+		<value>Failed to add roles: guild={0} user={1} roles=[{2}]</value>
+	</data>
+	<data name="MemberDownloadFailed" xml:space="preserve">
+		<value>Failed to download guild members: guild={0}</value>
+	</data>
+	<data name="MessageSendFailed" xml:space="preserve">
+		<value>Failed to send the message: channel={0}</value>
+	</data>
+	<data name="MessageChunkSendFailed" xml:space="preserve">
+		<value>Failed to send a message chunk: channel={0} chunk {1}/{2}</value>
+	</data>
+	<data name="EmbedSendFailed" xml:space="preserve">
+		<value>Failed to send the embed message: channel={0}</value>
+	</data>
+	<data name="FileSendFailed" xml:space="preserve">
+		<value>Failed to send the file message: channel={0} file={1}</value>
+	</data>
+	<data name="MessageEditFailed" xml:space="preserve">
+		<value>Failed to edit the message: message={0}</value>
+	</data>
+	<data name="MessageDeleteFailed" xml:space="preserve">
+		<value>Failed to delete the message: message={0}</value>
+	</data>
+	<data name="MessageForwardFailed" xml:space="preserve">
+		<value>Failed to forward the message: message={0} destination={1}</value>
+	</data>
+	<data name="UserResolveRestFailed" xml:space="preserve">
+		<value>Failed to resolve the user via REST: {0}</value>
+	</data>
+	<data name="DirectMessageBlocked" xml:space="preserve">
+		<value>Direct message rejected (recipient has DMs closed): user={0}</value>
+	</data>
+	<data name="DirectMessageSendFailed" xml:space="preserve">
+		<value>Failed to send the direct message: user={0}</value>
+	</data>
+	<data name="DirectMessageChunkSendFailed" xml:space="preserve">
+		<value>Failed to send a direct message chunk: user={0} chunk {1}/{2}</value>
+	</data>
+	<data name="DirectMessageFileSendFailed" xml:space="preserve">
+		<value>Failed to send the direct message file: user={0} file={1}</value>
+	</data>
+	<data name="MessageFetchFailed" xml:space="preserve">
+		<value>Failed to fetch the message: channel={0} message={1}</value>
+	</data>
+	<data name="StreamTailDeleteFailed" xml:space="preserve">
+		<value>Failed to delete a streaming tail post: post={0}</value>
+	</data>
+	<data name="StreamPartialDelivery" xml:space="preserve">
+		<value>Streaming reply partially delivered ({0}/{1} chunks); cannot continue as a single post</value>
+	</data>
+	<data name="ThreadJoinFailed" xml:space="preserve">
+		<value>Failed to join the thread: {0}</value>
+	</data>
+	<data name="ThreadArchiveSetFailed" xml:space="preserve">
+		<value>Failed to modify the thread archived state: {0} archived={1}</value>
+	</data>
+	<data name="ThreadTagsSetFailed" xml:space="preserve">
+		<value>Failed to modify the thread tags: {0}</value>
+	</data>
+	<data name="ThreadArchiveRestoreFailed" xml:space="preserve">
+		<value>Failed to restore the thread archived state: {0}</value>
+	</data>
+	<data name="ActiveThreadsEnumFailed" xml:space="preserve">
+		<value>Failed to enumerate active threads: {0}</value>
+	</data>
+	<data name="ArchivedThreadsEnumFailed" xml:space="preserve">
+		<value>Failed to enumerate archived threads: {0}</value>
+	</data>
+</root>

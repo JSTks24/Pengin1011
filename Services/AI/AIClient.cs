@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using Pengin1011.Core;
+using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 
 namespace Pengin1011.Services.AI;
@@ -115,9 +116,9 @@ public static class AIClient {
 				} catch (Exception e) {
 					var transient = OpenAIBackend.IsTransient(e) || GeminiBackend.IsTransient(e);
 					if (transient) {
-						Logger.Error(typeof(AIClient), e, $"AI 非流式调用临时失败（第 {attempt + 1} 次尝试）");
+						Logger.Error(typeof(AIClient), e, Localizer.Format("AICallTransientFailure", attempt + 1));
 					} else {
-						Logger.Error(typeof(AIClient), e, "AI 非流式调用失败");
+						Logger.Error(typeof(AIClient), e, Localizer.Get("AICallFailed"));
 					}
 					if (!transient || attempt >= RetryCount) return null;
 					await Task.Delay(RetryDelaysMs[attempt], ct);
@@ -166,23 +167,23 @@ public static class AIClient {
 	}
 
 	private static void Validate(AIProvider stack, AIRequest request) {
-		if (request.MaxOutputTokens is <= 0) throw new ArgumentException($"AIRequest.MaxOutputTokens 必须大于 0，当前 {request.MaxOutputTokens}");
-		if (request.Temperature is < 0) throw new ArgumentException($"AIRequest.Temperature 不能为负数，当前 {request.Temperature}");
-		if (request.TopP is < 0) throw new ArgumentException($"AIRequest.TopP 不能为负数，当前 {request.TopP}");
+		if (request.MaxOutputTokens is <= 0) throw new ArgumentException(Localizer.Format("AIMaxOutputTokensInvalid", request.MaxOutputTokens));
+		if (request.Temperature is < 0) throw new ArgumentException(Localizer.Format("AITemperatureInvalid", request.Temperature));
+		if (request.TopP is < 0) throw new ArgumentException(Localizer.Format("AITopPInvalid", request.TopP));
 		var endpoint = request.Endpoint;
 		if (endpoint == null) return;
-		if (string.IsNullOrEmpty(request.Model)) throw new ArgumentException("指定 Endpoint 覆盖端点时必须同时指定 Model");
-		if (endpoint.BaseUrl != null && endpoint.BaseUrl.Scheme != "http" && endpoint.BaseUrl.Scheme != "https") throw new ArgumentException($"Endpoint.BaseUrl 必须为 HTTP(S) 地址：{endpoint.BaseUrl}");
+		if (string.IsNullOrEmpty(request.Model)) throw new ArgumentException(Localizer.Get("EndpointModelRequired"));
+		if (endpoint.BaseUrl != null && endpoint.BaseUrl.Scheme != "http" && endpoint.BaseUrl.Scheme != "https") throw new ArgumentException(Localizer.Format("EndpointBaseUrlInvalid", endpoint.BaseUrl));
 		if (stack == AIProvider.OpenAI) {
-			if (endpoint.ApiKey.Length == 0) throw new ArgumentException("OpenAI 端点覆盖缺少 ApiKey");
-			if (endpoint.BaseUrl == null) throw new ArgumentException("OpenAI 端点覆盖缺少 BaseUrl");
-			if (endpoint.Project != null || endpoint.Location != null) throw new ArgumentException("OpenAI 端点覆盖不支持 Project / Location");
+			if (endpoint.ApiKey.Length == 0) throw new ArgumentException(Localizer.Get("OpenAIEndpointMissingApiKey"));
+			if (endpoint.BaseUrl == null) throw new ArgumentException(Localizer.Get("OpenAIEndpointMissingBaseUrl"));
+			if (endpoint.Project != null || endpoint.Location != null) throw new ArgumentException(Localizer.Get("OpenAIEndpointProjectLocationUnsupported"));
 		} else {
 			var hasKey = endpoint.ApiKey.Length > 0;
 			var hasProject = !string.IsNullOrEmpty(endpoint.Project);
 			var hasLocation = !string.IsNullOrEmpty(endpoint.Location);
-			if (hasKey && (hasProject || hasLocation)) throw new ArgumentException("Gemini 端点覆盖的 ApiKey 与 Project/Location 只能二选一");
-			if (!hasKey && (!hasProject || !hasLocation)) throw new ArgumentException("Gemini 端点覆盖鉴权不完整：ApiKey 或 Project+Location 二选一");
+			if (hasKey && (hasProject || hasLocation)) throw new ArgumentException(Localizer.Get("GeminiEndpointAuthExclusive"));
+			if (!hasKey && (!hasProject || !hasLocation)) throw new ArgumentException(Localizer.Get("GeminiEndpointAuthIncomplete"));
 		}
 	}
 

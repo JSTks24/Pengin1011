@@ -1,4 +1,4 @@
-namespace QingQiu1011.Core;
+namespace Pengin1011.Core;
 
 public static class HostExit {
 	private static readonly object Gate = new();

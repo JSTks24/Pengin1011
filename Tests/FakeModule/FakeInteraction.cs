@@ -1,6 +1,6 @@
 using Discord;
 
-namespace QingQiu1011.Modules.FakeModule;
+namespace Pengin1011.Modules.FakeModule;
 
 public sealed class FakeInteractionContext : IInteractionContext {
 	public FakeInteractionContext(FakeInteraction interaction) {

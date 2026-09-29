@@ -1,8 +1,8 @@
 using Discord.Interactions;
-using QingQiu1011.Core.Modules;
-using QingQiu1011.Modules.FakeModule;
+using Pengin1011.Core.Modules;
+using Pengin1011.Modules.FakeModule;
 
-namespace QingQiu1011.Modules.FakeThird;
+namespace Pengin1011.Modules.FakeThird;
 
 [ModuleAvailability(typeof(FakeThirdRuntime))]
 public class FakeThird : InteractionModuleBase<FakeInteractionContext> {

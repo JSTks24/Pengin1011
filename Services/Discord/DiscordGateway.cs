@@ -1,11 +1,11 @@
 using System.Runtime.ExceptionServices;
 using Discord;
 using Discord.WebSocket;
-using QingQiu1011.Core;
-using QingQiu1011.Core.Logging;
-using QingQiu1011.Core.Modules;
+using Pengin1011.Core;
+using Pengin1011.Core.Logging;
+using Pengin1011.Core.Modules;
 
-namespace QingQiu1011.Services.Discord;
+namespace Pengin1011.Services.Discord;
 
 public static class DiscordGateway {
 	public const int DefaultWorkCapacity = 128;

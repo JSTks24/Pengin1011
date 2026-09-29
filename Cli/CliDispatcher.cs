@@ -1,8 +1,8 @@
-using QingQiu1011.Core;
-using QingQiu1011.Services.AI;
-using QingQiu1011.Services.Discord;
+using Pengin1011.Core;
+using Pengin1011.Services.AI;
+using Pengin1011.Services.Discord;
 
-namespace QingQiu1011;
+namespace Pengin1011;
 
 public static class CliDispatcher {
 	private const string ModuleReloadRemoved = "热重载已移除：模块属于当前进程，改动模块后请 exit 退出进程，确认进程结束后替换产物，再用原命令启动";

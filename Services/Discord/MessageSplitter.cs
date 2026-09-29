@@ -1,4 +1,4 @@
-namespace QingQiu1011.Services.Discord;
+namespace Pengin1011.Services.Discord;
 
 public static class MessageSplitter {
 	public const int DefaultLimit = 1900;

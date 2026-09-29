@@ -1,9 +1,9 @@
 using System.Runtime.CompilerServices;
 using Google.GenAI;
 using Google.GenAI.Types;
-using QingQiu1011.Core;
+using Pengin1011.Core;
 
-namespace QingQiu1011.Services.AI;
+namespace Pengin1011.Services.AI;
 
 public sealed class GeminiBackend : IAIBackend, IDisposable {
 	private readonly Client _client;
@@ -14,6 +14,24 @@ public sealed class GeminiBackend : IAIBackend, IDisposable {
 			? new Client(enterprise: false, vertexAI: false, apiKey: config.ApiKey)
 			: new Client(enterprise: true, project: config.Project, location: config.Location);
 		_defaultModel = config.Model;
+	}
+
+	public GeminiBackend(AIEndpoint endpoint) {
+		_client = BuildClient(endpoint, null);
+		_defaultModel = "";
+	}
+
+	internal GeminiBackend(AIEndpoint endpoint, ClientOptions clientOptions) {
+		_client = BuildClient(endpoint, clientOptions);
+		_defaultModel = "";
+	}
+
+	private static Client BuildClient(AIEndpoint endpoint, ClientOptions? clientOptions) {
+		HttpOptions? http = null;
+		if (endpoint.BaseUrl != null) http = new HttpOptions { BaseUrl = endpoint.BaseUrl.ToString() };
+		return endpoint.ApiKey.Length > 0
+			? new Client(enterprise: false, vertexAI: false, apiKey: endpoint.ApiKey, httpOptions: http, clientOptions: clientOptions)
+			: new Client(enterprise: true, project: endpoint.Project!, location: endpoint.Location!, httpOptions: http, clientOptions: clientOptions);
 	}
 
 	public void Dispose() {
@@ -76,9 +94,11 @@ public sealed class GeminiBackend : IAIBackend, IDisposable {
 	}
 
 	private static GenerateContentConfig BuildConfig(AIRequest request) {
-		if (request.System.Length == 0) return new GenerateContentConfig();
-		return new GenerateContentConfig {
-			SystemInstruction = new Content { Parts = [new Part { Text = request.System }] },
-		};
+		var config = new GenerateContentConfig();
+		if (request.System.Length > 0) config.SystemInstruction = new Content { Parts = [new Part { Text = request.System }] };
+		if (request.Temperature is float temperature) config.Temperature = temperature;
+		if (request.TopP is float topP) config.TopP = topP;
+		if (request.MaxOutputTokens is int max) config.MaxOutputTokens = max;
+		return config;
 	}
 }

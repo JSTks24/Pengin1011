@@ -1,4 +1,4 @@
-namespace QingQiu1011.Core;
+namespace Pengin1011.Core;
 
 internal sealed class EmptyServiceProvider : IServiceProvider {
 	public static readonly EmptyServiceProvider Instance = new();

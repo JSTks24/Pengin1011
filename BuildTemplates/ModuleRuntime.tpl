@@ -1,7 +1,7 @@
-using QingQiu1011.Core.Logging;
-using QingQiu1011.Core.Modules;
+using Pengin1011.Core.Logging;
+using Pengin1011.Core.Modules;
 
-namespace QingQiu1011.Modules.__MODULE__;
+namespace Pengin1011.Modules.__MODULE__;
 
 public sealed class __MODULE__Runtime : IModuleRuntime {
 	public __MODULE__Options Options { get; private set; } = new();

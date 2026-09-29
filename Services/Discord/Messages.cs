@@ -1,9 +1,9 @@
 using System.Net;
 using Discord;
 using Discord.Net;
-using QingQiu1011.Core.Logging;
+using Pengin1011.Core.Logging;
 
-namespace QingQiu1011.Services.Discord;
+namespace Pengin1011.Services.Discord;
 
 public enum DirectMessageResult {
 	Sent,

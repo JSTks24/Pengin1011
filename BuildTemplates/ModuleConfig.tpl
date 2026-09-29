@@ -1,7 +1,7 @@
-using QingQiu1011.Core.Logging;
-using QingQiu1011.Helper;
+using Pengin1011.Core.Logging;
+using Pengin1011.Helper;
 
-namespace QingQiu1011.Modules.__MODULE__;
+namespace Pengin1011.Modules.__MODULE__;
 
 public static class __MODULE__Config {
 	private static string FilePath => Path.Combine(AppContext.BaseDirectory, "config", "__MODULE__.json");

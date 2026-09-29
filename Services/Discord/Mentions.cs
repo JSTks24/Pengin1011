@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace QingQiu1011.Services.Discord;
+namespace Pengin1011.Services.Discord;
 
 public static class Mentions {
 	public static string User(ulong userId) {

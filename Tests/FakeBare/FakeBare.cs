@@ -1,7 +1,7 @@
 using Discord.Interactions;
-using QingQiu1011.Core.Modules;
+using Pengin1011.Core.Modules;
 
-namespace QingQiu1011.Modules.FakeBare;
+namespace Pengin1011.Modules.FakeBare;
 
 public class FakeBare : InteractionModuleBase<SocketInteractionContext> {
 	[SlashCommand("fakebare", "缺少可用性特性的命令")]

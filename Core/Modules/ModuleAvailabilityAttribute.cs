@@ -1,7 +1,7 @@
 using Discord;
 using Discord.Interactions;
 
-namespace QingQiu1011.Core.Modules;
+namespace Pengin1011.Core.Modules;
 
 [AttributeUsage(AttributeTargets.Class)]
 public sealed class ModuleAvailabilityAttribute : PreconditionAttribute {

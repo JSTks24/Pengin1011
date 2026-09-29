@@ -1,7 +1,7 @@
 using Discord.Interactions;
-using QingQiu1011.Core.Modules;
+using Pengin1011.Core.Modules;
 
-namespace QingQiu1011.Modules.__MODULE__;
+namespace Pengin1011.Modules.__MODULE__;
 
 [ModuleAvailability(typeof(__MODULE__Runtime))]
 public class __MODULE__ : InteractionModuleBase<SocketInteractionContext> {

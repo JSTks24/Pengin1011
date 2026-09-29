@@ -1,4 +1,4 @@
-namespace QingQiu1011.Core.Logging;
+namespace Pengin1011.Core.Logging;
 
 public static class Logger {
 	private static readonly object Gate = new();

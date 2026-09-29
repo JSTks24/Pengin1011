@@ -1,8 +1,8 @@
-using QingQiu1011.Core.Logging;
-using QingQiu1011.Services.AI;
-using QingQiu1011.Services.Discord;
+using Pengin1011.Core.Logging;
+using Pengin1011.Services.AI;
+using Pengin1011.Services.Discord;
 
-namespace QingQiu1011.Core;
+namespace Pengin1011.Core;
 
 public sealed class ExitCoordinator {
 	public sealed record ExitReport(bool Success, IReadOnlyList<string> Failures);

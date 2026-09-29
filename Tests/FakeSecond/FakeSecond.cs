@@ -1,6 +1,6 @@
-using QingQiu1011.Core.Modules;
+using Pengin1011.Core.Modules;
 
-namespace QingQiu1011.Modules.FakeSecond;
+namespace Pengin1011.Modules.FakeSecond;
 
 public sealed class FakeSecondRuntime : IModuleRuntime {
 	public static int InitCount;

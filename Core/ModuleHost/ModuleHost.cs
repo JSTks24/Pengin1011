@@ -1,10 +1,10 @@
 using System.Reflection;
 using System.Runtime.Loader;
-using QingQiu1011.Core.Logging;
-using QingQiu1011.Core.Modules;
-using QingQiu1011.Services.Discord;
+using Pengin1011.Core.Logging;
+using Pengin1011.Core.Modules;
+using Pengin1011.Services.Discord;
 
-namespace QingQiu1011.Core;
+namespace Pengin1011.Core;
 
 public static class ModuleHost {
 	internal static TimeSpan StopTimeout = TimeSpan.FromSeconds(10);

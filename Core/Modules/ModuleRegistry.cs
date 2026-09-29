@@ -1,8 +1,8 @@
 using System.Collections.Concurrent;
 using System.Reflection;
-using QingQiu1011.Core.Logging;
+using Pengin1011.Core.Logging;
 
-namespace QingQiu1011.Core.Modules;
+namespace Pengin1011.Core.Modules;
 
 public static class ModuleRegistry {
 	private static readonly ConcurrentDictionary<Assembly, LoadedModule> Runs = new();

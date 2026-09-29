@@ -1,8 +1,9 @@
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
-using QingQiu1011.Core;
-using QingQiu1011.Core.Logging;
+using Pengin1011.Core;
+using Pengin1011.Core.Logging;
 
-namespace QingQiu1011.Services.AI;
+namespace Pengin1011.Services.AI;
 
 public enum AIRole {
 	User,
@@ -15,11 +16,22 @@ public sealed record AIUsage(int InputTokens, int OutputTokens);
 public sealed record AIResult(string Text, AIUsage Usage);
 public sealed record AIStreamDelta(string Text, AIUsage? Usage = null);
 
+public sealed class AIEndpoint {
+	public string ApiKey { get; init; } = "";
+	public Uri? BaseUrl { get; init; }
+	public string? Project { get; init; }
+	public string? Location { get; init; }
+}
+
 public sealed class AIRequest {
 	public string System { get; init; } = "";
 	public required IReadOnlyList<AIMessage> Messages { get; init; }
 	public IReadOnlyList<AIImage> Images { get; init; } = [];
 	public string? Model { get; init; }
+	public AIEndpoint? Endpoint { get; init; }
+	public float? Temperature { get; init; }
+	public float? TopP { get; init; }
+	public int? MaxOutputTokens { get; init; }
 }
 
 public interface IAIBackend {
@@ -37,6 +49,12 @@ public static class AIClient {
 	private static IAIBackend? _gemini;
 	private static AIProvider _defaultStack = AIProvider.OpenAI;
 	private static SemaphoreSlim _gate = new(1, 1);
+	private static ConcurrentDictionary<string, Lazy<IAIBackend>> _overrideBackends = new();
+	private static Func<AIProvider, AIEndpoint, IAIBackend> _overrideFactory = DefaultCreateOverrideBackend;
+
+	private static IAIBackend DefaultCreateOverrideBackend(AIProvider stack, AIEndpoint endpoint) {
+		return stack == AIProvider.OpenAI ? new OpenAIBackend(endpoint) : new GeminiBackend(endpoint);
+	}
 
 	public static void Init(OpenAIConfig? openAI, GeminiConfig? gemini, AIProvider provider, int maxParallel) {
 		IAIBackend? newOpenAI = null;
@@ -52,11 +70,13 @@ public static class AIClient {
 		Init(newOpenAI, newGemini, provider, maxParallel);
 	}
 
-	public static void Init(IAIBackend? openAI, IAIBackend? gemini, AIProvider provider, int maxParallel) {
+	public static void Init(IAIBackend? openAI, IAIBackend? gemini, AIProvider provider, int maxParallel, Func<AIProvider, AIEndpoint, IAIBackend>? overrideFactory = null) {
 		_openAI = openAI;
 		_gemini = gemini;
 		_defaultStack = provider == AIProvider.Gemini ? AIProvider.Gemini : AIProvider.OpenAI;
 		_gate = new SemaphoreSlim(Math.Max(1, maxParallel), Math.Max(1, maxParallel));
+		_overrideFactory = overrideFactory ?? DefaultCreateOverrideBackend;
+		ReleaseOverrides();
 	}
 
 	public static void Shutdown() {
@@ -66,6 +86,14 @@ public static class AIClient {
 		_gemini = null;
 		if (openAI is IDisposable d1) d1.Dispose();
 		if (gemini is IDisposable d2) d2.Dispose();
+		ReleaseOverrides();
+	}
+
+	private static void ReleaseOverrides() {
+		var old = Interlocked.Exchange(ref _overrideBackends, new ConcurrentDictionary<string, Lazy<IAIBackend>>());
+		foreach (var lazy in old.Values) {
+			if (lazy.IsValueCreated && lazy.Value is IDisposable disposable) disposable.Dispose();
+		}
 	}
 
 	public static Task<AIResult?> CompleteAsync(AIRequest request, CancellationToken ct = default) {
@@ -73,12 +101,14 @@ public static class AIClient {
 	}
 
 	public static async Task<AIResult?> CompleteAsync(AIProvider stack, AIRequest request, CancellationToken ct = default) {
-		var backend = Resolve(stack);
-		if (backend == null) return null;
+		Validate(stack, request);
+		if (request.Endpoint == null && Resolve(stack, request) == null) return null;
 		await _gate.WaitAsync(ct);
 		try {
 			for (var attempt = 0; ; attempt++) {
 				try {
+					var backend = Resolve(stack, request);
+					if (backend == null) return null;
 					return await AttemptAsync(backend, request, ct);
 				} catch (OperationCanceledException) when (ct.IsCancellationRequested) {
 					throw;
@@ -102,8 +132,13 @@ public static class AIClient {
 		return StreamAsync(_defaultStack, request, ct);
 	}
 
-	public static async IAsyncEnumerable<AIStreamDelta> StreamAsync(AIProvider stack, AIRequest request, [EnumeratorCancellation] CancellationToken ct = default) {
-		var backend = Resolve(stack);
+	public static IAsyncEnumerable<AIStreamDelta> StreamAsync(AIProvider stack, AIRequest request, CancellationToken ct = default) {
+		Validate(stack, request);
+		return StreamCoreAsync(stack, request, ct);
+	}
+
+	private static async IAsyncEnumerable<AIStreamDelta> StreamCoreAsync(AIProvider stack, AIRequest request, [EnumeratorCancellation] CancellationToken ct) {
+		var backend = Resolve(stack, request);
 		if (backend == null) yield break;
 		await _gate.WaitAsync(ct);
 		try {
@@ -117,8 +152,38 @@ public static class AIClient {
 		}
 	}
 
-	private static IAIBackend? Resolve(AIProvider stack) {
-		return stack == AIProvider.OpenAI ? _openAI : _gemini;
+	private static IAIBackend? Resolve(AIProvider stack, AIRequest request) {
+		var endpoint = request.Endpoint;
+		if (endpoint == null) return stack == AIProvider.OpenAI ? _openAI : _gemini;
+		var key = $"{(stack == AIProvider.OpenAI ? "openai" : "gemini")}|{endpoint.ApiKey}|{endpoint.BaseUrl}|{endpoint.Project}|{endpoint.Location}";
+		var lazy = _overrideBackends.GetOrAdd(key, _ => new Lazy<IAIBackend>(() => _overrideFactory(stack, endpoint)));
+		try {
+			return lazy.Value;
+		} catch (Exception) {
+			((ICollection<KeyValuePair<string, Lazy<IAIBackend>>>)_overrideBackends).Remove(new(key, lazy));
+			throw;
+		}
+	}
+
+	private static void Validate(AIProvider stack, AIRequest request) {
+		if (request.MaxOutputTokens is <= 0) throw new ArgumentException($"AIRequest.MaxOutputTokens 必须大于 0，当前 {request.MaxOutputTokens}");
+		if (request.Temperature is < 0) throw new ArgumentException($"AIRequest.Temperature 不能为负数，当前 {request.Temperature}");
+		if (request.TopP is < 0) throw new ArgumentException($"AIRequest.TopP 不能为负数，当前 {request.TopP}");
+		var endpoint = request.Endpoint;
+		if (endpoint == null) return;
+		if (string.IsNullOrEmpty(request.Model)) throw new ArgumentException("指定 Endpoint 覆盖端点时必须同时指定 Model");
+		if (endpoint.BaseUrl != null && endpoint.BaseUrl.Scheme != "http" && endpoint.BaseUrl.Scheme != "https") throw new ArgumentException($"Endpoint.BaseUrl 必须为 HTTP(S) 地址：{endpoint.BaseUrl}");
+		if (stack == AIProvider.OpenAI) {
+			if (endpoint.ApiKey.Length == 0) throw new ArgumentException("OpenAI 端点覆盖缺少 ApiKey");
+			if (endpoint.BaseUrl == null) throw new ArgumentException("OpenAI 端点覆盖缺少 BaseUrl");
+			if (endpoint.Project != null || endpoint.Location != null) throw new ArgumentException("OpenAI 端点覆盖不支持 Project / Location");
+		} else {
+			var hasKey = endpoint.ApiKey.Length > 0;
+			var hasProject = !string.IsNullOrEmpty(endpoint.Project);
+			var hasLocation = !string.IsNullOrEmpty(endpoint.Location);
+			if (hasKey && (hasProject || hasLocation)) throw new ArgumentException("Gemini 端点覆盖的 ApiKey 与 Project/Location 只能二选一");
+			if (!hasKey && (!hasProject || !hasLocation)) throw new ArgumentException("Gemini 端点覆盖鉴权不完整：ApiKey 或 Project+Location 二选一");
+		}
 	}
 
 	private static async Task<AIResult?> AttemptAsync(IAIBackend backend, AIRequest request, CancellationToken ct) {

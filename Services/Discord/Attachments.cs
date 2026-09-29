@@ -1,8 +1,8 @@
 using System.Net.Http;
 using Discord;
-using QingQiu1011.Core.Logging;
+using Pengin1011.Core.Logging;
 
-namespace QingQiu1011.Services.Discord;
+namespace Pengin1011.Services.Discord;
 
 public sealed record AttachmentData(byte[] Data, string MimeType, string Filename);
 

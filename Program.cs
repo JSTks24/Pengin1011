@@ -1,11 +1,11 @@
 using Discord;
 using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
-using QingQiu1011;
-using QingQiu1011.Core;
-using QingQiu1011.Core.Logging;
-using QingQiu1011.Services.AI;
-using QingQiu1011.Services.Discord;
+using Pengin1011;
+using Pengin1011.Core;
+using Pengin1011.Core.Logging;
+using Pengin1011.Services.AI;
+using Pengin1011.Services.Discord;
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;
 
@@ -58,7 +58,7 @@ try {
 		}
 	}
 	started = true;
-	Logger.Info(typeof(Program), "QingQiu1011 已启动，输入 help 查看命令，Ctrl+C 退出");
+	Logger.Info(typeof(Program), "Pengin1011 已启动，输入 help 查看命令，Ctrl+C 退出");
 
 	CliDispatcher.StartedAt = DateTimeOffset.Now;
 	_ = CliLoop.RunAsync(() => exitRequested.TrySetResult(), stopCts.Token, () => HostExit.Requested);
@@ -111,7 +111,7 @@ async Task<int> RunStartupPersistProbeAsync(string baseDir, bool verify, Cancell
 		Logger.Error(typeof(Program), "子进程未装载 FakeModule，无法验证数据库契约");
 		return 3;
 	}
-	var contextType = moduleRun.Assembly.GetType("QingQiu1011.Modules.FakeModule.FakeModuleDbContext");
+	var contextType = moduleRun.Assembly.GetType("Pengin1011.Modules.FakeModule.FakeModuleDbContext");
 	if (contextType == null) {
 		Logger.Error(typeof(Program), "子进程未找到 FakeModuleDbContext");
 		return 4;
@@ -127,7 +127,7 @@ async Task<int> RunStartupPersistProbeAsync(string baseDir, bool verify, Cancell
 				return 5;
 			}
 		} else {
-			var itemType = moduleRun.Assembly.GetType("QingQiu1011.Modules.FakeModule.FakeItem");
+			var itemType = moduleRun.Assembly.GetType("Pengin1011.Modules.FakeModule.FakeItem");
 			if (itemType == null) {
 				Logger.Error(typeof(Program), "子进程未找到 FakeItem 实体类型");
 				return 7;

@@ -3,11 +3,11 @@ using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
-using QingQiu1011.Core;
-using QingQiu1011.Core.Modules;
-using QingQiu1011.Services.Discord;
+using Pengin1011.Core;
+using Pengin1011.Core.Modules;
+using Pengin1011.Services.Discord;
 
-namespace QingQiu1011.Modules.FakeModule;
+namespace Pengin1011.Modules.FakeModule;
 
 [ModuleAvailability(typeof(FakeModuleRuntime))]
 public class FakeModule : InteractionModuleBase<FakeInteractionContext> {

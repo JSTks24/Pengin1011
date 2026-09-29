@@ -1,8 +1,8 @@
 using System.Reflection;
-using QingQiu1011.Core.Logging;
-using QingQiu1011.Core.Modules;
+using Pengin1011.Core.Logging;
+using Pengin1011.Core.Modules;
 
-namespace QingQiu1011.Core;
+namespace Pengin1011.Core;
 
 public enum ModuleStopOutcome {
 	Clean,

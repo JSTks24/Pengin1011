@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <RootNamespace>QingQiu1011.Modules.__MODULE__</RootNamespace>
+    <RootNamespace>Pengin1011.Modules.__MODULE__</RootNamespace>
     <AssemblyName>__MODULE__</AssemblyName>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\QingQiu1011.csproj" />
+    <ProjectReference Include="..\..\Pengin1011.csproj" />
   </ItemGroup>
 
   <ItemGroup>

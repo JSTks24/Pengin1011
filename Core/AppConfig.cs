@@ -1,8 +1,8 @@
 using System.Text.Json;
-using QingQiu1011.Core.Logging;
-using QingQiu1011.Helper;
+using Pengin1011.Core.Logging;
+using Pengin1011.Helper;
 
-namespace QingQiu1011.Core;
+namespace Pengin1011.Core;
 
 public enum AIProvider {
 	OpenAI,

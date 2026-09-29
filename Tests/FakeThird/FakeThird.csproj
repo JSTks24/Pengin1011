@@ -2,15 +2,15 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <RootNamespace>QingQiu1011.Modules.FakeThird</RootNamespace>
+    <RootNamespace>Pengin1011.Modules.FakeThird</RootNamespace>
     <AssemblyName>FakeThird</AssemblyName>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <ModuleOutputDir>$(MSBuildThisFileDirectory)..\QingQiu1011.Tests\bin\$(Configuration)\$(TargetFramework)\module\</ModuleOutputDir>
+    <ModuleOutputDir>$(MSBuildThisFileDirectory)..\Pengin1011.Tests\bin\$(Configuration)\$(TargetFramework)\module\</ModuleOutputDir>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\QingQiu1011.csproj" />
+    <ProjectReference Include="..\..\Pengin1011.csproj" />
     <ProjectReference Include="..\FakeModule\FakeModule.csproj" />
   </ItemGroup>
 

@@ -1,8 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using QingQiu1011.Core.Logging;
+using Pengin1011.Core.Logging;
 
-namespace QingQiu1011.Helper;
+namespace Pengin1011.Helper;
 
 public static class JsonHelper {
 	public static readonly JsonSerializerOptions Options = new() {

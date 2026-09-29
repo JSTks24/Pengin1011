@@ -1,6 +1,6 @@
-using QingQiu1011.Core.Logging;
+using Pengin1011.Core.Logging;
 
-namespace QingQiu1011;
+namespace Pengin1011;
 
 public static class CliLoop {
 	public static Task RunAsync(Action onExit, CancellationToken token, Func<bool> isStopping) {

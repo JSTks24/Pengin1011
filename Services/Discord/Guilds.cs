@@ -1,8 +1,8 @@
 using Discord;
 using Discord.WebSocket;
-using QingQiu1011.Core.Logging;
+using Pengin1011.Core.Logging;
 
-namespace QingQiu1011.Services.Discord;
+namespace Pengin1011.Services.Discord;
 
 public static class Guilds {
 	public static SocketGuild? Get(ulong guildId) {

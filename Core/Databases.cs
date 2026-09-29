@@ -1,8 +1,8 @@
 using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
-using QingQiu1011.Core.Logging;
+using Pengin1011.Core.Logging;
 
-namespace QingQiu1011.Core;
+namespace Pengin1011.Core;
 
 public static class Databases {
 	private const int BackupIntervalMinutes = 30;

@@ -1,3 +1,4 @@
+using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 using Pengin1011.Core.Modules;
 
@@ -56,7 +57,7 @@ public sealed class WorkTracker : IDisposable {
 	public void Open() {
 		lock (_gate) {
 			if (_accepting == WorkAcceptState.Exiting) {
-				Logger.Error(typeof(WorkTracker), "退出关闭后拒绝恢复接单");
+				Logger.Error(typeof(WorkTracker), Localizer.Get("WorkReopenAfterExitRejected"));
 				return;
 			}
 			_accepting = WorkAcceptState.Open;
@@ -122,7 +123,7 @@ public sealed class WorkTracker : IDisposable {
 					await handler.Handler(token);
 				} catch (OperationCanceledException) when (token.IsCancellationRequested) {
 				} catch (Exception e) {
-					Logger.Error(typeof(WorkTracker), e, $"业务任务异常：{handler.Handler.Method.DeclaringType?.Name}.{handler.Handler.Method.Name}");
+					Logger.Error(typeof(WorkTracker), e, Localizer.Format("WorkHandlerFaulted", handler.Handler.Method.DeclaringType?.Name, handler.Handler.Method.Name));
 				}
 			}
 		} finally {
@@ -132,7 +133,7 @@ public sealed class WorkTracker : IDisposable {
 			}
 			item.Dispose();
 			if (!removed) {
-				Logger.Error(typeof(WorkTracker), "工作条目完成时未在集合中找到（调度状态异常）");
+				Logger.Error(typeof(WorkTracker), Localizer.Get("WorkItemMissingOnComplete"));
 			}
 		}
 	}

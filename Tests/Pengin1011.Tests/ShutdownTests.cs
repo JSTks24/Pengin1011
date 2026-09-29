@@ -406,7 +406,7 @@ public sealed class ShutdownTests {
 			var report = await coordinator.RunAsync();
 
 			Assert.False(report.Success);
-			Assert.Contains(report.Failures, failure => failure.Contains("业务任务"));
+			Assert.Contains(report.Failures, failure => failure.Contains(L.Get("BusinessTasksUnfinishedAfterCancel")));
 			var backupDir = Path.Combine(baseDir, "data", "backup");
 			Assert.True(Directory.Exists(backupDir), "独立收尾（数据库终备份）仍应执行");
 		} finally {
@@ -459,12 +459,12 @@ public sealed class ShutdownTests {
 			var report = await new ExitCoordinator().RunAsync();
 
 			Assert.False(report.Success);
-			Assert.Contains(report.Failures, failure => failure.Contains("网关停止"));
+			Assert.Contains(report.Failures, failure => failure.Contains(L.Get("ExitStepGatewayStop")));
 			Assert.True(Directory.Exists(Path.Combine(baseDir, "data", "backup")), "网关停止失败后数据库收尾仍执行");
 
 			Logger.SetLogPathForTest(null);
 			var log = File.ReadAllText(logPath);
-			Assert.Contains("网关停止", log);
+			Assert.Contains(L.Get("ExitStepGatewayStop"), log);
 			Assert.Contains("客户端停止失败", log);
 		} finally {
 			Logger.SetLogPathForTest(null);
@@ -508,7 +508,7 @@ public sealed class ShutdownTests {
 			var report = await new ExitCoordinator().RunAsync();
 
 			Assert.False(report.Success);
-			Assert.Contains(report.Failures, failure => failure.Contains("控制操作"));
+			Assert.Contains(report.Failures, failure => failure.Contains(L.Prefix("ControlSectionTimeout")));
 			Assert.Same(snapshot, InteractionHost.SnapshotForTest);
 			Assert.Equal(retiredBefore, InteractionHost.RetiredServiceCountForTest);
 			Assert.Same(snapshot.Service, InteractionHost.Current.Service);
@@ -516,7 +516,7 @@ public sealed class ShutdownTests {
 			hold.SetResult();
 			await InteractionHost.SyncTaskForTest!.WaitAsync(TimeSpan.FromSeconds(5));
 			Assert.Equal(1, InteractionHost.ControlGateCountForTest);
-			Assert.Equal("框架正在退出", await InteractionHost.SyncAsync(CancellationToken.None));
+			Assert.Equal(L.Get("FrameworkExiting"), await InteractionHost.SyncAsync(CancellationToken.None));
 		} finally {
 			hold.TrySetResult();
 			InteractionHost.SyncBodyForTest = null;
@@ -544,12 +544,12 @@ public sealed class ShutdownTests {
 			var report = await new ExitCoordinator().RunAsync();
 
 			Assert.False(report.Success);
-			Assert.Contains(report.Failures, failure => failure.Contains("业务任务"));
-			Assert.Contains(report.Failures, failure => failure.Contains("跳过"));
+			Assert.Contains(report.Failures, failure => failure.Contains(L.Get("BusinessTasksUnfinishedAfterCancel")));
+			Assert.Contains(report.Failures, failure => failure.Contains(L.Prefix("ExitStepSkipped")));
 			Assert.Same(snapshot, InteractionHost.SnapshotForTest);
 			Assert.Equal(retiredBefore, InteractionHost.RetiredServiceCountForTest);
 			Assert.Same(snapshot.Service, InteractionHost.Current.Service);
-			Assert.Contains(report.Failures, failure => failure.Contains("模块清理未开始"));
+			Assert.Contains(report.Failures, failure => failure.Contains(L.Prefix("ModuleCleanupSkipped")));
 			Assert.All(ModuleHost.Modules, module => Assert.Equal(0, ModuleProbe.RuntimeStaticInt(module, "StopCount")));
 			Assert.All(ModuleHost.Modules, module => Assert.Equal(ModuleState.Ready, module.State));
 
@@ -709,8 +709,8 @@ public sealed class ShutdownTests {
 
 			Logger.SetLogPathForTest(null);
 			var log = File.ReadAllText(logPath);
-			Assert.Contains("退出失败", log);
-			Assert.Contains("网关停止", log);
+			Assert.Contains(L.Prefix("ExitFailureItem"), log);
+			Assert.Contains(L.Get("ExitStepGatewayStop"), log);
 			Assert.Contains("EXIT-07 网关停止失败", log);
 		} finally {
 			Logger.SetLogPathForTest(null);
@@ -780,8 +780,8 @@ public sealed class ShutdownTests {
 
 			Assert.False(report.Success);
 			Assert.Equal(1, HostExit.CodeFor(true, report));
-			Assert.Contains(report.Failures, failure => failure.Contains("模块清理未开始") && failure.Contains("业务任务未确认结束"));
-			Assert.DoesNotContain(report.Failures, failure => failure.Contains("模块 ResourceMod 停止结果"));
+			Assert.Contains(report.Failures, failure => failure.Contains(L.Prefix("ModuleCleanupSkipped")) && failure.Contains(L.Get("BlockerBusinessTasks")));
+			Assert.DoesNotContain(report.Failures, failure => failure.Contains("ResourceMod"));
 
 			Assert.Equal(0, ResourceOwningRuntime.StopCount);
 			Assert.NotNull(ResourceOwningRuntime.Resource);
@@ -858,7 +858,7 @@ public sealed class ShutdownTests {
 			var report = await HostExit.StopAsync();
 
 			Assert.False(report.Success);
-			Assert.Contains(report.Failures, failure => failure.Contains("网关停止") && failure.Contains("GW-01 客户端停止失败"));
+			Assert.Contains(report.Failures, failure => failure.Contains(L.Get("ExitStepGatewayStop")) && failure.Contains("GW-01 客户端停止失败"));
 			Assert.Equal(1, stopCalls);
 			Assert.Equal(1, logoutCalls);
 		} finally {
@@ -883,7 +883,7 @@ public sealed class ShutdownTests {
 			var report = await HostExit.StopAsync();
 
 			Assert.False(report.Success);
-			Assert.Contains(report.Failures, failure => failure.Contains("网关停止") && failure.Contains("GW-02 退出登录失败"));
+			Assert.Contains(report.Failures, failure => failure.Contains(L.Get("ExitStepGatewayStop")) && failure.Contains("GW-02 退出登录失败"));
 			Assert.Equal(1, stopCalls);
 			Assert.Equal(1, logoutCalls);
 		} finally {
@@ -908,7 +908,7 @@ public sealed class ShutdownTests {
 			var report = await HostExit.StopAsync();
 
 			Assert.True(report.Success, $"failures: {string.Join(";", report.Failures)}");
-			Assert.DoesNotContain(report.Failures, failure => failure.Contains("网关"));
+			Assert.DoesNotContain(report.Failures, failure => failure.Contains(L.Get("ExitStepGatewayStop")));
 			Assert.Equal(1, stopCalls);
 			Assert.Equal(1, logoutCalls);
 		} finally {
@@ -931,7 +931,7 @@ public sealed class ShutdownTests {
 			var report = await HostExit.StopAsync();
 
 			Assert.False(report.Success);
-			Assert.Contains(report.Failures, failure => failure.Contains("网关停止"));
+			Assert.Contains(report.Failures, failure => failure.Contains(L.Get("ExitStepGatewayStop")));
 			Assert.True(Directory.Exists(Path.Combine(baseDir, "data", "backup")), "网关失败后数据库收尾仍执行");
 			Assert.Equal(1, HostExit.CodeFor(true, report));
 

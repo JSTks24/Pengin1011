@@ -1,4 +1,5 @@
 using Discord;
+using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 
 namespace Pengin1011.Services.Discord;
@@ -11,7 +12,7 @@ public static class Interactions {
 			await interaction.DeferAsync(ephemeral);
 			return true;
 		} catch (Exception e) {
-			Logger.Error(typeof(Interactions), e, "Defer 交互失败");
+			Logger.Error(typeof(Interactions), e, Localizer.Get("DeferFailed"));
 			return false;
 		}
 	}
@@ -21,7 +22,7 @@ public static class Interactions {
 		try {
 			return await interaction.FollowupAsync(text, ephemeral: ephemeral, allowedMentions: AllowedMentions.None);
 		} catch (Exception e) {
-			Logger.Error(typeof(Interactions), e, "Followup 交互失败");
+			Logger.Error(typeof(Interactions), e, Localizer.Get("FollowupFailed"));
 			return null;
 		}
 	}
@@ -32,7 +33,7 @@ public static class Interactions {
 			using var stream = new MemoryStream(data);
 			return await interaction.FollowupWithFileAsync(stream, filename, text, ephemeral: ephemeral);
 		} catch (Exception e) {
-			Logger.Error(typeof(Interactions), e, $"Followup 交互文件失败：{filename}");
+			Logger.Error(typeof(Interactions), e, Localizer.Format("FollowupFileFailed", filename));
 			return null;
 		}
 	}
@@ -43,7 +44,7 @@ public static class Interactions {
 			await interaction.ModifyOriginalResponseAsync(properties => properties.Content = text ?? "");
 			return true;
 		} catch (Exception e) {
-			Logger.Error(typeof(Interactions), e, "编辑交互原始响应失败");
+			Logger.Error(typeof(Interactions), e, Localizer.Get("EditOriginalFailed"));
 			return false;
 		}
 	}

@@ -2,6 +2,7 @@ using System.Runtime.ExceptionServices;
 using Discord;
 using Discord.WebSocket;
 using Pengin1011.Core;
+using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 using Pengin1011.Core.Modules;
 
@@ -161,7 +162,7 @@ public static class DiscordGateway {
 			await client.StartAsync();
 			return true;
 		} catch (Exception e) {
-			Logger.Error(typeof(DiscordGateway), e, "Gateway 连接失败");
+			Logger.Error(typeof(DiscordGateway), e, Localizer.Get("GatewayConnectFailed"));
 			return false;
 		}
 	}
@@ -203,7 +204,7 @@ public static class DiscordGateway {
 			await logout(client);
 		} catch (Exception logoutFailure) {
 			if (stopFailure == null) throw;
-			throw new AggregateException("网关停止与退出登录均失败", stopFailure, logoutFailure);
+			throw new AggregateException(Localizer.Get("GatewayStopAndLogoutFailed"), stopFailure, logoutFailure);
 		}
 		if (stopFailure != null) {
 			ExceptionDispatchInfo.Capture(stopFailure).Throw();
@@ -216,7 +217,7 @@ public static class DiscordGateway {
 	}
 
 	private static Task OnClientLog(LogMessage message) {
-		var text = $"Discord 客户端日志 {message.Severity}: {message.Message ?? "(无消息)"}";
+		var text = Localizer.Format("DiscordClientLog", message.Severity, message.Message ?? Localizer.Get("LogMessageNoText"));
 		if (message.Exception != null) {
 			Logger.Error(typeof(DiscordGateway), message.Exception, text);
 		} else if (message.Severity is LogSeverity.Error or LogSeverity.Critical) {
@@ -244,21 +245,21 @@ public static class DiscordGateway {
 	}
 
 	internal static Task DispatchMessageForTest(SocketMessage? message) {
-		return Dispatch(MessageHandlers, message!, null, "消息");
+		return Dispatch(MessageHandlers, message!, null, Localizer.Get("KindMessage"));
 	}
 
 	internal static Task DispatchInteractionForTest(SocketInteraction? interaction) {
-		return Dispatch(InteractionHandlers, interaction!, interaction, "交互");
+		return Dispatch(InteractionHandlers, interaction!, interaction, Localizer.Get("KindInteraction"));
 	}
 
 	internal static void DispatchInteractionRejectionForTest(WorkRejectReason reason, IDiscordInteraction interaction) {
-		HandleRejection("交互", interaction, reason);
+		HandleRejection(Localizer.Get("KindInteraction"), interaction, reason);
 	}
 
 	internal static int RejectedMessageCountForTest => _rejectedMessages;
 
 	private static Task OnMessageReceived(SocketMessage message) {
-		return Dispatch(MessageHandlers, message, null, "消息");
+		return Dispatch(MessageHandlers, message, null, Localizer.Get("KindMessage"));
 	}
 
 	private static Task OnReady() {
@@ -266,23 +267,23 @@ public static class DiscordGateway {
 	}
 
 	private static Task OnGuildAvailable(SocketGuild guild) {
-		return Dispatch(GuildAvailableHandlers, guild, null, "服务器可用");
+		return Dispatch(GuildAvailableHandlers, guild, null, Localizer.Get("KindGuildAvailable"));
 	}
 
 	private static Task OnGuildJoined(SocketGuild guild) {
-		return Dispatch(GuildJoinedHandlers, guild, null, "加入服务器");
+		return Dispatch(GuildJoinedHandlers, guild, null, Localizer.Get("KindGuildJoined"));
 	}
 
 	private static Task OnInteractionCreated(SocketInteraction interaction) {
-		return Dispatch(InteractionHandlers, interaction, interaction, "交互");
+		return Dispatch(InteractionHandlers, interaction, interaction, Localizer.Get("KindInteraction"));
 	}
 
 	private static Task OnButtonExecuted(SocketMessageComponent component) {
-		return Dispatch(ButtonHandlers, component, component, "按钮");
+		return Dispatch(ButtonHandlers, component, component, Localizer.Get("KindButton"));
 	}
 
 	private static Task OnSelectMenuExecuted(SocketMessageComponent component) {
-		return Dispatch(SelectMenuHandlers, component, component, "下拉");
+		return Dispatch(SelectMenuHandlers, component, component, Localizer.Get("KindSelectMenu"));
 	}
 
 	private static Task OnModalSubmitted(SocketModal modal) {
@@ -331,21 +332,21 @@ public static class DiscordGateway {
 			return;
 		}
 		var count = Interlocked.Increment(ref _rejectedMessages);
-		Logger.Info(typeof(DiscordGateway), $"接单拒绝（{reason}）：{kind}，累计 {count}");
+		Logger.Info(typeof(DiscordGateway), Localizer.Format("WorkRejected", reason, kind, count));
 	}
 
 	private static async Task RespondRejectionAsync(IDiscordInteraction interaction, WorkRejectReason reason) {
 		var text = reason switch {
-			WorkRejectReason.Paused => "服务尚未就绪，请稍后重试",
-			WorkRejectReason.Exiting => "框架正在退出，请稍后",
-			_ => "服务忙碌，请稍后重试",
+			WorkRejectReason.Paused => Localizer.Get("RejectedPaused"),
+			WorkRejectReason.Exiting => Localizer.Get("RejectedExiting"),
+			_ => Localizer.Get("RejectedBusy"),
 		};
 		try {
 			if (!interaction.HasResponded) {
 				await interaction.RespondAsync(text, ephemeral: true);
 			}
 		} catch (Exception e) {
-			Logger.Error(typeof(DiscordGateway), e, "拒绝接单提示发送失败");
+			Logger.Error(typeof(DiscordGateway), e, Localizer.Get("RejectionNoticeSendFailed"));
 		}
 	}
 

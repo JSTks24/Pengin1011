@@ -1,4 +1,5 @@
 using Discord;
+using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 
 namespace Pengin1011.Services.Discord;
@@ -12,7 +13,7 @@ public static class Threads {
 			await thread.JoinAsync();
 			return true;
 		} catch (Exception e) {
-			Logger.Error(typeof(Threads), e, $"加入子区失败：{threadId}");
+			Logger.Error(typeof(Threads), e, Localizer.Format("ThreadJoinFailed", threadId));
 			return false;
 		}
 	}
@@ -23,7 +24,7 @@ public static class Threads {
 			await thread.ModifyAsync(properties => properties.Archived = archived);
 			return true;
 		} catch (Exception e) {
-			Logger.Error(typeof(Threads), e, $"子区归档状态修改失败：{threadId} archived={archived}");
+			Logger.Error(typeof(Threads), e, Localizer.Format("ThreadArchiveSetFailed", threadId, archived));
 			return false;
 		}
 	}
@@ -46,14 +47,14 @@ public static class Threads {
 			await thread.ModifyAsync(applyTags, MakeOptions(ct));
 			success = true;
 		} catch (Exception e) {
-			Logger.Error(typeof(Threads), e, $"子区标签修改失败：{thread.Id}");
+			Logger.Error(typeof(Threads), e, Localizer.Format("ThreadTagsSetFailed", thread.Id));
 		}
 		if (unarchived) {
 			try {
 				using var budget = new CancellationTokenSource(RestoreArchiveBudgetMs);
 				await thread.ModifyAsync(properties => properties.Archived = true, MakeOptions(budget.Token));
 			} catch (Exception e) {
-				Logger.Error(typeof(Threads), e, $"子区归档状态恢复失败：{thread.Id}");
+				Logger.Error(typeof(Threads), e, Localizer.Format("ThreadArchiveRestoreFailed", thread.Id));
 				success = false;
 			}
 		}
@@ -71,14 +72,14 @@ public static class Threads {
 		try {
 			threads.AddRange(await forum.GetActiveThreadsAsync());
 		} catch (Exception e) {
-			Logger.Error(typeof(Threads), e, $"枚举活跃子区失败：{forumChannelId}");
+			Logger.Error(typeof(Threads), e, Localizer.Format("ActiveThreadsEnumFailed", forumChannelId));
 		}
 		if (includeArchived) {
 			try {
 				var archived = await forum.GetPublicArchivedThreadsAsync(archivedLimit);
 				threads.AddRange(archived);
 			} catch (Exception e) {
-				Logger.Error(typeof(Threads), e, $"枚举归档子区失败：{forumChannelId}");
+				Logger.Error(typeof(Threads), e, Localizer.Format("ArchivedThreadsEnumFailed", forumChannelId));
 			}
 		}
 		return threads;

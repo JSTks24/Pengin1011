@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 
 namespace Pengin1011.Helper;
@@ -17,7 +18,7 @@ public static class JsonHelper {
 		using var stream = File.OpenRead(path);
 		var value = JsonSerializer.Deserialize<T>(stream, Options);
 		if (value == null) {
-			throw new JsonException($"JSON 根节点必须为对象，不能是 null：{path}");
+			throw new JsonException(Localizer.Format("JsonRootMustBeObject", path));
 		}
 		return value;
 	}
@@ -44,8 +45,8 @@ public static class JsonHelper {
 			File.Move(tmp, path, true);
 			return true;
 		} catch (Exception e) {
-			Logger.Error(typeof(JsonHelper), e, $"写入 JSON 失败：{path}");
-			try { File.Delete(tmp); } catch (Exception ex) { Logger.Error(typeof(JsonHelper), ex, $"清理 JSON 临时文件失败：{tmp}"); }
+			Logger.Error(typeof(JsonHelper), e, Localizer.Format("JsonWriteFailed", path));
+			try { File.Delete(tmp); } catch (Exception ex) { Logger.Error(typeof(JsonHelper), ex, Localizer.Format("JsonTempCleanupFailed", tmp)); }
 			return false;
 		}
 	}

@@ -1,3 +1,5 @@
+using Pengin1011.Core.Localization;
+
 namespace Pengin1011.Core.Logging;
 
 public static class Logger {
@@ -45,7 +47,7 @@ public static class Logger {
 				if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
 				File.AppendAllText(logPath, entry + Environment.NewLine);
 			} catch (Exception e) {
-				Console.Error.WriteLine($"[Logger] 写入日志文件失败：{e.Message}");
+				Console.Error.WriteLine(Localizer.Format("LogFileWriteFailed", e.Message));
 			}
 		}
 	}

@@ -91,7 +91,7 @@ public sealed class ModuleAvailabilityTests {
 			await service.ExecuteCommandAsync(context, EmptyServiceProvider.Instance);
 
 			Assert.Equal(0, ModuleProbe.CommandStaticInt(run, "FakeModule", "CommandCount"));
-			Assert.Contains(Responses(interaction), static response => response.Contains("模块暂不可用"));
+			Assert.Contains(Responses(interaction), static response => response.Contains(L.Get("ModuleUnavailable")));
 		} finally {
 			await TeardownAsync();
 		}
@@ -113,7 +113,7 @@ public sealed class ModuleAvailabilityTests {
 			await service.ExecuteCommandAsync(context, EmptyServiceProvider.Instance);
 
 			Assert.Equal(0, ModuleProbe.CommandStaticInt(run, "FakeModule", "CommandCount"));
-			Assert.Contains(Responses(interaction), static response => response.Contains("模块暂不可用"));
+			Assert.Contains(Responses(interaction), static response => response.Contains(L.Get("ModuleUnavailable")));
 		} finally {
 			initGate.SetResult();
 			await TeardownAsync();
@@ -155,7 +155,7 @@ public sealed class ModuleAvailabilityTests {
 
 			Pengin1011.Core.Logging.Logger.SetLogPathForTest(null);
 			var content = File.ReadAllText(logPath);
-			Assert.Contains("命令执行异常", content);
+			Assert.Contains(L.Prefix("CommandExecutionException"), content);
 			Assert.Contains("命令体爆炸", content);
 		} finally {
 			Pengin1011.Core.Logging.Logger.SetLogPathForTest(null);
@@ -224,7 +224,7 @@ public sealed class ModuleAvailabilityTests {
 			Assert.Equal(1, ModuleProbe.CommandStaticInt(run, "FakeModule", "CommandCount"));
 
 			var content = File.ReadAllText(logPath);
-			Assert.Contains("启动装载契约错误", content);
+			Assert.Contains(L.Prefix("StartupAttachContractError"), content);
 			Assert.Contains("FakeBare", content);
 		} finally {
 			Logger.SetLogPathForTest(null);
@@ -287,7 +287,7 @@ public sealed class ModuleAvailabilityTests {
 			};
 			var attach = await InteractionHost.AttachAsync(service, [mismatch]);
 			Assert.Equal(mismatch, Assert.Single(attach.Invalid));
-			Assert.Contains(attach.Errors, error => error.Contains("不是本程序集选中的运行类型"));
+			Assert.Contains(attach.Errors, error => error.Contains(mismatch.Name) && error.Contains(foreign.RuntimeType.Name));
 		} finally {
 			ModuleHostTests.ResetModules();
 		}
@@ -329,7 +329,7 @@ public sealed class ModuleAvailabilityTests {
 			Assert.True(DiscordGateway.Dispatcher!.Accepting);
 
 			var content = File.ReadAllText(logPath);
-			Assert.Contains("启动装载契约错误", content);
+			Assert.Contains(L.Prefix("StartupAttachContractError"), content);
 			Assert.Contains("FakeBare", content);
 		} finally {
 			Logger.SetLogPathForTest(null);

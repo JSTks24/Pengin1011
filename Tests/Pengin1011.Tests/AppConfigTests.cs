@@ -99,7 +99,7 @@ public sealed class AppConfigTests {
 		var path = Path.Combine(Path.GetTempPath(), $"dcfox_missing_{Guid.NewGuid():N}.json");
 		try {
 			Assert.False(AppConfig.TryLoad(path, out var errors));
-			Assert.Contains(errors, static e => e.Contains("配置文件不存在"));
+			Assert.Contains(errors, static e => e.Contains(L.Prefix("ConfigCreatedFromTemplate")));
 			Assert.True(File.Exists(path));
 			var content = File.ReadAllText(path);
 			Assert.Contains("\"Discord\"", content);
@@ -125,7 +125,7 @@ public sealed class AppConfigTests {
 	public void TryLoad_BadJson() {
 		using var cfg = new TempConfigFile("{ not json");
 		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.Contains(errors, static e => e.Contains("配置文件读取或解析失败"));
+		Assert.Contains(errors, static e => e.Contains(L.Prefix("ConfigReadFailed")));
 	}
 
 	[Fact]
@@ -169,7 +169,7 @@ public sealed class AppConfigTests {
 			}
 			""");
 		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.Contains(errors, static e => e.Contains("AI.Provider 无效"));
+		Assert.Contains(errors, static e => e.Contains(L.Prefix("AIProviderInvalid")));
 	}
 
 	[Fact]
@@ -181,7 +181,7 @@ public sealed class AppConfigTests {
 			}
 			""");
 		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.Contains(errors, static e => e.Contains("AI.OpenAI 节未配置"));
+		Assert.Contains(errors, static e => e.Contains(L.Get("OpenAISectionRequired")));
 	}
 
 	[Fact]
@@ -193,7 +193,7 @@ public sealed class AppConfigTests {
 			}
 			""");
 		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.Contains(errors, static e => e.Contains("AI.Gemini 节未配置"));
+		Assert.Contains(errors, static e => e.Contains(L.Get("GeminiSectionRequired")));
 	}
 
 	[Fact]
@@ -208,7 +208,7 @@ public sealed class AppConfigTests {
 			}
 			""");
 		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.Contains(errors, static e => e.Contains("只能二选一"));
+		Assert.Contains(errors, static e => e.Contains(L.Get("GeminiAuthExclusive")));
 	}
 
 	[Fact]
@@ -223,7 +223,7 @@ public sealed class AppConfigTests {
 			}
 			""");
 		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.Contains(errors, static e => e.Contains("鉴权不完整"));
+		Assert.Contains(errors, static e => e.Contains(L.Get("GeminiAuthIncomplete")));
 	}
 
 	[Fact]
@@ -310,7 +310,7 @@ public sealed class AppConfigTests {
 	public void TryLoad_NullRoot_FailsWithExplicitError() {
 		using var cfg = new TempConfigFile("null");
 		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.Contains(errors, static e => e.Contains("根节点必须为 JSON 对象"));
+		Assert.Contains(errors, static e => e.Contains(L.Prefix("ConfigRootMustBeObject")));
 	}
 
 	[Fact]

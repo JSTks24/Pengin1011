@@ -321,7 +321,7 @@ public sealed class ComponentsTests : IDisposable {
 	public async Task A02_RespondUnavailable_EphemeralText_HasRespondedGuard() {
 		var fresh = new FakeInteraction("fakeping");
 		await Components.RespondUnavailableAsync(fresh);
-		Assert.Contains(fresh.Responses, static response => response.Contains("模块暂不可用"));
+		Assert.Contains(fresh.Responses, static response => response.Contains(L.Get("ModuleUnavailable")));
 
 		var responded = new FakeInteraction("fakeping") { HasResponded = true };
 		await Components.RespondUnavailableAsync(responded);

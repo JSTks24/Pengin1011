@@ -239,7 +239,9 @@ public enum AIProvider { OpenAI, Gemini }
 
 Behavior:
 
-- Non-streaming calls return `null` for an unconfigured backend or a handled request failure. Failures recognized as transient are retried up to twice, with 1 s and 2 s delays; each request attempt has a 120 s timeout. OpenAI HTTP 408/429/5xx and Gemini server errors are classified as transient, as are network failures and attempt timeouts.
+- Calling the default stack while that stack is unconfigured throws `InvalidOperationException` (streaming and non-streaming alike, before any concurrency slot is taken). The framework starts fine without AI credentials, so modules that always pass `Endpoint` need nothing in `config/config.json`; a call that relies on the default must either configure the stack or override the endpoint.
+- An empty `AI.Provider` defaults to `openai`. Filling the Gemini section without setting `AI.Provider` is accepted, but the host logs a warning: unless you meant to run on OpenAI, set `"Provider": "gemini"`.
+- Handled request failures (transient retries exhausted, non-transient backend errors) return `null`. Failures recognized as transient are retried up to twice, with 1 s and 2 s delays; each request attempt has a 120 s timeout. OpenAI HTTP 408/429/5xx and Gemini server errors are classified as transient, as are network failures and attempt timeouts.
 - Argument errors and caller cancellation propagate as exceptions. For non-streaming calls, override backend construction is inside the request error boundary: construction failures are logged, transient failures are retried with the same backoff, and other failures return `null`. Streaming construction failures propagate to the caller, which is responsible for logging them. Failed construction entries are removed from the cache so later calls can attempt construction again.
 - Streaming calls have a 120 s timeout for the stream, do not retry and propagate failures to the caller.
 - All calls share a concurrency gate (`AI.MaxParallel`, default 5).
@@ -304,7 +306,7 @@ Task<MessageSendResult> ReplyAsync(IMessage? source, string? text, AllowedMentio
 Task<MessageSendResult> SendAsync(IMessageChannel? channel, string? text, AllowedMentions? allowedMentions = null, CancellationToken ct = default)
 Task<IUserMessage?> SendEmbedAsync(IMessageChannel? channel, Embed? embed, string? text = null, AllowedMentions? allowedMentions = null)
 Task<IUserMessage?> SendFileAsync(IMessageChannel? channel, byte[]? data, string filename, string? text = null, AllowedMentions? allowedMentions = null)
-Task<bool> EditAsync(IUserMessage? message, string? text, CancellationToken ct = default)
+Task<bool> EditAsync(IUserMessage? message, string? text, AllowedMentions? allowedMentions = null, CancellationToken ct = default)
 Task<bool> DeleteAsync(IMessage? message, CancellationToken ct = default)
 Task<bool> ForwardAsync(IMessage? message, IMessageChannel? destination)
 Task<DirectMessageResult> SendDirectAsync(ulong userId, string? text, CancellationToken ct = default)
@@ -319,6 +321,8 @@ Long texts are automatically split into multiple messages (`MessageSendResult.Pl
 ```csharp
 IReadOnlyList<string> MessageSplitter.Split(string? text, int limit = MessageSplitter.DefaultLimit)
 ```
+
+Sends and edits both default to `AllowedMentions.None`: an edit whose text contains `@user` / `@role` / `@everyone` will not notify anyone unless you pass `allowedMentions` explicitly. `DeleteAsync` treats a message that no longer exists (Discord 404) as deleted and returns `true`; any other failure is logged and returns `false`.
 
 ### 8.3 Streaming replies — `StreamingReply`
 
@@ -344,6 +348,8 @@ Task<IUserMessage?> FollowupAsync(IDiscordInteraction? interaction, string? text
 Task<IUserMessage?> FollowupFileAsync(IDiscordInteraction? interaction, byte[]? data, string filename, string? text = null, bool ephemeral = true)
 Task<bool> EditOriginalAsync(IDiscordInteraction? interaction, string? text)
 ```
+
+`FollowupAsync` and `EditOriginalAsync` always send `AllowedMentions.None`, so framework-managed follow-ups and original-response edits never ping.
 
 ### 8.5 Channels / members / guilds
 
@@ -374,6 +380,8 @@ IRole? Guilds.GetRole(ulong guildId, ulong roleId)
 string? Guilds.GetName(ulong guildId)
 Task<bool> Guilds.LeaveAsync(ulong guildId)
 ```
+
+Send checks are thread-aware: for an `IThreadChannel` the answer comes from `SendMessagesInThreads`, for every other channel from `SendMessages`. Discord.Net resolves a thread's overwrites through its parent channel; when the parent does not set `SendMessagesInThreads` explicitly, Discord's implicit inheritance from `SendMessages` is not modelled, so treat the answer as the closest the library can give.
 
 ### 8.6 Threads / history / attachments / mentions
 
@@ -460,6 +468,32 @@ public static MyBotOptions Load() {
 ```
 
 Serialize Discord IDs as JSON strings and convert to `ulong` in your options classes.
+
+### 8.9 Localization — `Localizer`
+
+The framework and every module share one localization entry point (`Pengin1011.Core.Localization`). Each module can carry its own resources; a lookup made from module code is routed by the calling assembly and can never read another module's tables.
+
+Module localization files use a directory convention: `Localization/Strings.resx` (neutral) and `Localization/<culture>/Strings.resx` (e.g. `Localization/zh-CN/Strings.resx`). They are plain `.resx` files; the SDK embeds every culture directly into the module DLL — no satellite assemblies, no csproj changes, nothing extra to deploy. Multi-part culture directories such as `Localization/zh-Hans-CN/Strings.resx` work too. Put the culture in the directory, never in the file name: `Localization/Strings.zh-CN.resx` is compiled into a satellite assembly the module loader never picks up, so those strings would silently never load. `NewModule` scaffolds both files with a sample key. A module without any localization files is perfectly valid: lookups simply fall back to the framework resources.
+
+Lookup order when module code calls `Localizer.Get("Key")`:
+
+1. the calling module's table for the requested culture,
+2. the calling module's neutral table (via the parent-culture chain),
+3. the framework resources (`Resources/Strings.resx`),
+4. the key itself when nothing matches.
+
+```csharp
+public static string Get(string key, CultureInfo? culture = null)
+public static string Format(string key, params object?[] args)
+public static string Format(CultureInfo culture, string key, params object?[] args)
+public static string Get(Assembly scope, string key, CultureInfo? culture = null)     // explicit scope
+```
+
+Calling `Get`/`Format` directly from module code is all that is needed — the caller's assembly is detected automatically, so keep module strings in the module's own files instead of re-exporting framework keys. Use the explicit-scope `Get` only when a call must resolve against a specific assembly. Calls from the framework and from tests resolve to the framework resources.
+
+The host reads every module's tables into memory while loading it; the framework resources keep resolving through the shared resource manager. A corrupt resource degrades only that module — the failure is logged with the module name, its lookups fall back to the framework resources, and the module keeps running. A missing localization directory is not an error and is not logged.
+
+Keep placeholders identical across cultures (`{0}`, `{1}`, ...); the test project asserts that zh-CN covers every neutral key for both the framework and the fake modules.
 
 ## 9. Rules
 
@@ -626,4 +660,4 @@ Initialization opens the database to apply migrations. Cleanup always releases r
 └── runtime/logs/              # error.log, info.log
 ```
 
-Paths above are relative to the executable directory. `config/config.json` is created from a template on first start and must provide the Discord bot token and default AI backend. Console commands: `help`, `status`, `modules`, `db backup`, `db status`, `sync` (re-register the current command tree), `exit`. `Ctrl+C` uses the same shutdown path as `exit`; an incomplete shutdown returns a nonzero exit code.
+Paths above are relative to the executable directory. `config/config.json` is created from a template on first start and must provide the Discord bot token; the AI defaults are optional and only needed by modules that rely on the host's default AI stack (a module passing `AIRequest.Endpoint` needs nothing there). Console commands: `help`, `status`, `modules`, `db backup`, `db status`, `sync` (re-register the current command tree), `exit`. `Ctrl+C` uses the same shutdown path as `exit`; an incomplete shutdown returns a nonzero exit code.

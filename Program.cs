@@ -35,6 +35,7 @@ try {
 		return await FinishAsync(started);
 	}
 	var model = AppConfig.AI.Provider == AIProvider.OpenAI ? AppConfig.AI.OpenAI.Model : AppConfig.AI.Gemini.Model;
+	if (model.Length == 0) model = Localizer.Get("AIModelNotConfigured");
 	Logger.Info(typeof(Program), Localizer.Format("ConfigLoaded", AppConfig.AI.Provider, model, AppConfig.AI.MaxParallel));
 
 	Databases.Init();
@@ -50,7 +51,7 @@ try {
 	using (var gatewayStart = CancellationTokenSource.CreateLinkedTokenSource(stopCts.Token)) {
 		gatewayStart.CancelAfter(GatewayStartTimeout);
 		try {
-			if (!await DiscordGateway.StartAsync() || !await DiscordGateway.WaitReadyAsync(ct: gatewayStart.Token)) {
+			if (!await DiscordGateway.StartAsync(gatewayStart.Token) || !await DiscordGateway.WaitReadyAsync(ct: gatewayStart.Token)) {
 				return await FinishAsync(started);
 			}
 		} catch (OperationCanceledException) when (gatewayStart.IsCancellationRequested) {

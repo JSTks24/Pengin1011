@@ -24,9 +24,6 @@
 	<data name="StartupFailed" xml:space="preserve">
 		<value>启动失败</value>
 	</data>
-	<data name="ListSeparatorErrors" xml:space="preserve">
-		<value>；</value>
-	</data>
 	<data name="ListSeparatorItems" xml:space="preserve">
 		<value>、</value>
 	</data>
@@ -113,14 +110,20 @@ AI：{3} / {4}
 	<data name="DiscordTokenRequired" xml:space="preserve">
 		<value>Discord.Token 不能为空</value>
 	</data>
-	<data name="AIProviderRequired" xml:space="preserve">
-		<value>AI.Provider 不能为空（openai / gemini）</value>
-	</data>
 	<data name="AIProviderInvalid" xml:space="preserve">
 		<value>AI.Provider 无效：{0}（仅支持 openai / gemini）</value>
 	</data>
 	<data name="AIMaxParallelInvalid" xml:space="preserve">
 		<value>AI.MaxParallel 必须大于 0，当前 {0}</value>
+	</data>
+	<data name="AIBackendNotConfigured" xml:space="preserve">
+		<value>{0} AI 后端未配置：请在 config.json 的 AI 节配置，或在本次调用通过 AIRequest.Endpoint 指定端点。</value>
+	</data>
+	<data name="AIModelNotConfigured" xml:space="preserve">
+		<value>未配置</value>
+	</data>
+	<data name="AIProviderMissingGeminiHint" xml:space="preserve">
+		<value>AI.Provider 未填写但已配置 Gemini 节，当前按 openai 处理；若本意是使用 Gemini，请显式填写 "Provider": "gemini"。</value>
 	</data>
 	<data name="OpenAIApiKeyRequired" xml:space="preserve">
 		<value>AI.OpenAI.ApiKey 不能为空</value>
@@ -134,9 +137,6 @@ AI：{3} / {4}
 	<data name="OpenAIBaseUrlInvalid" xml:space="preserve">
 		<value>AI.OpenAI.BaseUrl 不是合法的 HTTP(S) 地址：{0}</value>
 	</data>
-	<data name="OpenAISectionRequired" xml:space="preserve">
-		<value>AI.OpenAI 节未配置（Provider 为 openai 时必填）</value>
-	</data>
 	<data name="GeminiModelRequired" xml:space="preserve">
 		<value>AI.Gemini.Model 不能为空</value>
 	</data>
@@ -145,9 +145,6 @@ AI：{3} / {4}
 	</data>
 	<data name="GeminiAuthIncomplete" xml:space="preserve">
 		<value>AI.Gemini 鉴权不完整：ApiKey 或 Project+Location 二选一</value>
-	</data>
-	<data name="GeminiSectionRequired" xml:space="preserve">
-		<value>AI.Gemini 节未配置（Provider 为 gemini 时必填）</value>
 	</data>
 	<data name="MigrationContractText" xml:space="preserve">
 		<value>凡有持久化需求的模块一律使用 EF Core Migration</value>
@@ -349,6 +346,15 @@ AI：{3} / {4}
 	</data>
 	<data name="ModuleLoadFailed" xml:space="preserve">
 		<value>模块加载失败：{0}</value>
+	</data>
+	<data name="ModuleLocalizationLoadFailed" xml:space="preserve">
+		<value>模块 {0} 的本地化加载失败，其查询将回退主程序资源</value>
+	</data>
+	<data name="ModuleLocalizationStreamMissing" xml:space="preserve">
+		<value>模块本地化资源流缺失：{0}</value>
+	</data>
+	<data name="ModuleLocalizationCultureInvalid" xml:space="preserve">
+		<value>模块本地化资源名中的 culture 段无效：{0}</value>
 	</data>
 	<data name="ModuleStopWaitTimeout" xml:space="preserve">
 		<value>模块停止等待超时（{0}s），实际清理任务保留：{1}</value>

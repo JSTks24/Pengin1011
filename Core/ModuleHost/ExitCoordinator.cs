@@ -15,6 +15,7 @@ public sealed class ExitCoordinator {
 	internal static TimeSpan ControlSectionBudget = TimeSpan.FromSeconds(15);
 	internal static TimeSpan BusinessDrainBudget = TimeSpan.FromSeconds(15);
 	internal static TimeSpan BusinessCancelDrainBudget = TimeSpan.FromSeconds(10);
+	internal static TimeSpan GatewayStopBudget = TimeSpan.FromSeconds(10);
 
 	public async Task<ExitReport> RunAsync() {
 		var failures = new List<string>();
@@ -58,6 +59,7 @@ public sealed class ExitCoordinator {
 		ControlSectionBudget = TimeSpan.FromSeconds(15);
 		BusinessDrainBudget = TimeSpan.FromSeconds(15);
 		BusinessCancelDrainBudget = TimeSpan.FromSeconds(10);
+		GatewayStopBudget = TimeSpan.FromSeconds(10);
 		PhaseBarrierForTest = null;
 	}
 
@@ -85,7 +87,7 @@ public sealed class ExitCoordinator {
 		});
 
 		if (blockers.Count == 0) {
-			await StepAsync(failures, Localizer.Get("ExitStepGatewayStop"), DiscordGateway.StopAsync);
+			await StepAsync(failures, Localizer.Get("ExitStepGatewayStop"), () => DiscordGateway.StopAsync().WaitAsync(GatewayStopBudget));
 		} else {
 			SkipStep(failures, Localizer.Get("ExitStepGatewayStop"), blockers);
 		}

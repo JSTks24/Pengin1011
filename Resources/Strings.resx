@@ -24,9 +24,6 @@
 	<data name="StartupFailed" xml:space="preserve">
 		<value>Startup failed</value>
 	</data>
-	<data name="ListSeparatorErrors" xml:space="preserve">
-		<value>; </value>
-	</data>
 	<data name="ListSeparatorItems" xml:space="preserve">
 		<value>, </value>
 	</data>
@@ -113,14 +110,20 @@ Databases: {6}</value>
 	<data name="DiscordTokenRequired" xml:space="preserve">
 		<value>Discord.Token must not be empty</value>
 	</data>
-	<data name="AIProviderRequired" xml:space="preserve">
-		<value>AI.Provider must not be empty (openai / gemini)</value>
-	</data>
 	<data name="AIProviderInvalid" xml:space="preserve">
 		<value>AI.Provider invalid: {0} (only openai / gemini are supported)</value>
 	</data>
 	<data name="AIMaxParallelInvalid" xml:space="preserve">
 		<value>AI.MaxParallel must be greater than 0, current value {0}</value>
+	</data>
+	<data name="AIBackendNotConfigured" xml:space="preserve">
+		<value>The {0} AI backend is not configured. Set it in config.json (AI section) or pass AIRequest.Endpoint for this call.</value>
+	</data>
+	<data name="AIModelNotConfigured" xml:space="preserve">
+		<value>not configured</value>
+	</data>
+	<data name="AIProviderMissingGeminiHint" xml:space="preserve">
+		<value>AI.Provider is empty while the Gemini section is configured; defaulting to openai. Add "Provider": "gemini" if Gemini was intended.</value>
 	</data>
 	<data name="OpenAIApiKeyRequired" xml:space="preserve">
 		<value>AI.OpenAI.ApiKey must not be empty</value>
@@ -134,9 +137,6 @@ Databases: {6}</value>
 	<data name="OpenAIBaseUrlInvalid" xml:space="preserve">
 		<value>AI.OpenAI.BaseUrl is not a valid HTTP(S) URL: {0}</value>
 	</data>
-	<data name="OpenAISectionRequired" xml:space="preserve">
-		<value>AI.OpenAI section not configured (required when Provider is openai)</value>
-	</data>
 	<data name="GeminiModelRequired" xml:space="preserve">
 		<value>AI.Gemini.Model must not be empty</value>
 	</data>
@@ -145,9 +145,6 @@ Databases: {6}</value>
 	</data>
 	<data name="GeminiAuthIncomplete" xml:space="preserve">
 		<value>AI.Gemini authentication incomplete: provide ApiKey or Project+Location</value>
-	</data>
-	<data name="GeminiSectionRequired" xml:space="preserve">
-		<value>AI.Gemini section not configured (required when Provider is gemini)</value>
 	</data>
 	<data name="MigrationContractText" xml:space="preserve">
 		<value>Modules requiring persistence must all use EF Core migrations</value>
@@ -349,6 +346,15 @@ Databases: {6}</value>
 	</data>
 	<data name="ModuleLoadFailed" xml:space="preserve">
 		<value>Module load failed: {0}</value>
+	</data>
+	<data name="ModuleLocalizationLoadFailed" xml:space="preserve">
+		<value>Module localization failed to load for {0}; its queries fall back to the main resources</value>
+	</data>
+	<data name="ModuleLocalizationStreamMissing" xml:space="preserve">
+		<value>Module localization resource stream is missing: {0}</value>
+	</data>
+	<data name="ModuleLocalizationCultureInvalid" xml:space="preserve">
+		<value>Module localization resource name has an invalid culture segment: {0}</value>
 	</data>
 	<data name="ModuleStopWaitTimeout" xml:space="preserve">
 		<value>Module stop wait timed out ({0}s); the actual cleanup task keeps running: {1}</value>

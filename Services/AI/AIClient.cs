@@ -53,6 +53,8 @@ public static class AIClient {
 	private static ConcurrentDictionary<string, Lazy<IAIBackend>> _overrideBackends = new();
 	private static Func<AIProvider, AIEndpoint, IAIBackend> _overrideFactory = DefaultCreateOverrideBackend;
 
+	private sealed class BackendNotConfiguredException(string message) : InvalidOperationException(message);
+
 	private static IAIBackend DefaultCreateOverrideBackend(AIProvider stack, AIEndpoint endpoint) {
 		return stack == AIProvider.OpenAI ? new OpenAIBackend(endpoint) : new GeminiBackend(endpoint);
 	}
@@ -103,17 +105,17 @@ public static class AIClient {
 
 	public static async Task<AIResult?> CompleteAsync(AIProvider stack, AIRequest request, CancellationToken ct = default) {
 		Validate(stack, request);
-		if (request.Endpoint == null && Resolve(stack, request) == null) return null;
+		RequireDefaultBackend(stack, request);
 		await _gate.WaitAsync(ct);
 		try {
 			for (var attempt = 0; ; attempt++) {
 				try {
 					var backend = Resolve(stack, request);
-					if (backend == null) return null;
+					if (backend == null) throw new BackendNotConfiguredException(Localizer.Format("AIBackendNotConfigured", stack));
 					return await AttemptAsync(backend, request, ct);
 				} catch (OperationCanceledException) when (ct.IsCancellationRequested) {
 					throw;
-				} catch (Exception e) {
+				} catch (Exception e) when (e is not BackendNotConfiguredException) {
 					var transient = OpenAIBackend.IsTransient(e) || GeminiBackend.IsTransient(e);
 					if (transient) {
 						Logger.Error(typeof(AIClient), e, Localizer.Format("AICallTransientFailure", attempt + 1));
@@ -135,12 +137,13 @@ public static class AIClient {
 
 	public static IAsyncEnumerable<AIStreamDelta> StreamAsync(AIProvider stack, AIRequest request, CancellationToken ct = default) {
 		Validate(stack, request);
+		RequireDefaultBackend(stack, request);
 		return StreamCoreAsync(stack, request, ct);
 	}
 
 	private static async IAsyncEnumerable<AIStreamDelta> StreamCoreAsync(AIProvider stack, AIRequest request, [EnumeratorCancellation] CancellationToken ct) {
 		var backend = Resolve(stack, request);
-		if (backend == null) yield break;
+		if (backend == null) throw new BackendNotConfiguredException(Localizer.Format("AIBackendNotConfigured", stack));
 		await _gate.WaitAsync(ct);
 		try {
 			using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -150,6 +153,12 @@ public static class AIClient {
 			}
 		} finally {
 			_gate.Release();
+		}
+	}
+
+	private static void RequireDefaultBackend(AIProvider stack, AIRequest request) {
+		if (request.Endpoint == null && Resolve(stack, request) == null) {
+			throw new BackendNotConfiguredException(Localizer.Format("AIBackendNotConfigured", stack));
 		}
 	}
 

@@ -1,13 +1,33 @@
+using System.Globalization;
+using System.Runtime.CompilerServices;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Pengin1011.Core;
+using Pengin1011.Core.Localization;
 using Pengin1011.Core.Modules;
 using Pengin1011.Services.Discord;
 
 namespace Pengin1011.Modules.FakeModule;
+
+public static class FakeModuleTexts {
+	[MethodImpl(MethodImplOptions.NoInlining)]
+	public static string GetText(string key) {
+		return Localizer.Get(key);
+	}
+
+	[MethodImpl(MethodImplOptions.NoInlining)]
+	public static string FormatText(string key, params object?[] args) {
+		return Localizer.Format(key, args);
+	}
+
+	[MethodImpl(MethodImplOptions.NoInlining)]
+	public static string FormatText(CultureInfo culture, string key, params object?[] args) {
+		return Localizer.Format(culture, key, args);
+	}
+}
 
 [ModuleAvailability(typeof(FakeModuleRuntime))]
 public class FakeModule : InteractionModuleBase<FakeInteractionContext> {

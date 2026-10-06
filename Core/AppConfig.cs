@@ -123,9 +123,7 @@ public static class AppConfig {
 
 		var aiNode = file.AI;
 		var providerText = (aiNode?.Provider ?? "").Trim().ToLowerInvariant();
-		if (providerText.Length == 0) {
-			errors.Add(new ConfigError(Localizer.Get("AIProviderRequired")));
-		} else if (providerText != "openai" && providerText != "gemini") {
+		if (providerText.Length > 0 && providerText != "openai" && providerText != "gemini") {
 			errors.Add(new ConfigError(Localizer.Format("AIProviderInvalid", providerText)));
 		}
 
@@ -146,7 +144,6 @@ public static class AppConfig {
 				errors.Add(new ConfigError(Localizer.Format("OpenAIBaseUrlInvalid", openAIUrl)));
 			}
 		}
-		if (providerText == "openai" && !openAITouched) errors.Add(new ConfigError(Localizer.Get("OpenAISectionRequired")));
 
 		var geminiNode = aiNode?.Gemini;
 		var geminiKey = (geminiNode?.ApiKey ?? "").Trim();
@@ -164,9 +161,9 @@ public static class AppConfig {
 				errors.Add(new ConfigError(Localizer.Get("GeminiAuthIncomplete")));
 			}
 		}
-		if (providerText == "gemini" && !geminiTouched) errors.Add(new ConfigError(Localizer.Get("GeminiSectionRequired")));
 
 		if (errors.Count > 0) return false;
+		if (providerText.Length == 0 && geminiTouched) Logger.Warn(typeof(AppConfig), Localizer.Get("AIProviderMissingGeminiHint"));
 
 		discord = new DiscordConfig { Token = token };
 		ai = new AIConfig {

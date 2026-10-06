@@ -21,6 +21,7 @@
     <ProjectReference Include="..\FakeSecond\FakeSecond.csproj" />
     <ProjectReference Include="..\FakeThird\FakeThird.csproj" />
     <ProjectReference Include="..\FakeBare\FakeBare.csproj" />
+    <ProjectReference Include="..\FakeBrokenLocale\FakeBrokenLocale.csproj" />
   </ItemGroup>
 
   <ItemGroup>

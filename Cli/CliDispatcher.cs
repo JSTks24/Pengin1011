@@ -38,6 +38,7 @@ public static class CliDispatcher {
 	private static string StatusText() {
 		var uptime = DateTimeOffset.Now - StartedAt;
 		var model = AppConfig.AI.Provider == AIProvider.OpenAI ? AppConfig.AI.OpenAI.Model : AppConfig.AI.Gemini.Model;
+		if (model.Length == 0) model = Localizer.Get("AIModelNotConfigured");
 		return Localizer.Format(
 			"CliStatus",
 			uptime,

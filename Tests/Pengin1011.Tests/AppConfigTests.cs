@@ -1,4 +1,5 @@
 using Pengin1011.Core;
+using Pengin1011.Core.Logging;
 
 namespace Pengin1011.Tests;
 
@@ -144,7 +145,7 @@ public sealed class AppConfigTests {
 	}
 
 	[Fact]
-	public void TryLoad_MissingProvider() {
+	public void TryLoad_MissingProvider_DefaultsToOpenAI() {
 		using var cfg = new TempConfigFile("""
 			{
 			  "Discord": { "Token": "tok" },
@@ -153,8 +154,10 @@ public sealed class AppConfigTests {
 			  }
 			}
 			""");
-		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.Contains(errors, static e => e.Contains("AI.Provider"));
+		Assert.True(AppConfig.TryLoad(cfg.Path, out var errors));
+		Assert.Empty(errors);
+		Assert.Equal(AIProvider.OpenAI, AppConfig.AI.Provider);
+		Assert.Equal("m1", AppConfig.AI.OpenAI.Model);
 	}
 
 	[Fact]
@@ -180,8 +183,11 @@ public sealed class AppConfigTests {
 			  "AI": { "Provider": "openai" }
 			}
 			""");
-		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.Contains(errors, static e => e.Contains(L.Get("OpenAISectionRequired")));
+		Assert.True(AppConfig.TryLoad(cfg.Path, out var errors));
+		Assert.Empty(errors);
+		Assert.Equal(AIProvider.OpenAI, AppConfig.AI.Provider);
+		Assert.True(AppConfig.AI.OpenAI.IsEmpty);
+		Assert.True(AppConfig.AI.Gemini.IsEmpty);
 	}
 
 	[Fact]
@@ -192,8 +198,40 @@ public sealed class AppConfigTests {
 			  "AI": { "Provider": "gemini" }
 			}
 			""");
+		Assert.True(AppConfig.TryLoad(cfg.Path, out var errors));
+		Assert.Empty(errors);
+		Assert.Equal(AIProvider.Gemini, AppConfig.AI.Provider);
+		Assert.True(AppConfig.AI.Gemini.IsEmpty);
+	}
+
+	[Fact]
+	public void TryLoad_MissingAISection_DefaultsToOpenAI() {
+		using var cfg = new TempConfigFile("""
+			{
+			  "Discord": { "Token": "tok" }
+			}
+			""");
+		Assert.True(AppConfig.TryLoad(cfg.Path, out var errors));
+		Assert.Empty(errors);
+		Assert.Equal(AIProvider.OpenAI, AppConfig.AI.Provider);
+		Assert.Equal(5, AppConfig.AI.MaxParallel);
+		Assert.True(AppConfig.AI.OpenAI.IsEmpty);
+		Assert.True(AppConfig.AI.Gemini.IsEmpty);
+	}
+
+	[Fact]
+	public void TryLoad_MissingProvider_TouchedValidationStillApplies() {
+		using var cfg = new TempConfigFile("""
+			{
+			  "Discord": { "Token": "tok" },
+			  "AI": {
+			    "OpenAI": { "ApiKey": "k" }
+			  }
+			}
+			""");
 		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.Contains(errors, static e => e.Contains(L.Get("GeminiSectionRequired")));
+		Assert.Contains(errors, static e => e.Contains("AI.OpenAI.Model"));
+		Assert.Contains(errors, static e => e.Contains("AI.OpenAI.BaseUrl"));
 	}
 
 	[Fact]
@@ -332,7 +370,7 @@ public sealed class AppConfigTests {
 		using var cfg = new TempConfigFile("{}");
 		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
 		Assert.Contains(errors, static e => e.Contains("Discord.Token"));
-		Assert.Contains(errors, static e => e.Contains("AI.Provider"));
+		Assert.Single(errors);
 	}
 
 	[Fact]
@@ -345,6 +383,60 @@ public sealed class AppConfigTests {
 		Assert.NotEmpty(errors);
 		Assert.Equal("m1", AppConfig.AI.OpenAI.Model);
 		Assert.Equal("tok-1", AppConfig.Discord.Token);
+	}
+
+	[Fact]
+	public void TryLoad_GeminiConfiguredWithoutProvider_WarnsAndStillLoads() {
+		using var cfg = new TempConfigFile("""
+			{
+			  "Discord": { "Token": "tok" },
+			  "AI": {
+			    "Gemini": { "ApiKey": "gk", "Model": "gm" }
+			  }
+			}
+			""");
+		var logPath = TempErrorLog();
+		Logger.SetLogPathForTest(logPath);
+		try {
+			Assert.True(AppConfig.TryLoad(cfg.Path, out var errors));
+			Assert.Empty(errors);
+			Assert.Equal(AIProvider.OpenAI, AppConfig.AI.Provider);
+			Assert.Equal("gk", AppConfig.AI.Gemini.ApiKey);
+			Assert.Contains(L.Get("AIProviderMissingGeminiHint"), File.ReadAllText(logPath));
+		} finally {
+			CleanupErrorLog(logPath);
+		}
+	}
+
+	[Fact]
+	public void TryLoad_MissingProvider_OpenAIOnly_NoWarning() {
+		using var cfg = new TempConfigFile("""
+			{
+			  "Discord": { "Token": "tok" },
+			  "AI": {
+			    "OpenAI": { "ApiKey": "k", "BaseUrl": "https://api.example.com/v1", "Model": "m1" }
+			  }
+			}
+			""");
+		var logPath = TempErrorLog();
+		Logger.SetLogPathForTest(logPath);
+		try {
+			Assert.True(AppConfig.TryLoad(cfg.Path, out var errors));
+			Assert.Empty(errors);
+			Assert.False(File.Exists(logPath));
+		} finally {
+			CleanupErrorLog(logPath);
+		}
+	}
+
+	private static string TempErrorLog() {
+		return Path.Combine(Path.GetTempPath(), $"qq1011_cfg_{Guid.NewGuid():N}", "error.log");
+	}
+
+	private static void CleanupErrorLog(string path) {
+		Logger.SetLogPathForTest(null);
+		var directory = Path.GetDirectoryName(path)!;
+		if (Directory.Exists(directory)) Directory.Delete(directory, true);
 	}
 }
 

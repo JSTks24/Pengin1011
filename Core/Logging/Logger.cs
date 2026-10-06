@@ -31,6 +31,10 @@ public static class Logger {
 		Write(Console.Error, LogPath, source, message, exception);
 	}
 
+	public static void Warn(Type source, string message) {
+		Write(Console.Error, LogPath, source, message, null);
+	}
+
 	public static void Info(Type source, string message) {
 		Write(Console.Out, InfoPath, source, message, null);
 	}

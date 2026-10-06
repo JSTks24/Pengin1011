@@ -23,7 +23,7 @@
 dotnet run --project Pengin1011.csproj
 ```
 
-首次启动会在程序所在目录下生成 `config/config.json`。填写 Discord bot token 和默认 AI 后端后重新启动。使用上述命令时，配置文件通常位于 `bin/Debug/net10.0/config/config.json`。
+首次启动会在程序所在目录下生成 `config/config.json`。填写 Discord bot token 后重新启动；AI 节可选，仅在模块依赖宿主默认 AI 后端时才需要填写（模块自带端点则无需配置）。使用上述命令时，配置文件通常位于 `bin/Debug/net10.0/config/config.json`。
 
 控制台命令：`help`、`status`、`modules`、`db backup`、`db status`、`sync`、`exit`。
 

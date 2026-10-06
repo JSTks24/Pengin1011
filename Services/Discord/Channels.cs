@@ -29,7 +29,7 @@ public static class Channels {
 	}
 
 	public static bool CanSend(IGuildChannel? channel, IGuildUser? user) {
-		return user != null && channel != null && user.GetPermissions(channel).SendMessages;
+		return user != null && channel != null && CanSendIn(user.GetPermissions(channel), channel);
 	}
 
 	public static bool CanReadHistory(IGuildChannel? channel, IGuildUser? user) {
@@ -41,20 +41,24 @@ public static class Channels {
 	}
 
 	public static bool CanBotView(IGuildChannel? channel) {
-		return HasBotPermission(channel, static permissions => permissions.ViewChannel);
+		return HasBotPermission(channel, static (permissions, _) => permissions.ViewChannel);
 	}
 
 	public static bool CanBotSend(IGuildChannel? channel) {
-		return HasBotPermission(channel, static permissions => permissions.SendMessages);
+		return HasBotPermission(channel, CanSendIn);
 	}
 
 	public static bool CanBotReadHistory(IGuildChannel? channel) {
-		return HasBotPermission(channel, static permissions => permissions.ReadMessageHistory);
+		return HasBotPermission(channel, static (permissions, _) => permissions.ReadMessageHistory);
 	}
 
-	private static bool HasBotPermission(IGuildChannel? channel, Func<ChannelPermissions, bool> check) {
+	internal static bool CanSendIn(ChannelPermissions permissions, IGuildChannel channel) {
+		return channel is IThreadChannel ? permissions.SendMessagesInThreads : permissions.SendMessages;
+	}
+
+	private static bool HasBotPermission(IGuildChannel? channel, Func<ChannelPermissions, IGuildChannel, bool> check) {
 		if (channel == null) return false;
 		var self = DiscordGateway.GetGuild(channel.GuildId)?.CurrentUser;
-		return self != null && check(self.GetPermissions(channel));
+		return self != null && check(self.GetPermissions(channel), channel);
 	}
 }

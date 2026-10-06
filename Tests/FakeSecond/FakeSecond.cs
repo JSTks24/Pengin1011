@@ -1,6 +1,15 @@
+using System.Runtime.CompilerServices;
+using Pengin1011.Core.Localization;
 using Pengin1011.Core.Modules;
 
 namespace Pengin1011.Modules.FakeSecond;
+
+public static class FakeSecondTexts {
+	[MethodImpl(MethodImplOptions.NoInlining)]
+	public static string GetText(string key) {
+		return Localizer.Get(key);
+	}
+}
 
 public sealed class FakeSecondRuntime : IModuleRuntime {
 	public static int InitCount;

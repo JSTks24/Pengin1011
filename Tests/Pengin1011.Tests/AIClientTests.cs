@@ -32,14 +32,43 @@ public sealed class AIClientTests {
 	}
 
 	[Fact]
-	public async Task Complete_UninitializedStack_ReturnsNull() {
+	public async Task Complete_UninitializedStack_Throws() {
 		var openAI = new FakeBackend(static _ => Result("open"));
 		AIClient.Init(openAI, null, AIProvider.OpenAI, 2);
 
-		var result = await AIClient.CompleteAsync(AIProvider.Gemini, MakeRequest());
+		var exception = await Assert.ThrowsAnyAsync<InvalidOperationException>(() => AIClient.CompleteAsync(AIProvider.Gemini, MakeRequest()));
 
-		Assert.Null(result);
+		Assert.Contains(L.Prefix("AIBackendNotConfigured"), exception.Message);
 		Assert.Equal(0, openAI.Calls);
+	}
+
+	[Fact]
+	public void Stream_UninitializedStack_ThrowsWithoutEnumerating() {
+		var openAI = new FakeBackend(static _ => Result("open"));
+		AIClient.Init(openAI, null, AIProvider.OpenAI, 2);
+
+		var exception = Assert.ThrowsAny<InvalidOperationException>(() => AIClient.StreamAsync(AIProvider.Gemini, MakeRequest()));
+
+		Assert.Contains(L.Prefix("AIBackendNotConfigured"), exception.Message);
+		Assert.Equal(0, openAI.Calls);
+	}
+
+	[Fact]
+	public async Task Complete_DefaultStackUnconfigured_Throws() {
+		AIClient.Init(null, null, AIProvider.OpenAI, 2);
+
+		var exception = await Assert.ThrowsAnyAsync<InvalidOperationException>(() => AIClient.CompleteAsync(MakeRequest()));
+
+		Assert.Contains(L.Prefix("AIBackendNotConfigured"), exception.Message);
+	}
+
+	[Fact]
+	public void Stream_DefaultStackUnconfigured_ThrowsWithoutEnumerating() {
+		AIClient.Init(null, null, AIProvider.OpenAI, 2);
+
+		var exception = Assert.ThrowsAny<InvalidOperationException>(() => AIClient.StreamAsync(MakeRequest()));
+
+		Assert.Contains(L.Prefix("AIBackendNotConfigured"), exception.Message);
 	}
 
 	[Fact]

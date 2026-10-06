@@ -70,6 +70,11 @@ public static class ModuleHost {
 
 	internal static LoadedModule LoadOne(string name, string file) {
 		var assembly = LoadAssembly(file, name);
+		try {
+			Localizer.RegisterModule(assembly);
+		} catch (Exception e) {
+			Logger.Error(typeof(ModuleHost), e, Localizer.Format("ModuleLocalizationLoadFailed", name));
+		}
 		var runtime = CreateRuntime(assembly, name);
 		return new LoadedModule { Name = name, FilePath = file, Assembly = assembly, LoadedAt = DateTimeOffset.Now, Runtime = runtime };
 	}

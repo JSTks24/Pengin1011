@@ -106,11 +106,15 @@ public static class Messages {
 		}
 	}
 
-	public static async Task<bool> EditAsync(IUserMessage? message, string? text, CancellationToken ct = default) {
+	public static async Task<bool> EditAsync(IUserMessage? message, string? text, AllowedMentions? allowedMentions = null, CancellationToken ct = default) {
 		if (message == null || string.IsNullOrEmpty(text)) return false;
 		try {
 			var content = text.Length <= EditLimit ? text : text[..EditLimit];
-			await message.ModifyAsync(properties => properties.Content = content, MakeOptions(ct));
+			var mentions = allowedMentions ?? AllowedMentions.None;
+			await message.ModifyAsync(properties => {
+				properties.Content = content;
+				properties.AllowedMentions = mentions;
+			}, MakeOptions(ct));
 			return true;
 		} catch (OperationCanceledException) {
 			throw;
@@ -127,6 +131,8 @@ public static class Messages {
 			return true;
 		} catch (OperationCanceledException) {
 			throw;
+		} catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.NotFound) {
+			return true;
 		} catch (Exception e) {
 			Logger.Error(typeof(Messages), e, Localizer.Format("MessageDeleteFailed", message.Id));
 			return false;

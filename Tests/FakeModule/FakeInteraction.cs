@@ -23,6 +23,8 @@ public sealed class FakeInteraction : ISlashCommandInteraction {
 	public List<string> Followups { get; } = [];
 	public bool Deferred { get; private set; }
 	public bool ThrowOnRespond { get; set; }
+	public string? LastOriginalContent { get; private set; }
+	public AllowedMentions? LastOriginalAllowedMentions { get; private set; }
 
 	public IApplicationCommandInteractionData Data { get; }
 	IDiscordInteractionData IDiscordInteraction.Data => Data;
@@ -94,7 +96,11 @@ public sealed class FakeInteraction : ISlashCommandInteraction {
 	}
 
 	public Task<IUserMessage> ModifyOriginalResponseAsync(Action<MessageProperties> func, RequestOptions? options = null) {
-		throw new NotSupportedException();
+		var properties = new MessageProperties();
+		func(properties);
+		if (properties.Content.IsSpecified) LastOriginalContent = properties.Content.Value;
+		LastOriginalAllowedMentions = properties.AllowedMentions.IsSpecified ? properties.AllowedMentions.Value : null;
+		return Task.FromResult<IUserMessage>(null!);
 	}
 
 	public Task DeleteOriginalResponseAsync(RequestOptions? options = null) {

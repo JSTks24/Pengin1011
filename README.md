@@ -23,7 +23,7 @@ Requires the .NET 10 SDK. Run from the repository root:
 dotnet run --project Pengin1011.csproj
 ```
 
-On first start, the host creates `config/config.json` under its executable directory. Set the Discord bot token and default AI backend, then restart. With the command above, the configuration is normally at `bin/Debug/net10.0/config/config.json`.
+On first start, the host creates `config/config.json` under its executable directory. Set the Discord bot token, then restart. The AI section is optional: fill it only if a module relies on the host's default AI backend (a module that passes its own endpoint needs nothing there). With the command above, the configuration is normally at `bin/Debug/net10.0/config/config.json`.
 
 Console commands: `help`, `status`, `modules`, `db backup`, `db status`, `sync`, `exit`.
 

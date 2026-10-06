@@ -190,7 +190,7 @@ public sealed class AIOverrideTests {
 	}
 
 	[Fact]
-	public async Task Complete_UninitializedStack_ReturnsNull_WithoutWaitingSlot() {
+	public async Task Complete_UninitializedStack_Throws_WithoutWaitingSlot() {
 		var slotGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 		var blocker = new BlockingBackend(slotGate.Task);
 		AIClient.Init(blocker, null, AIProvider.OpenAI, 1);
@@ -200,9 +200,9 @@ public sealed class AIOverrideTests {
 		}
 
 		using var cts = new CancellationTokenSource(200);
-		var result = await AIClient.CompleteAsync(AIProvider.Gemini, MakeRequest(), cts.Token);
+		var exception = await Assert.ThrowsAnyAsync<InvalidOperationException>(() => AIClient.CompleteAsync(AIProvider.Gemini, MakeRequest(), cts.Token));
 
-		Assert.Null(result);
+		Assert.Contains(L.Prefix("AIBackendNotConfigured"), exception.Message);
 		Assert.Equal(1, blocker.Calls);
 		slotGate.SetResult();
 		await occupying;

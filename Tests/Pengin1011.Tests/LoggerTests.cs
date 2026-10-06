@@ -77,6 +77,28 @@ public sealed class LoggerTests {
 	}
 
 	[Fact]
+	public void Warn_WritesToErrorFileAndConsoleError() {
+		var path = TempLog("error.log");
+		Logger.SetLogPathForTest(path);
+		var original = Console.Error;
+		var writer = new StringBuilder();
+		var stringWriter = new StringWriter(writer);
+		Console.SetError(stringWriter);
+		try {
+			Logger.Warn(typeof(FakeSource), "配置提醒");
+		} finally {
+			Console.SetError(original);
+			stringWriter.Dispose();
+		}
+		try {
+			Assert.Contains("[FakeSource] 配置提醒", File.ReadAllText(path));
+			Assert.Contains("[FakeSource] 配置提醒", writer.ToString());
+		} finally {
+			Cleanup(path);
+		}
+	}
+
+	[Fact]
 	public void Info_WritesMessageToInfoFile() {
 		var errorPath = TempLog("error.log");
 		var infoPath = TempLog("info.log");

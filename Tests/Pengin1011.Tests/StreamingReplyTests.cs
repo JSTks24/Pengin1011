@@ -1,4 +1,6 @@
+using System.Net;
 using Discord;
+using Discord.Net;
 using Pengin1011.Services.Discord;
 
 namespace Pengin1011.Tests;
@@ -236,6 +238,24 @@ public sealed class StreamingReplyTests {
 	}
 
 	[Fact]
+	public async Task FinalizeAsync_TailDeletedByModerator_RemovesExcessAndKeepsPrefix() {
+		var channel = new FakeMessageChannel();
+		var source = new FakeUserMessage { Id = 99, Channel = channel };
+		var session = new StreamingReply(ReplySinks.FromMessage(source), null, _time);
+		session.Append(new string('a', 4500));
+		await session.FlushAsync();
+		Assert.Equal(3, channel.Messages.Count);
+		channel.Messages[1].DeleteException = new HttpException(HttpStatusCode.NotFound, null!, null, null, null);
+		channel.Messages[2].DeleteException = new HttpException(HttpStatusCode.NotFound, null!, null, null, null);
+
+		var status = await session.FinalizeAsync("short");
+
+		Assert.Equal(StreamSyncStatus.Updated, status);
+		Assert.Single(session.Posts);
+		Assert.Equal("short", channel.Messages[0].Content);
+	}
+
+	[Fact]
 	public async Task FinalizeAsync_KeptPrefixEditFails_DoesNotDeleteTail() {
 		var session = MakeSession();
 		session.Append(new string('a', 4500));
@@ -300,7 +320,7 @@ public sealed class StreamingReplyTests {
 		using var cts = new CancellationTokenSource();
 		cts.Cancel();
 
-		await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Messages.EditAsync(message, "new", cts.Token));
+		await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Messages.EditAsync(message, "new", ct: cts.Token));
 		await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Messages.DeleteAsync(message, cts.Token));
 	}
 
@@ -350,6 +370,7 @@ public sealed class StreamingReplyTests {
 		}
 
 		public Task<bool> DeleteAsync(CancellationToken ct) {
+			if (DeleteNotFound) throw new HttpException(HttpStatusCode.NotFound, null!, null, null, null);
 			if (DeleteFails) return Task.FromResult(false);
 			_deletions.Add(Id);
 			return Task.FromResult(true);

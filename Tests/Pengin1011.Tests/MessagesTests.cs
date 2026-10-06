@@ -128,6 +128,40 @@ public sealed class MessagesTests {
 	}
 
 	[Fact]
+	public async Task EditAsync_DefaultsToAllowedMentionsNone() {
+		var message = new FakeUserMessage { Content = "old" };
+
+		var ok = await Messages.EditAsync(message, "new <@1>");
+
+		Assert.True(ok);
+		Assert.Same(AllowedMentions.None, message.LastAllowedMentions);
+	}
+
+	[Fact]
+	public async Task EditAsync_ExplicitAllowedMentions_PassesThrough() {
+		var message = new FakeUserMessage { Content = "old" };
+
+		var ok = await Messages.EditAsync(message, "new <@1>", AllowedMentions.All);
+
+		Assert.True(ok);
+		Assert.Same(AllowedMentions.All, message.LastAllowedMentions);
+	}
+
+	[Fact]
+	public async Task DeleteAsync_NotFound_TreatedAsRemoved() {
+		var message = new FakeUserMessage { DeleteException = new HttpException(HttpStatusCode.NotFound, null!, null, null, null) };
+
+		Assert.True(await Messages.DeleteAsync(message));
+	}
+
+	[Fact]
+	public async Task DeleteAsync_OtherException_ReturnsFalse() {
+		var message = new FakeUserMessage { DeleteException = new InvalidOperationException("删除失败") };
+
+		Assert.False(await Messages.DeleteAsync(message));
+	}
+
+	[Fact]
 	public async Task SendDirectAsync_Forbidden_ReturnsBlocked() {
 		var user = new FakeUser { DmException = new HttpException(HttpStatusCode.Forbidden, null!, null, null, null) };
 

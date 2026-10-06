@@ -41,7 +41,10 @@ public static class Interactions {
 	public static async Task<bool> EditOriginalAsync(IDiscordInteraction? interaction, string? text) {
 		if (interaction == null) return false;
 		try {
-			await interaction.ModifyOriginalResponseAsync(properties => properties.Content = text ?? "");
+			await interaction.ModifyOriginalResponseAsync(properties => {
+				properties.Content = text ?? "";
+				properties.AllowedMentions = AllowedMentions.None;
+			});
 			return true;
 		} catch (Exception e) {
 			Logger.Error(typeof(Interactions), e, Localizer.Get("EditOriginalFailed"));

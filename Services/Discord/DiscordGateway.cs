@@ -154,13 +154,17 @@ public static class DiscordGateway {
 		}
 	}
 
-	public static async Task<bool> StartAsync() {
+	public static async Task<bool> StartAsync(CancellationToken ct = default) {
 		var client = _client;
 		if (client == null || _token.Length == 0) return false;
 		try {
-			await client.LoginAsync(TokenType.Bot, _token);
-			await client.StartAsync();
+			var login = ClientLoginForTest ?? (target => target.LoginAsync(TokenType.Bot, _token));
+			await login(client).WaitAsync(ct);
+			var start = ClientStartForTest ?? (target => target.StartAsync());
+			await start(client).WaitAsync(ct);
 			return true;
+		} catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+			throw;
 		} catch (Exception e) {
 			Logger.Error(typeof(DiscordGateway), e, Localizer.Get("GatewayConnectFailed"));
 			return false;
@@ -230,26 +234,22 @@ public static class DiscordGateway {
 
 	internal static Func<DiscordSocketClient, Task>? ClientStopForTest;
 	internal static Func<DiscordSocketClient, Task>? ClientLogoutForTest;
+	internal static Func<DiscordSocketClient, Task>? ClientLoginForTest;
+	internal static Func<DiscordSocketClient, Task>? ClientStartForTest;
 
 	internal static void ResetClientOverridesForTest() {
 		ClientStopForTest = null;
 		ClientLogoutForTest = null;
+		ClientLoginForTest = null;
+		ClientStartForTest = null;
 	}
 
 	internal static void DetachForTest() {
 		Detach();
 	}
 
-	internal static Task DispatchReadyForTest() {
-		return DispatchReady(ReadyHandlers);
-	}
-
 	internal static Task DispatchMessageForTest(SocketMessage? message) {
 		return Dispatch(MessageHandlers, message!, null, Localizer.Get("KindMessage"));
-	}
-
-	internal static Task DispatchInteractionForTest(SocketInteraction? interaction) {
-		return Dispatch(InteractionHandlers, interaction!, interaction, Localizer.Get("KindInteraction"));
 	}
 
 	internal static void DispatchInteractionRejectionForTest(WorkRejectReason reason, IDiscordInteraction interaction) {

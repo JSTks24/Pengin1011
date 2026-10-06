@@ -37,6 +37,25 @@ public sealed class CliDispatcherTests {
 	}
 
 	[Fact]
+	public async Task Status_UnconfiguredModel_ShowsPlaceholder() {
+		var path = Path.Combine(Path.GetTempPath(), $"qq1011_status_{Guid.NewGuid():N}.json");
+		File.WriteAllText(path, """
+			{
+			  "Discord": { "Token": "tok" }
+			}
+			""");
+		try {
+			Assert.True(AppConfig.TryLoad(path, out _));
+
+			var result = await CliDispatcher.ExecuteAsync("status");
+
+			Assert.Contains(L.Get("AIModelNotConfigured"), result.Output);
+		} finally {
+			try { File.Delete(path); } catch (IOException) { }
+		}
+	}
+
+	[Fact]
 	public async Task Modules_WithNoneLoaded() {
 		ModuleHost.ResetForTest();
 		var result = await CliDispatcher.ExecuteAsync("modules");

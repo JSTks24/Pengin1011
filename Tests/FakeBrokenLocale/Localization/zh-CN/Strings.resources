@@ -1,0 +1,1 @@
+this embedded resource stream is intentionally not a valid .resources payload; ResourceReader construction over it must fail so the host degrades this module localization

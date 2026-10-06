@@ -196,7 +196,7 @@ internal sealed class MessageReplyPost : IReplyPost {
 	public ulong Id => _message.Id;
 
 	public Task<bool> EditAsync(string content, CancellationToken ct) {
-		return Messages.EditAsync(_message, content, ct);
+		return Messages.EditAsync(_message, content, ct: ct);
 	}
 
 	public Task<bool> DeleteAsync(CancellationToken ct) {

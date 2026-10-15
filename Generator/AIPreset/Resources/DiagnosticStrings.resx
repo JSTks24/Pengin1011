@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="PresetNameNotConstant" xml:space="preserve">
+    <value>The AI preset name at this call site must be a string literal or a const: {0}</value>
+  </data>
+  <data name="PresetNameBypassed" xml:space="preserve">
+    <value>The AI preset entry point {0} is referenced as a method group or delegate, which bypasses the preset usage index. Call AIClient.CompleteAsync or AIClient.StreamAsync directly.</value>
+  </data>
+</root>

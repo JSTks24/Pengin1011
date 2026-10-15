@@ -4,95 +4,88 @@ using Pengin1011.Core.Logging;
 namespace Pengin1011.Tests;
 
 public sealed class AppConfigTests {
-	private const string ValidOpenAI = """
+	private const string ValidConfig = """
 		{
 		  "Discord": { "Token": "tok-1" },
-		  "AI": {
-		    "Provider": "openai",
-		    "MaxParallel": 3,
-		    "OpenAI": { "ApiKey": "k", "BaseUrl": "https://api.example.com/v1", "Model": "m1" },
-		    "Gemini": { "ApiKey": "", "Project": "", "Location": "", "Model": "" }
-		  }
+		  "Logger": { "Channels": ["111222333"] }
 		}
 		""";
 
 	[Fact]
-	public void TryLoad_ValidOpenAI() {
-		using var cfg = new TempConfigFile(ValidOpenAI);
+	public void TryLoad_ValidConfig() {
+		using var cfg = new TempConfigFile(ValidConfig);
 		Assert.True(AppConfig.TryLoad(cfg.Path, out var errors));
 		Assert.Empty(errors);
 		Assert.Equal("tok-1", AppConfig.Discord.Token);
-		Assert.Equal(AIProvider.OpenAI, AppConfig.AI.Provider);
-		Assert.Equal(3, AppConfig.AI.MaxParallel);
-		Assert.Equal("m1", AppConfig.AI.OpenAI.Model);
-		Assert.Equal("https://api.example.com/v1", AppConfig.AI.OpenAI.BaseUrl!.ToString());
-		Assert.True(AppConfig.AI.Gemini.IsEmpty);
+		Assert.Equal([111222333UL], AppConfig.Logging.Channels);
 	}
 
 	[Fact]
-	public void TryLoad_MaxParallelDefaultsToFive() {
+	public void TryLoad_LoggerChannelsParsed() {
+		using var cfg = new TempConfigFile("""
+			{
+			  "Discord": { "Token": "tok" },
+			  "Logger": { "Channels": ["111222333", "444555666"] }
+			}
+			""");
+		Assert.True(AppConfig.TryLoad(cfg.Path, out var errors));
+		Assert.Empty(errors);
+		Assert.Equal([111222333UL, 444555666UL], AppConfig.Logging.Channels);
+	}
+
+	[Fact]
+	public void TryLoad_LoggerChannelInvalid() {
+		using var cfg = new TempConfigFile("""
+			{
+			  "Discord": { "Token": "tok" },
+			  "Logger": { "Channels": ["not-a-number"] }
+			}
+			""");
+		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
+		Assert.Contains(errors, static e => e.Contains(L.Prefix("LoggerChannelInvalid")));
+		Assert.Contains(errors, static e => e.Contains("not-a-number"));
+	}
+
+	[Fact]
+	public void TryLoad_LoggerSectionOptional() {
+		using var cfg = new TempConfigFile("""
+			{
+			  "Discord": { "Token": "tok" }
+			}
+			""");
+		Assert.True(AppConfig.TryLoad(cfg.Path, out var errors));
+		Assert.Empty(errors);
+		Assert.Empty(AppConfig.Logging.Channels);
+	}
+
+	[Fact]
+	public void TryLoad_LoggerChannelZeroRejected() {
+		using var cfg = new TempConfigFile("""
+			{
+			  "Discord": { "Token": "tok" },
+			  "Logger": { "Channels": ["0"] }
+			}
+			""");
+		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
+		Assert.Contains(errors, static e => e.Contains(L.Prefix("LoggerChannelInvalid")));
+	}
+
+	[Fact]
+	public void TryLoad_LegacyAiSectionIgnored() {
 		using var cfg = new TempConfigFile("""
 			{
 			  "Discord": { "Token": "tok" },
 			  "AI": {
 			    "Provider": "openai",
+			    "MaxParallel": 3,
 			    "OpenAI": { "ApiKey": "k", "BaseUrl": "https://api.example.com/v1", "Model": "m1" }
 			  }
 			}
 			""");
-		Assert.True(AppConfig.TryLoad(cfg.Path, out _));
-		Assert.Equal(5, AppConfig.AI.MaxParallel);
-	}
-
-	[Fact]
-	public void TryLoad_GeminiWithApiKey() {
-		using var cfg = new TempConfigFile("""
-			{
-			  "Discord": { "Token": "tok" },
-			  "AI": {
-			    "Provider": "gemini",
-			    "Gemini": { "ApiKey": "gk", "Model": "gm" }
-			  }
-			}
-			""");
 		Assert.True(AppConfig.TryLoad(cfg.Path, out var errors));
 		Assert.Empty(errors);
-		Assert.Equal(AIProvider.Gemini, AppConfig.AI.Provider);
-		Assert.Equal("gk", AppConfig.AI.Gemini.ApiKey);
-		Assert.Equal("gm", AppConfig.AI.Gemini.Model);
-		Assert.True(AppConfig.AI.OpenAI.IsEmpty);
-	}
-
-	[Fact]
-	public void TryLoad_GeminiWithVertex() {
-		using var cfg = new TempConfigFile("""
-			{
-			  "Discord": { "Token": "tok" },
-			  "AI": {
-			    "Provider": "gemini",
-			    "Gemini": { "Project": "p", "Location": "us-central1", "Model": "gm" }
-			  }
-			}
-			""");
-		Assert.True(AppConfig.TryLoad(cfg.Path, out _));
-		Assert.Equal("p", AppConfig.AI.Gemini.Project);
-		Assert.Equal("us-central1", AppConfig.AI.Gemini.Location);
-	}
-
-	[Fact]
-	public void TryLoad_OpenAIWithFullGeminiBackup() {
-		using var cfg = new TempConfigFile("""
-			{
-			  "Discord": { "Token": "tok" },
-			  "AI": {
-			    "Provider": "openai",
-			    "OpenAI": { "ApiKey": "k", "BaseUrl": "https://api.example.com/v1", "Model": "m1" },
-			    "Gemini": { "ApiKey": "gk", "Model": "gm" }
-			  }
-			}
-			""");
-		Assert.True(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.Empty(errors);
+		Assert.Equal("tok", AppConfig.Discord.Token);
+		Assert.Empty(AppConfig.Logging.Channels);
 	}
 
 	[Fact]
@@ -102,9 +95,11 @@ public sealed class AppConfigTests {
 			Assert.False(AppConfig.TryLoad(path, out var errors));
 			Assert.Contains(errors, static e => e.Contains(L.Prefix("ConfigCreatedFromTemplate")));
 			Assert.True(File.Exists(path));
+			Assert.True(AppConfig.PathConfigurationValid);
 			var content = File.ReadAllText(path);
 			Assert.Contains("\"Discord\"", content);
 			Assert.Contains("\"Token\"", content);
+			Assert.DoesNotContain("\"AI\"", content);
 		} finally {
 			try { File.Delete(path); } catch (IOException) { }
 		}
@@ -112,9 +107,9 @@ public sealed class AppConfigTests {
 
 	[Fact]
 	public void TryLoad_ExistingFile_NotOverwrittenByTemplate() {
-		using var cfg = new TempConfigFile(ValidOpenAI);
+		using var cfg = new TempConfigFile(ValidConfig);
 		Assert.True(AppConfig.TryLoad(cfg.Path, out _));
-		Assert.Equal(ValidOpenAI, File.ReadAllText(cfg.Path));
+		Assert.Equal(ValidConfig, File.ReadAllText(cfg.Path));
 	}
 
 	[Fact]
@@ -126,6 +121,7 @@ public sealed class AppConfigTests {
 	public void TryLoad_BadJson() {
 		using var cfg = new TempConfigFile("{ not json");
 		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
+		Assert.False(AppConfig.PathConfigurationValid);
 		Assert.Contains(errors, static e => e.Contains(L.Prefix("ConfigReadFailed")));
 	}
 
@@ -133,11 +129,7 @@ public sealed class AppConfigTests {
 	public void TryLoad_MissingToken() {
 		using var cfg = new TempConfigFile("""
 			{
-			  "Discord": { "Token": "" },
-			  "AI": {
-			    "Provider": "openai",
-			    "OpenAI": { "ApiKey": "k", "BaseUrl": "https://api.example.com/v1", "Model": "m1" }
-			  }
+			  "Discord": { "Token": "" }
 			}
 			""");
 		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
@@ -145,203 +137,31 @@ public sealed class AppConfigTests {
 	}
 
 	[Fact]
-	public void TryLoad_MissingProvider_DefaultsToOpenAI() {
-		using var cfg = new TempConfigFile("""
-			{
-			  "Discord": { "Token": "tok" },
-			  "AI": {
-			    "OpenAI": { "ApiKey": "k", "BaseUrl": "https://api.example.com/v1", "Model": "m1" }
-			  }
-			}
-			""");
-		Assert.True(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.Empty(errors);
-		Assert.Equal(AIProvider.OpenAI, AppConfig.AI.Provider);
-		Assert.Equal("m1", AppConfig.AI.OpenAI.Model);
-	}
-
-	[Fact]
-	public void TryLoad_InvalidProvider() {
-		using var cfg = new TempConfigFile("""
-			{
-			  "Discord": { "Token": "tok" },
-			  "AI": {
-			    "Provider": "claude",
-			    "OpenAI": { "ApiKey": "k", "BaseUrl": "https://api.example.com/v1", "Model": "m1" }
-			  }
-			}
-			""");
-		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.Contains(errors, static e => e.Contains(L.Prefix("AIProviderInvalid")));
-	}
-
-	[Fact]
-	public void TryLoad_ProviderOpenAIButSectionMissing() {
-		using var cfg = new TempConfigFile("""
-			{
-			  "Discord": { "Token": "tok" },
-			  "AI": { "Provider": "openai" }
-			}
-			""");
-		Assert.True(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.Empty(errors);
-		Assert.Equal(AIProvider.OpenAI, AppConfig.AI.Provider);
-		Assert.True(AppConfig.AI.OpenAI.IsEmpty);
-		Assert.True(AppConfig.AI.Gemini.IsEmpty);
-	}
-
-	[Fact]
-	public void TryLoad_ProviderGeminiButSectionMissing() {
-		using var cfg = new TempConfigFile("""
-			{
-			  "Discord": { "Token": "tok" },
-			  "AI": { "Provider": "gemini" }
-			}
-			""");
-		Assert.True(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.Empty(errors);
-		Assert.Equal(AIProvider.Gemini, AppConfig.AI.Provider);
-		Assert.True(AppConfig.AI.Gemini.IsEmpty);
-	}
-
-	[Fact]
-	public void TryLoad_MissingAISection_DefaultsToOpenAI() {
-		using var cfg = new TempConfigFile("""
-			{
-			  "Discord": { "Token": "tok" }
-			}
-			""");
-		Assert.True(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.Empty(errors);
-		Assert.Equal(AIProvider.OpenAI, AppConfig.AI.Provider);
-		Assert.Equal(5, AppConfig.AI.MaxParallel);
-		Assert.True(AppConfig.AI.OpenAI.IsEmpty);
-		Assert.True(AppConfig.AI.Gemini.IsEmpty);
-	}
-
-	[Fact]
-	public void TryLoad_MissingProvider_TouchedValidationStillApplies() {
-		using var cfg = new TempConfigFile("""
-			{
-			  "Discord": { "Token": "tok" },
-			  "AI": {
-			    "OpenAI": { "ApiKey": "k" }
-			  }
-			}
-			""");
-		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.Contains(errors, static e => e.Contains("AI.OpenAI.Model"));
-		Assert.Contains(errors, static e => e.Contains("AI.OpenAI.BaseUrl"));
-	}
-
-	[Fact]
-	public void TryLoad_GeminiAuthConflict() {
-		using var cfg = new TempConfigFile("""
-			{
-			  "Discord": { "Token": "tok" },
-			  "AI": {
-			    "Provider": "gemini",
-			    "Gemini": { "ApiKey": "gk", "Project": "p", "Location": "l", "Model": "gm" }
-			  }
-			}
-			""");
-		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.Contains(errors, static e => e.Contains(L.Get("GeminiAuthExclusive")));
-	}
-
-	[Fact]
-	public void TryLoad_GeminiAuthIncomplete() {
-		using var cfg = new TempConfigFile("""
-			{
-			  "Discord": { "Token": "tok" },
-			  "AI": {
-			    "Provider": "gemini",
-			    "Gemini": { "Project": "p", "Model": "gm" }
-			  }
-			}
-			""");
-		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.Contains(errors, static e => e.Contains(L.Get("GeminiAuthIncomplete")));
-	}
-
-	[Fact]
-	public void TryLoad_GeminiTouchedWithoutModel() {
-		using var cfg = new TempConfigFile("""
-			{
-			  "Discord": { "Token": "tok" },
-			  "AI": {
-			    "Provider": "openai",
-			    "OpenAI": { "ApiKey": "k", "BaseUrl": "https://api.example.com/v1", "Model": "m1" },
-			    "Gemini": { "ApiKey": "gk" }
-			  }
-			}
-			""");
-		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.Contains(errors, static e => e.Contains("AI.Gemini.Model"));
-	}
-
-	[Fact]
-	public void TryLoad_MaxParallelZero() {
-		using var cfg = new TempConfigFile("""
-			{
-			  "Discord": { "Token": "tok" },
-			  "AI": {
-			    "Provider": "openai",
-			    "MaxParallel": 0,
-			    "OpenAI": { "ApiKey": "k", "BaseUrl": "https://api.example.com/v1", "Model": "m1" }
-			  }
-			}
-			""");
-		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.Contains(errors, static e => e.Contains("AI.MaxParallel"));
-	}
-
-	[Fact]
-	public void TryLoad_InvalidBaseUrl() {
-		using var cfg = new TempConfigFile("""
-			{
-			  "Discord": { "Token": "tok" },
-			  "AI": {
-			    "Provider": "openai",
-			    "OpenAI": { "ApiKey": "k", "BaseUrl": "not-a-url", "Model": "m1" }
-			  }
-			}
-			""");
-		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.Contains(errors, static e => e.Contains("AI.OpenAI.BaseUrl"));
-	}
-
-	[Fact]
 	public void TryLoad_ReportsAllErrorsAtOnce() {
 		using var cfg = new TempConfigFile("""
 			{
 			  "Discord": { "Token": "" },
-			  "AI": {
-			    "Provider": "openai",
-			    "MaxParallel": -1,
-			    "OpenAI": { "ApiKey": "k" }
-			  }
+			  "Logger": { "Channels": ["bad", "0"] }
 			}
 			""");
 		Assert.False(AppConfig.TryLoad(cfg.Path, out var errors));
-		Assert.True(errors.Count >= 4, $"expected >= 4 errors, got {errors.Count}");
+		Assert.True(errors.Count >= 3, $"expected >= 3 errors, got {errors.Count}");
 	}
 
 	[Fact]
 	public void TryLoad_FailureKeepsPreviousConfig() {
-		using var first = new TempConfigFile(ValidOpenAI);
+		using var first = new TempConfigFile(ValidConfig);
 		Assert.True(AppConfig.TryLoad(first.Path, out _));
-		Assert.Equal("m1", AppConfig.AI.OpenAI.Model);
+		Assert.Equal("tok-1", AppConfig.Discord.Token);
 
 		using var broken = new TempConfigFile("""
 			{
-			  "Discord": { "Token": "" },
-			  "AI": { "Provider": "openai" }
+			  "Discord": { "Token": "" }
 			}
 			""");
 		Assert.False(AppConfig.TryLoad(broken.Path, out _));
-		Assert.Equal("m1", AppConfig.AI.OpenAI.Model);
 		Assert.Equal("tok-1", AppConfig.Discord.Token);
+		Assert.Equal([111222333UL], AppConfig.Logging.Channels);
 	}
 
 	[Fact]
@@ -375,55 +195,30 @@ public sealed class AppConfigTests {
 
 	[Fact]
 	public void TryLoad_NullRootKeepsPreviousConfig() {
-		using var first = new TempConfigFile(ValidOpenAI);
+		using var first = new TempConfigFile(ValidConfig);
 		Assert.True(AppConfig.TryLoad(first.Path, out _));
 
 		using var broken = new TempConfigFile("null");
 		Assert.False(AppConfig.TryLoad(broken.Path, out var errors));
 		Assert.NotEmpty(errors);
-		Assert.Equal("m1", AppConfig.AI.OpenAI.Model);
 		Assert.Equal("tok-1", AppConfig.Discord.Token);
+		Assert.Equal([111222333UL], AppConfig.Logging.Channels);
 	}
 
 	[Fact]
-	public void TryLoad_GeminiConfiguredWithoutProvider_WarnsAndStillLoads() {
-		using var cfg = new TempConfigFile("""
-			{
-			  "Discord": { "Token": "tok" },
-			  "AI": {
-			    "Gemini": { "ApiKey": "gk", "Model": "gm" }
-			  }
-			}
-			""");
+	public void TryLoad_InvalidLoggerChannel_WritesErrorLog() {
 		var logPath = TempErrorLog();
 		Logger.SetLogPathForTest(logPath);
 		try {
-			Assert.True(AppConfig.TryLoad(cfg.Path, out var errors));
-			Assert.Empty(errors);
-			Assert.Equal(AIProvider.OpenAI, AppConfig.AI.Provider);
-			Assert.Equal("gk", AppConfig.AI.Gemini.ApiKey);
-			Assert.Contains(L.Get("AIProviderMissingGeminiHint"), File.ReadAllText(logPath));
-		} finally {
-			CleanupErrorLog(logPath);
-		}
-	}
-
-	[Fact]
-	public void TryLoad_MissingProvider_OpenAIOnly_NoWarning() {
-		using var cfg = new TempConfigFile("""
-			{
-			  "Discord": { "Token": "tok" },
-			  "AI": {
-			    "OpenAI": { "ApiKey": "k", "BaseUrl": "https://api.example.com/v1", "Model": "m1" }
-			  }
-			}
-			""");
-		var logPath = TempErrorLog();
-		Logger.SetLogPathForTest(logPath);
-		try {
-			Assert.True(AppConfig.TryLoad(cfg.Path, out var errors));
-			Assert.Empty(errors);
-			Assert.False(File.Exists(logPath));
+			using var cfg = new TempConfigFile("""
+				{
+				  "Discord": { "Token": "tok" },
+				  "Logger": { "Channels": ["not-a-number"] }
+				}
+				""");
+			Assert.False(AppConfig.TryLoad(cfg.Path, out _));
+			var log = File.ReadAllText(logPath);
+			Assert.Contains(L.Get("LoggerChannelInvalid").Split('{')[0].TrimEnd(), log);
 		} finally {
 			CleanupErrorLog(logPath);
 		}

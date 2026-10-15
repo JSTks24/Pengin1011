@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="MethodNotPublic" xml:space="preserve">
+    <value>ModuleBridgeExport 标记的方法必须是 public</value>
+  </data>
+  <data name="TypeNotPublic" xml:space="preserve">
+    <value>ModuleBridgeExport 标记的方法所在的类型必须是 public，且每一层外层类型都必须是 public</value>
+  </data>
+  <data name="InstanceNotOnRuntime" xml:space="preserve">
+    <value>实例方法的 ModuleBridgeExport 必须声明在模块唯一的 IModuleRuntime 实现类上</value>
+  </data>
+  <data name="GenericDeclaringType" xml:space="preserve">
+    <value>ModuleBridgeExport 标记的方法所在的类型不能是泛型类型</value>
+  </data>
+  <data name="GenericMethod" xml:space="preserve">
+    <value>泛型方法不能标记 ModuleBridgeExport</value>
+  </data>
+  <data name="ByRefSignature" xml:space="preserve">
+    <value>带 ref/out/in 参数或 ref、ref readonly 返回值的方法不能标记 ModuleBridgeExport</value>
+  </data>
+  <data name="OptionalParameter" xml:space="preserve">
+    <value>ModuleBridgeExport 方法不支持可选参数</value>
+  </data>
+  <data name="LocalTypeSignature" xml:space="preserve">
+    <value>桥导出签名含消费方无法构造的类型：{0}</value>
+  </data>
+  <data name="TooManyParameters" xml:space="preserve">
+    <value>桥导出参数数量超过上限 16：{0}</value>
+  </data>
+  <data name="UnsupportedType" xml:space="preserve">
+    <value>桥导出签名含不支持的类型：{0}</value>
+  </data>
+  <data name="DuplicateExport" xml:space="preserve">
+    <value>本模块存在重复的桥导出名：{0}</value>
+  </data>
+  <data name="InvalidModuleName" xml:space="preserve">
+    <value>模块名不是合法 C# 标识符，无法生成消费方代理：{0}</value>
+  </data>
+  <data name="NameCollision" xml:space="preserve">
+    <value>桥导出名与本模块生成的成员冲突：{0}</value>
+  </data>
+  <data name="ManifestParse" xml:space="preserve">
+    <value>无法解析桥清单条目，已拒绝：{0}</value>
+  </data>
+  <data name="ManifestModuleInvalid" xml:space="preserve">
+    <value>桥清单中的模块名不是合法 C# 标识符：{0}</value>
+  </data>
+  <data name="ManifestFormatOutdated" xml:space="preserve">
+    <value>桥清单格式过旧，请重新构建依赖模块：{0}</value>
+  </data>
+  <data name="ManifestCountMismatch" xml:space="preserve">
+    <value>桥清单导出数量或索引不一致（声明数量：{0}，实际条目：{1}）</value>
+  </data>
+  <data name="ManifestDuplicateModule" xml:space="preserve">
+    <value>同一模块收到了多个桥清单：{0}</value>
+  </data>
+  <data name="ManifestDuplicateExport" xml:space="preserve">
+    <value>模块 {0} 的桥清单存在重复导出名：{1}</value>
+  </data>
+</root>

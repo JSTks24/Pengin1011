@@ -18,6 +18,10 @@ public sealed class ShutdownTests {
 		return Path.Combine(Path.GetTempPath(), $"qq1011_shutdown_{Guid.NewGuid():N}");
 	}
 
+	private static string DataDir(string baseDir) {
+		return Path.Combine(baseDir, "data");
+	}
+
 	private static void Cleanup(string baseDir) {
 		try {
 			Directory.Delete(baseDir, true);
@@ -27,47 +31,13 @@ public sealed class ShutdownTests {
 		}
 	}
 
-	private class ShutdownItem {
-		public long Id { get; set; }
-
-		public string Name { get; set; } = "";
-	}
-
-	private class ShutdownDbContext : DbContext {
-		protected override void OnConfiguring(DbContextOptionsBuilder options) {
-			Databases.Configure(GetType(), options);
-		}
-
-		public DbSet<ShutdownItem> Items => Set<ShutdownItem>();
-	}
-
-	[DbContext(typeof(ShutdownDbContext))]
-	[Migration("20260926000001_Init")]
-	private sealed class ShutdownInitMigration : Migration {
-		protected override void Up(MigrationBuilder migrationBuilder) {
-			migrationBuilder.CreateTable(
-				name: "Items",
-				columns: table => new {
-					Id = table.Column<long>(type: "INTEGER", nullable: false)
-						.Annotation("Sqlite:Autoincrement", true),
-					Name = table.Column<string>(type: "TEXT", nullable: false)
-				},
-				constraints: table => {
-					table.PrimaryKey("PK_Items", x => x.Id);
-				});
-		}
-
-		protected override void Down(MigrationBuilder migrationBuilder) {
-			migrationBuilder.DropTable(name: "Items");
-		}
-	}
-
 	private sealed class WritingRuntime(TaskCompletionSource writtenSignal, Task releaseSignal) : IModuleRuntime {
 		public Task InitializeAsync(CancellationToken ct) {
 			return Task.CompletedTask;
 		}
 
 		public async Task StopAsync(CancellationToken ct) {
+			await Databases.PrepareAsync<ShutdownDbContext>();
 			await using (var db = Databases.Open<ShutdownDbContext>()) {
 				db.Items.Add(new ShutdownItem { Name = "清理期最后写入" });
 				await db.SaveChangesAsync(ct);
@@ -76,7 +46,6 @@ public sealed class ShutdownTests {
 			await releaseSignal;
 		}
 	}
-
 	private static LoadedModule MakeRun(string name, IModuleRuntime runtime) {
 		var assembly = typeof(ShutdownTests).Assembly;
 		return new LoadedModule {
@@ -121,6 +90,11 @@ public sealed class ShutdownTests {
 		InteractionHost.ResetForTest();
 		ModuleHost.StopTimeout = TimeSpan.FromSeconds(10);
 		ModuleHost.CleanupBudget = TimeSpan.FromSeconds(10);
+	}
+
+	private static void ResetDataDirectory() {
+		Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+		Databases.SetDataDirectoryForTest(null);
 	}
 
 	private static async Task<InteractionService> BootAsync() {
@@ -207,9 +181,10 @@ public sealed class ShutdownTests {
 	[Fact]
 	public async Task BackupNow_WaitsForPreviousRound() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(baseDir);
+		Databases.SetDataDirectoryForTest(DataDir(baseDir));
 		try {
 			Databases.Init();
+			await Databases.PrepareAsync<ShutdownDbContext>();
 			await using (var db = Databases.Open<ShutdownDbContext>()) {
 				db.Items.Add(new ShutdownItem { Name = "备份等待" });
 				await db.SaveChangesAsync();
@@ -231,9 +206,10 @@ public sealed class ShutdownTests {
 	[Fact]
 	public async Task ShutdownAsync_FinalBackupContainsLastWrite_Idempotent() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(baseDir);
+		Databases.SetDataDirectoryForTest(DataDir(baseDir));
 		try {
 			Databases.Init();
+			await Databases.PrepareAsync<ShutdownDbContext>();
 			await using (var db = Databases.Open<ShutdownDbContext>()) {
 				db.Items.Add(new ShutdownItem { Name = "最后一笔写入" });
 				await db.SaveChangesAsync();
@@ -245,7 +221,7 @@ public sealed class ShutdownTests {
 			Assert.Equal(1, first.Succeeded);
 
 			var backupDir = Path.Combine(baseDir, "data", "backup");
-			var snapshots = Directory.GetFiles(backupDir, "Shutdown-*.db");
+			var snapshots = Databases.ListBackups("Shutdown", DatabaseBackupStore.RollingCategory).Select(info => info.SnapshotPath).ToList();
 			Assert.NotEmpty(snapshots);
 			var options = new DbContextOptionsBuilder().UseSqlite($"Data Source={snapshots[^1]}").Options;
 			await using (var read = new DbContext(options)) {
@@ -264,7 +240,7 @@ public sealed class ShutdownTests {
 	[Fact]
 	public async Task BackupNow_BrokenDbFile_ReportsFailure() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(baseDir);
+		Databases.SetDataDirectoryForTest(DataDir(baseDir));
 		try {
 			Databases.Init();
 			var dataDir = Path.Combine(baseDir, "data");
@@ -333,7 +309,7 @@ public sealed class ShutdownTests {
 	[Fact]
 	public async Task S03_LastWriteDuringCleanup_EntersFinalBackup() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(baseDir);
+		Databases.SetDataDirectoryForTest(DataDir(baseDir));
 		ResetGlobalState();
 		DiscordGateway.Init(new DiscordSocketClient());
 		try {
@@ -355,7 +331,7 @@ public sealed class ShutdownTests {
 			Assert.True(report.Success, $"failures: {string.Join(";", report.Failures)}");
 
 			var backupDir = Path.Combine(baseDir, "data", "backup");
-			var snapshots = Directory.GetFiles(backupDir, "Shutdown-*.db");
+			var snapshots = Databases.ListBackups("Shutdown", DatabaseBackupStore.RollingCategory).Select(info => info.SnapshotPath).ToList();
 			Assert.NotEmpty(snapshots);
 			var options = new DbContextOptionsBuilder().UseSqlite($"Data Source={snapshots[^1]}").Options;
 			await using (var read = new DbContext(options)) {
@@ -392,9 +368,10 @@ public sealed class ShutdownTests {
 	[Fact]
 	public async Task S05_BothDrainsFail_ReportedIncomplete_IndependentStepsStillRun() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(baseDir);
+		Databases.SetDataDirectoryForTest(DataDir(baseDir));
 		try {
 			Databases.Init();
+			await Databases.PrepareAsync<ShutdownDbContext>();
 			await using (var db = Databases.Open<ShutdownDbContext>()) {
 				db.Items.Add(new ShutdownItem { Name = "S05" });
 				await db.SaveChangesAsync();
@@ -418,6 +395,8 @@ public sealed class ShutdownTests {
 
 	[Fact]
 	public async Task S06_ExitWithoutReload_SingleCleanupNoNewInitAndNoLateDispatch() {
+		var baseDir = TempBase();
+		Databases.SetDataDirectoryForTest(DataDir(baseDir));
 		await BootAsync();
 		try {
 			var run = ModuleHost.Modules.Single(module => module.Name == "FakeModule");
@@ -438,18 +417,21 @@ public sealed class ShutdownTests {
 			Assert.Equal(0, received);
 		} finally {
 			await TeardownAsync();
+			ResetDataDirectory();
+			Cleanup(baseDir);
 		}
 	}
 
 	[Fact]
 	public async Task S07_RealGatewayStopFailure_ReportedAndLaterStepsStillRun() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(baseDir);
+		Databases.SetDataDirectoryForTest(DataDir(baseDir));
 		Databases.Init();
 		var logPath = Path.Combine(Path.GetTempPath(), $"qq1011_s07_{Guid.NewGuid():N}.log");
 		Logger.SetLogPathForTest(logPath);
 		await BootAsync();
 		try {
+			await Databases.PrepareAsync<ShutdownDbContext>();
 			await using (var db = Databases.Open<ShutdownDbContext>()) {
 				db.Items.Add(new ShutdownItem { Name = "S07" });
 				await db.SaveChangesAsync();
@@ -592,11 +574,12 @@ public sealed class ShutdownTests {
 	[Fact]
 	public async Task EXIT_04_NormalCompletion_ServiceReleasedOnceAndFinalBackupVerifiable() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(baseDir);
+		Databases.SetDataDirectoryForTest(DataDir(baseDir));
 		Databases.Init();
 		await BootAsync();
 		var retiredBefore = InteractionHost.RetiredServiceCountForTest;
 		try {
+			await Databases.PrepareAsync<ShutdownDbContext>();
 			await using (var db = Databases.Open<ShutdownDbContext>()) {
 				db.Items.Add(new ShutdownItem { Name = "EXIT-04 最后一笔写入" });
 				await db.SaveChangesAsync();
@@ -611,7 +594,7 @@ public sealed class ShutdownTests {
 			Assert.Same(report, await HostExit.StopAsync());
 			Assert.Equal(retiredBefore + 1, InteractionHost.RetiredServiceCountForTest);
 
-			var snapshots = Directory.GetFiles(Path.Combine(baseDir, "data", "backup"), "Shutdown-*.db");
+			var snapshots = Databases.ListBackups("Shutdown", DatabaseBackupStore.RollingCategory).Select(info => info.SnapshotPath).ToList();
 			Assert.NotEmpty(snapshots);
 			var options = new DbContextOptionsBuilder().UseSqlite($"Data Source={snapshots[^1]}").Options;
 			await using (var read = new DbContext(options)) {
@@ -654,12 +637,13 @@ public sealed class ShutdownTests {
 	[Fact]
 	public async Task EXIT_06_ConcurrentProductionEntry_SingleCoordinatorTaskAndSingleBackup() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(baseDir);
+		Databases.SetDataDirectoryForTest(DataDir(baseDir));
 		Databases.Init();
 		await BootAsync();
 		var run = ModuleHost.Modules.Single(module => module.Name == "FakeModule");
 		var retiredBefore = InteractionHost.RetiredServiceCountForTest;
 		try {
+			await Databases.PrepareAsync<ShutdownDbContext>();
 			await using (var db = Databases.Open<ShutdownDbContext>()) {
 				db.Items.Add(new ShutdownItem { Name = "EXIT-06" });
 				await db.SaveChangesAsync();
@@ -672,7 +656,7 @@ public sealed class ShutdownTests {
 			Assert.Equal(1, success.PhaseHits);
 			Assert.Equal(retiredBefore + 1, InteractionHost.RetiredServiceCountForTest);
 			Assert.Equal(1, ModuleProbe.RuntimeStaticInt(run, "StopCount"));
-			Assert.Single(Directory.GetFiles(Path.Combine(baseDir, "data", "backup"), "Shutdown-*.db"));
+			Assert.Single(Databases.ListBackups("Shutdown", DatabaseBackupStore.RollingCategory));
 
 			HostExit.ResetForTest();
 			DiscordGateway.ClientStopForTest = _ => throw new InvalidOperationException("EXIT-06 网关停止失败");
@@ -683,7 +667,7 @@ public sealed class ShutdownTests {
 			Assert.Equal(1, failure.PhaseHits);
 			Assert.Equal(retiredBefore + 1, InteractionHost.RetiredServiceCountForTest);
 			Assert.Equal(1, ModuleProbe.RuntimeStaticInt(run, "StopCount"));
-			Assert.Single(Directory.GetFiles(Path.Combine(baseDir, "data", "backup"), "Shutdown-*.db"));
+			Assert.Single(Databases.ListBackups("Shutdown", DatabaseBackupStore.RollingCategory));
 		} finally {
 			Databases.SetDataDirectoryForTest(null);
 			Cleanup(baseDir);
@@ -919,10 +903,11 @@ public sealed class ShutdownTests {
 	[Fact]
 	public async Task GW_04_GatewayFailure_IndependentStepsStillRun_FailureNotOverwritten() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(baseDir);
+		Databases.SetDataDirectoryForTest(DataDir(baseDir));
 		Databases.Init();
 		await BootAsync();
-		await using (var db = Databases.Open<ShutdownDbContext>()) {
+		await Databases.PrepareAsync<ShutdownDbContext>();
+			await using (var db = Databases.Open<ShutdownDbContext>()) {
 			db.Items.Add(new ShutdownItem { Name = "GW-04" });
 			await db.SaveChangesAsync();
 		}

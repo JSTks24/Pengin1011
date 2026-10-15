@@ -6,11 +6,13 @@
     <AssemblyName>__MODULE__</AssemblyName>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <ModuleOutputDir Condition="'$(ModuleOutputDir)' == ''">$(MSBuildThisFileDirectory)..\..\bin\$(Configuration)\$(TargetFramework)\module\</ModuleOutputDir>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Pengin1011.csproj" />
+    <ProjectReference Include="..\..\Generator\Pengin1011Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

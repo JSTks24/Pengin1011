@@ -355,13 +355,7 @@ public sealed class ModuleStartupTests {
 		Directory.CreateDirectory(baseDir);
 		File.WriteAllText(Path.Combine(baseDir, "config.json"), """
 			{
-			  "Discord": { "Token": "test-token" },
-			  "AI": {
-			    "Provider": "openai",
-			    "MaxParallel": 2,
-			    "OpenAI": { "ApiKey": "test-key", "BaseUrl": "http://127.0.0.1:1/v1", "Model": "test-model" },
-			    "Gemini": { "ApiKey": "", "Project": "", "Location": "", "Model": "" }
-			  }
+			  "Discord": { "Token": "test-token" }
 			}
 			""");
 		try {

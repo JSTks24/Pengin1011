@@ -1,4 +1,5 @@
 using System.Net;
+using Pengin1011.Core;
 using Discord;
 using Discord.Net;
 using Pengin1011.Core.Localization;
@@ -63,7 +64,7 @@ public static class Messages {
 		} catch (OperationCanceledException) {
 			throw;
 		} catch (Exception e) {
-			Logger.Error(typeof(Messages), e, Localizer.Format("MessageSendFailed", channel.Id));
+			Logger.Error(typeof(Messages), e, Loc.Format("MessageSendFailed", channel.Id));
 			return new MessageSendResult(MessageSendStatus.Failed, chunks.Count, sent, [0]);
 		}
 		for (var i = 1; i < chunks.Count; i++) {
@@ -72,7 +73,7 @@ public static class Messages {
 			} catch (OperationCanceledException) {
 				throw;
 			} catch (Exception e) {
-				Logger.Error(typeof(Messages), e, Localizer.Format("MessageChunkSendFailed", channel.Id, i + 1, chunks.Count));
+				Logger.Error(typeof(Messages), e, Loc.Format("MessageChunkSendFailed", channel.Id, i + 1, chunks.Count));
 				failed.Add(i);
 				break;
 			}
@@ -90,7 +91,7 @@ public static class Messages {
 		try {
 			return await channel.SendMessageAsync(text, embed: embed, allowedMentions: allowedMentions ?? AllowedMentions.None);
 		} catch (Exception e) {
-			Logger.Error(typeof(Messages), e, Localizer.Format("EmbedSendFailed", channel.Id));
+			Logger.Error(typeof(Messages), e, Loc.Format("EmbedSendFailed", channel.Id));
 			return null;
 		}
 	}
@@ -101,7 +102,7 @@ public static class Messages {
 			using var stream = new MemoryStream(data);
 			return await channel.SendFileAsync(stream, filename, text, allowedMentions: allowedMentions ?? AllowedMentions.None);
 		} catch (Exception e) {
-			Logger.Error(typeof(Messages), e, Localizer.Format("FileSendFailed", channel.Id, filename));
+			Logger.Error(typeof(Messages), e, Loc.Format("FileSendFailed", channel.Id, filename));
 			return null;
 		}
 	}
@@ -119,7 +120,7 @@ public static class Messages {
 		} catch (OperationCanceledException) {
 			throw;
 		} catch (Exception e) {
-			Logger.Error(typeof(Messages), e, Localizer.Format("MessageEditFailed", message.Id));
+			Logger.Error(typeof(Messages), e, Loc.Format("MessageEditFailed", message.Id));
 			return false;
 		}
 	}
@@ -134,7 +135,7 @@ public static class Messages {
 		} catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.NotFound) {
 			return true;
 		} catch (Exception e) {
-			Logger.Error(typeof(Messages), e, Localizer.Format("MessageDeleteFailed", message.Id));
+			Logger.Error(typeof(Messages), e, Loc.Format("MessageDeleteFailed", message.Id));
 			return false;
 		}
 	}
@@ -147,7 +148,7 @@ public static class Messages {
 			await destination.SendMessageAsync(null, messageReference: reference, flags: MessageFlags.SuppressNotification);
 			return true;
 		} catch (Exception e) {
-			Logger.Error(typeof(Messages), e, Localizer.Format("MessageForwardFailed", message.Id, destination.Id));
+			Logger.Error(typeof(Messages), e, Loc.Format("MessageForwardFailed", message.Id, destination.Id));
 			return false;
 		}
 	}
@@ -162,7 +163,7 @@ public static class Messages {
 			try {
 				user = await client.GetUserAsync(userId);
 			} catch (Exception e) {
-				Logger.Error(typeof(Messages), e, Localizer.Format("UserResolveRestFailed", userId));
+				Logger.Error(typeof(Messages), e, Loc.Format("UserResolveRestFailed", userId));
 				user = null;
 			}
 		}
@@ -178,12 +179,12 @@ public static class Messages {
 		try {
 			await user.SendMessageAsync(chunks[0], allowedMentions: AllowedMentions.None, options: MakeOptions(ct));
 		} catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.Forbidden) {
-			Logger.Error(typeof(Messages), ex, Localizer.Format("DirectMessageBlocked", user.Id));
+			Logger.Error(typeof(Messages), ex, Loc.Format("DirectMessageBlocked", user.Id));
 			return DirectMessageResult.Blocked;
 		} catch (OperationCanceledException) {
 			throw;
 		} catch (Exception e) {
-			Logger.Error(typeof(Messages), e, Localizer.Format("DirectMessageSendFailed", user.Id));
+			Logger.Error(typeof(Messages), e, Loc.Format("DirectMessageSendFailed", user.Id));
 			return DirectMessageResult.Failed;
 		}
 		for (var i = 1; i < chunks.Count; i++) {
@@ -192,7 +193,7 @@ public static class Messages {
 			} catch (OperationCanceledException) {
 				throw;
 			} catch (Exception e) {
-				Logger.Error(typeof(Messages), e, Localizer.Format("DirectMessageChunkSendFailed", user.Id, i + 1, chunks.Count));
+				Logger.Error(typeof(Messages), e, Loc.Format("DirectMessageChunkSendFailed", user.Id, i + 1, chunks.Count));
 				return DirectMessageResult.Partial;
 			}
 		}
@@ -206,7 +207,7 @@ public static class Messages {
 			using var stream = new MemoryStream(data);
 			return await channel.SendFileAsync(stream, filename, text);
 		} catch (Exception e) {
-			Logger.Error(typeof(Messages), e, Localizer.Format("DirectMessageFileSendFailed", user.Id, filename));
+			Logger.Error(typeof(Messages), e, Loc.Format("DirectMessageFileSendFailed", user.Id, filename));
 			return null;
 		}
 	}
@@ -218,7 +219,7 @@ public static class Messages {
 		try {
 			return await messageChannel.GetMessageAsync(messageId);
 		} catch (Exception e) {
-			Logger.Error(typeof(Messages), e, Localizer.Format("MessageFetchFailed", channelId, messageId));
+			Logger.Error(typeof(Messages), e, Loc.Format("MessageFetchFailed", channelId, messageId));
 			return null;
 		}
 	}

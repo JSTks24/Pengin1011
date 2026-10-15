@@ -18,15 +18,15 @@ public static class DiscordGateway {
 	private static WorkTracker? _dispatcher;
 	private static int _rejectedMessages;
 
-	private static readonly object WireGate = new();
-	private static readonly List<HandlerEntry<SocketMessage>> MessageHandlers = [];
-	private static readonly List<HandlerEntry<object?>> ReadyHandlers = [];
-	private static readonly List<HandlerEntry<SocketGuild>> GuildAvailableHandlers = [];
-	private static readonly List<HandlerEntry<SocketGuild>> GuildJoinedHandlers = [];
-	private static readonly List<HandlerEntry<SocketInteraction>> InteractionHandlers = [];
-	private static readonly List<HandlerEntry<SocketMessageComponent>> ButtonHandlers = [];
-	private static readonly List<HandlerEntry<SocketMessageComponent>> SelectMenuHandlers = [];
-	private static readonly List<HandlerEntry<SocketModal>> ModalHandlers = [];
+	private static readonly object _wireGate = new();
+	private static readonly List<HandlerEntry<SocketMessage>> _messageHandlers = [];
+	private static readonly List<HandlerEntry<object?>> _readyHandlers = [];
+	private static readonly List<HandlerEntry<SocketGuild>> _guildAvailableHandlers = [];
+	private static readonly List<HandlerEntry<SocketGuild>> _guildJoinedHandlers = [];
+	private static readonly List<HandlerEntry<SocketInteraction>> _interactionHandlers = [];
+	private static readonly List<HandlerEntry<SocketMessageComponent>> _buttonHandlers = [];
+	private static readonly List<HandlerEntry<SocketMessageComponent>> _selectMenuHandlers = [];
+	private static readonly List<HandlerEntry<SocketModal>> _modalHandlers = [];
 
 	public static DiscordSocketClient? Client => _client;
 	public static ConnectionState ConnectionState => _client?.ConnectionState ?? ConnectionState.Disconnected;
@@ -38,47 +38,47 @@ public static class DiscordGateway {
 	}
 
 	public static IDisposable SubscribeMessage(LoadedModule? owner, Func<SocketMessage, CancellationToken, Task> handler) {
-		return Subscribe(MessageHandlers, owner, handler);
+		return Subscribe(_messageHandlers, owner, handler);
 	}
 
 	public static IDisposable SubscribeReady(LoadedModule? owner, Func<CancellationToken, Task> handler) {
-		return Subscribe(ReadyHandlers, owner, (object? _, CancellationToken ct) => handler(ct));
+		return Subscribe(_readyHandlers, owner, (object? _, CancellationToken ct) => handler(ct));
 	}
 
 	public static IDisposable SubscribeGuildAvailable(LoadedModule? owner, Func<SocketGuild, CancellationToken, Task> handler) {
-		return Subscribe(GuildAvailableHandlers, owner, handler);
+		return Subscribe(_guildAvailableHandlers, owner, handler);
 	}
 
 	public static IDisposable SubscribeGuildJoined(LoadedModule? owner, Func<SocketGuild, CancellationToken, Task> handler) {
-		return Subscribe(GuildJoinedHandlers, owner, handler);
+		return Subscribe(_guildJoinedHandlers, owner, handler);
 	}
 
 	public static IDisposable SubscribeInteraction(LoadedModule? owner, Func<SocketInteraction, CancellationToken, Task> handler) {
-		return Subscribe(InteractionHandlers, owner, handler);
+		return Subscribe(_interactionHandlers, owner, handler);
 	}
 
 	public static IDisposable SubscribeButton(LoadedModule? owner, Func<SocketMessageComponent, CancellationToken, Task> handler) {
-		return Subscribe(ButtonHandlers, owner, handler);
+		return Subscribe(_buttonHandlers, owner, handler);
 	}
 
 	public static IDisposable SubscribeSelectMenu(LoadedModule? owner, Func<SocketMessageComponent, CancellationToken, Task> handler) {
-		return Subscribe(SelectMenuHandlers, owner, handler);
+		return Subscribe(_selectMenuHandlers, owner, handler);
 	}
 
 	public static IDisposable SubscribeModal(LoadedModule? owner, Func<SocketModal, CancellationToken, Task> handler) {
-		return Subscribe(ModalHandlers, owner, handler);
+		return Subscribe(_modalHandlers, owner, handler);
 	}
 
 	public static void RemoveModuleHandlers(LoadedModule run) {
-		lock (WireGate) {
-			MessageHandlers.RemoveAll(entry => entry.Owner == run);
-			ReadyHandlers.RemoveAll(entry => entry.Owner == run);
-			GuildAvailableHandlers.RemoveAll(entry => entry.Owner == run);
-			GuildJoinedHandlers.RemoveAll(entry => entry.Owner == run);
-			InteractionHandlers.RemoveAll(entry => entry.Owner == run);
-			ButtonHandlers.RemoveAll(entry => entry.Owner == run);
-			SelectMenuHandlers.RemoveAll(entry => entry.Owner == run);
-			ModalHandlers.RemoveAll(entry => entry.Owner == run);
+		lock (_wireGate) {
+			_messageHandlers.RemoveAll(entry => entry.Owner == run);
+			_readyHandlers.RemoveAll(entry => entry.Owner == run);
+			_guildAvailableHandlers.RemoveAll(entry => entry.Owner == run);
+			_guildJoinedHandlers.RemoveAll(entry => entry.Owner == run);
+			_interactionHandlers.RemoveAll(entry => entry.Owner == run);
+			_buttonHandlers.RemoveAll(entry => entry.Owner == run);
+			_selectMenuHandlers.RemoveAll(entry => entry.Owner == run);
+			_modalHandlers.RemoveAll(entry => entry.Owner == run);
 		}
 	}
 
@@ -142,15 +142,15 @@ public static class DiscordGateway {
 		}
 		_client = null;
 		_dispatcher = null;
-		lock (WireGate) {
-			MessageHandlers.Clear();
-			ReadyHandlers.Clear();
-			GuildAvailableHandlers.Clear();
-			GuildJoinedHandlers.Clear();
-			InteractionHandlers.Clear();
-			ButtonHandlers.Clear();
-			SelectMenuHandlers.Clear();
-			ModalHandlers.Clear();
+		lock (_wireGate) {
+			_messageHandlers.Clear();
+			_readyHandlers.Clear();
+			_guildAvailableHandlers.Clear();
+			_guildJoinedHandlers.Clear();
+			_interactionHandlers.Clear();
+			_buttonHandlers.Clear();
+			_selectMenuHandlers.Clear();
+			_modalHandlers.Clear();
 		}
 	}
 
@@ -166,7 +166,7 @@ public static class DiscordGateway {
 		} catch (OperationCanceledException) when (ct.IsCancellationRequested) {
 			throw;
 		} catch (Exception e) {
-			Logger.Error(typeof(DiscordGateway), e, Localizer.Get("GatewayConnectFailed"));
+			Logger.Error(typeof(DiscordGateway), e, Loc.Get("GatewayConnectFailed"));
 			return false;
 		}
 	}
@@ -208,7 +208,7 @@ public static class DiscordGateway {
 			await logout(client);
 		} catch (Exception logoutFailure) {
 			if (stopFailure == null) throw;
-			throw new AggregateException(Localizer.Get("GatewayStopAndLogoutFailed"), stopFailure, logoutFailure);
+			throw new AggregateException(Loc.Get("GatewayStopAndLogoutFailed"), stopFailure, logoutFailure);
 		}
 		if (stopFailure != null) {
 			ExceptionDispatchInfo.Capture(stopFailure).Throw();
@@ -221,7 +221,7 @@ public static class DiscordGateway {
 	}
 
 	private static Task OnClientLog(LogMessage message) {
-		var text = Localizer.Format("DiscordClientLog", message.Severity, message.Message ?? Localizer.Get("LogMessageNoText"));
+		var text = Loc.Format("DiscordClientLog", message.Severity, message.Message ?? Loc.Get("LogMessageNoText"));
 		if (message.Exception != null) {
 			Logger.Error(typeof(DiscordGateway), message.Exception, text);
 		} else if (message.Severity is LogSeverity.Error or LogSeverity.Critical) {
@@ -249,50 +249,50 @@ public static class DiscordGateway {
 	}
 
 	internal static Task DispatchMessageForTest(SocketMessage? message) {
-		return Dispatch(MessageHandlers, message!, null, Localizer.Get("KindMessage"));
+		return Dispatch(_messageHandlers, message!, null, Loc.Get("KindMessage"));
 	}
 
 	internal static void DispatchInteractionRejectionForTest(WorkRejectReason reason, IDiscordInteraction interaction) {
-		HandleRejection(Localizer.Get("KindInteraction"), interaction, reason);
+		HandleRejection(Loc.Get("KindInteraction"), interaction, reason);
 	}
 
 	internal static int RejectedMessageCountForTest => _rejectedMessages;
 
 	private static Task OnMessageReceived(SocketMessage message) {
-		return Dispatch(MessageHandlers, message, null, Localizer.Get("KindMessage"));
+		return Dispatch(_messageHandlers, message, null, Loc.Get("KindMessage"));
 	}
 
 	private static Task OnReady() {
-		return DispatchReady(ReadyHandlers);
+		return DispatchReady(_readyHandlers);
 	}
 
 	private static Task OnGuildAvailable(SocketGuild guild) {
-		return Dispatch(GuildAvailableHandlers, guild, null, Localizer.Get("KindGuildAvailable"));
+		return Dispatch(_guildAvailableHandlers, guild, null, Loc.Get("KindGuildAvailable"));
 	}
 
 	private static Task OnGuildJoined(SocketGuild guild) {
-		return Dispatch(GuildJoinedHandlers, guild, null, Localizer.Get("KindGuildJoined"));
+		return Dispatch(_guildJoinedHandlers, guild, null, Loc.Get("KindGuildJoined"));
 	}
 
 	private static Task OnInteractionCreated(SocketInteraction interaction) {
-		return Dispatch(InteractionHandlers, interaction, interaction, Localizer.Get("KindInteraction"));
+		return Dispatch(_interactionHandlers, interaction, interaction, Loc.Get("KindInteraction"));
 	}
 
 	private static Task OnButtonExecuted(SocketMessageComponent component) {
-		return Dispatch(ButtonHandlers, component, component, Localizer.Get("KindButton"));
+		return Dispatch(_buttonHandlers, component, component, Loc.Get("KindButton"));
 	}
 
 	private static Task OnSelectMenuExecuted(SocketMessageComponent component) {
-		return Dispatch(SelectMenuHandlers, component, component, Localizer.Get("KindSelectMenu"));
+		return Dispatch(_selectMenuHandlers, component, component, Loc.Get("KindSelectMenu"));
 	}
 
 	private static Task OnModalSubmitted(SocketModal modal) {
-		return Dispatch(ModalHandlers, modal, modal, "Modal");
+		return Dispatch(_modalHandlers, modal, modal, "Modal");
 	}
 
 	private static Task Dispatch<T>(List<HandlerEntry<T>> handlers, T argument, IDiscordInteraction? interaction, string kind) {
 		TrackedHandler[] batch;
-		lock (WireGate) {
+		lock (_wireGate) {
 			if (handlers.Count == 0) return Task.CompletedTask;
 			batch = new TrackedHandler[handlers.Count];
 			for (var i = 0; i < handlers.Count; i++) {
@@ -305,7 +305,7 @@ public static class DiscordGateway {
 
 	private static Task DispatchReady(List<HandlerEntry<object?>> handlers) {
 		TrackedHandler[] batch;
-		lock (WireGate) {
+		lock (_wireGate) {
 			if (handlers.Count == 0) return Task.CompletedTask;
 			batch = new TrackedHandler[handlers.Count];
 			for (var i = 0; i < handlers.Count; i++) {
@@ -332,31 +332,31 @@ public static class DiscordGateway {
 			return;
 		}
 		var count = Interlocked.Increment(ref _rejectedMessages);
-		Logger.Info(typeof(DiscordGateway), Localizer.Format("WorkRejected", reason, kind, count));
+		Logger.Info(typeof(DiscordGateway), Loc.Format("WorkRejected", reason, kind, count));
 	}
 
 	private static async Task RespondRejectionAsync(IDiscordInteraction interaction, WorkRejectReason reason) {
 		var text = reason switch {
-			WorkRejectReason.Paused => Localizer.Get("RejectedPaused"),
-			WorkRejectReason.Exiting => Localizer.Get("RejectedExiting"),
-			_ => Localizer.Get("RejectedBusy"),
+			WorkRejectReason.Paused => Loc.Get("RejectedPaused"),
+			WorkRejectReason.Exiting => Loc.Get("RejectedExiting"),
+			_ => Loc.Get("RejectedBusy"),
 		};
 		try {
 			if (!interaction.HasResponded) {
 				await interaction.RespondAsync(text, ephemeral: true);
 			}
 		} catch (Exception e) {
-			Logger.Error(typeof(DiscordGateway), e, Localizer.Get("RejectionNoticeSendFailed"));
+			Logger.Error(typeof(DiscordGateway), e, Loc.Get("RejectionNoticeSendFailed"));
 		}
 	}
 
 	private static IDisposable Subscribe<T>(List<HandlerEntry<T>> handlers, LoadedModule? owner, Func<T, CancellationToken, Task> handler) {
 		var entry = new HandlerEntry<T>(owner, handler);
-		lock (WireGate) {
+		lock (_wireGate) {
 			handlers.Add(entry);
 		}
 		return new Subscription(() => {
-			lock (WireGate) {
+			lock (_wireGate) {
 				handlers.Remove(entry);
 			}
 		});

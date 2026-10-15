@@ -11,23 +11,15 @@ public sealed class OpenAIBackend : IAIBackend {
 	private readonly OpenAIClientOptions _options;
 	private readonly string _defaultModel;
 
-	public OpenAIBackend(OpenAIConfig config) {
-		_credential = new ApiKeyCredential(config.ApiKey);
+	public OpenAIBackend(AIPreset preset) {
+		_credential = new ApiKeyCredential(preset.ApiKey);
 		_options = new OpenAIClientOptions();
-		if (config.BaseUrl != null) _options.Endpoint = config.BaseUrl;
+		_options.Endpoint = new Uri(preset.BaseUrl, UriKind.Absolute);
 		_options.RetryPolicy = NoRetryPolicy.Instance;
-		_defaultModel = config.Model;
+		_defaultModel = preset.Model;
 	}
 
-	public OpenAIBackend(AIEndpoint endpoint) {
-		_credential = new ApiKeyCredential(endpoint.ApiKey);
-		_options = new OpenAIClientOptions();
-		_options.Endpoint = endpoint.BaseUrl!;
-		_options.RetryPolicy = NoRetryPolicy.Instance;
-		_defaultModel = "";
-	}
-
-	internal OpenAIBackend(AIEndpoint endpoint, System.ClientModel.Primitives.PipelineTransport transport) : this(endpoint) {
+	internal OpenAIBackend(AIPreset preset, System.ClientModel.Primitives.PipelineTransport transport) : this(preset) {
 		_options.Transport = transport;
 	}
 

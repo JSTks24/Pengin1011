@@ -1,10 +1,8 @@
 using System.Globalization;
-using System.Runtime.CompilerServices;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Design;
 using Pengin1011.Core;
 using Pengin1011.Core.Localization;
 using Pengin1011.Core.Modules;
@@ -13,19 +11,30 @@ using Pengin1011.Services.Discord;
 namespace Pengin1011.Modules.FakeModule;
 
 public static class FakeModuleTexts {
-	[MethodImpl(MethodImplOptions.NoInlining)]
 	public static string GetText(string key) {
-		return Localizer.Get(key);
+		return Loc.Get(key);
 	}
 
-	[MethodImpl(MethodImplOptions.NoInlining)]
 	public static string FormatText(string key, params object?[] args) {
-		return Localizer.Format(key, args);
+		return Loc.Format(key, args);
 	}
 
-	[MethodImpl(MethodImplOptions.NoInlining)]
 	public static string FormatText(CultureInfo culture, string key, params object?[] args) {
-		return Localizer.Format(culture, key, args);
+		return Loc.Format(culture, key, args);
+	}
+}
+
+public static class FakeModuleBridgeExports {
+	public static int StaticCallCount;
+
+	public static void ResetCalls() {
+		StaticCallCount = 0;
+	}
+
+	[ModuleBridgeExport]
+	public static Task<string> QueryGreetingAsync(ulong userId) {
+		StaticCallCount++;
+		return Task.FromResult($"bridge-hello-{userId}");
 	}
 }
 
@@ -90,11 +99,17 @@ public sealed class FakeModuleRuntime : IModuleRuntime {
 		return new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 	}
 
+	[ModuleBridgeExport]
+	public string DescribeState() {
+		return $"FakeModuleRuntime-{InitCount}-{StopCount}";
+	}
+
 	public async Task InitializeAsync(CancellationToken ct) {
 		InitCount++;
 		Events.Add("init-entered");
-		(InitEntered ??= NewGate()).TrySetResult();
 		try {
+			await Databases.PrepareAsync<FakeModuleDbContext>(ct);
+			(InitEntered ??= NewGate()).TrySetResult();
 			if (EnableBackgroundWork) {
 				var run = ModuleRegistry.RunOf(GetType().Assembly);
 				if (run != null) {
@@ -131,40 +146,5 @@ public sealed class FakeModuleRuntime : IModuleRuntime {
 	private Task OnBackgroundMessage(SocketMessage message, CancellationToken ct) {
 		BackgroundEventCount++;
 		return Task.CompletedTask;
-	}
-}
-
-public sealed class FakeItem {
-	public long Id { get; set; }
-
-	public string Name { get; set; } = "";
-}
-
-public class FakeModuleDbContext : DbContext {
-	protected override void OnConfiguring(DbContextOptionsBuilder options) {
-		Databases.Configure(GetType(), options);
-	}
-
-	public DbSet<FakeItem> Items => Set<FakeItem>();
-}
-
-[DbContext(typeof(FakeModuleDbContext))]
-[Migration("20260925000001_Init")]
-public sealed class FakeModuleInitMigration : Migration {
-	protected override void Up(MigrationBuilder migrationBuilder) {
-		migrationBuilder.CreateTable(
-			name: "Items",
-			columns: table => new {
-				Id = table.Column<long>(type: "INTEGER", nullable: false)
-					.Annotation("Sqlite:Autoincrement", true),
-				Name = table.Column<string>(type: "TEXT", nullable: false)
-			},
-			constraints: table => {
-				table.PrimaryKey("PK_Items", x => x.Id);
-			});
-	}
-
-	protected override void Down(MigrationBuilder migrationBuilder) {
-		migrationBuilder.DropTable(name: "Items");
 	}
 }

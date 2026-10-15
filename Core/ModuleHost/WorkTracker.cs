@@ -57,7 +57,7 @@ public sealed class WorkTracker : IDisposable {
 	public void Open() {
 		lock (_gate) {
 			if (_accepting == WorkAcceptState.Exiting) {
-				Logger.Error(typeof(WorkTracker), Localizer.Get("WorkReopenAfterExitRejected"));
+				Logger.Error(typeof(WorkTracker), Loc.Get("WorkReopenAfterExitRejected"));
 				return;
 			}
 			_accepting = WorkAcceptState.Open;
@@ -123,7 +123,7 @@ public sealed class WorkTracker : IDisposable {
 					await handler.Handler(token);
 				} catch (OperationCanceledException) when (token.IsCancellationRequested) {
 				} catch (Exception e) {
-					Logger.Error(typeof(WorkTracker), e, Localizer.Format("WorkHandlerFaulted", handler.Handler.Method.DeclaringType?.Name, handler.Handler.Method.Name));
+					Logger.Error(typeof(WorkTracker), e, Loc.Format("WorkHandlerFaulted", handler.Handler.Method.DeclaringType?.Name, handler.Handler.Method.Name));
 				}
 			}
 		} finally {
@@ -133,7 +133,7 @@ public sealed class WorkTracker : IDisposable {
 			}
 			item.Dispose();
 			if (!removed) {
-				Logger.Error(typeof(WorkTracker), Localizer.Get("WorkItemMissingOnComplete"));
+				Logger.Error(typeof(WorkTracker), Loc.Get("WorkItemMissingOnComplete"));
 			}
 		}
 	}

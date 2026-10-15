@@ -13,8 +13,14 @@ namespace Pengin1011.Tests;
 
 [Collection("BaseDirSerial")]
 public sealed class ModuleHostTests {
+	private static readonly string _databaseDirectory = Path.Combine(Path.GetTempPath(), "pengin_module_tests_" + Guid.NewGuid().ToString("N"));
+
 	private static string TempBase() {
 		return Path.Combine(Path.GetTempPath(), $"qq1011_mod_{Guid.NewGuid():N}");
+	}
+
+	private static string DataDir(string baseDir) {
+		return Path.Combine(baseDir, "data");
 	}
 
 	private static void Cleanup(string baseDir) {
@@ -27,6 +33,12 @@ public sealed class ModuleHostTests {
 	}
 
 	internal static void ResetModules() {
+		var useSharedDirectory = !Databases.DataDirectoryConfigured || DataDirectoryResolver.IsSameDirectory(Databases.DataDirectory, _databaseDirectory);
+		Databases.SetDataDirectoryForTest(useSharedDirectory ? _databaseDirectory : Databases.DataDirectory);
+		if (useSharedDirectory) {
+			Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+			if (Directory.Exists(_databaseDirectory)) Directory.Delete(_databaseDirectory, true);
+		}
 		ModuleHost.ResetForTest();
 		ModuleHost.ModuleDirectoryOverrideForTest = null;
 		FakeModuleRuntime.Reset();
@@ -76,12 +88,13 @@ public sealed class ModuleHostTests {
 	public async Task StopThenReopenDbContext_SameProcessKeepsData() {
 		ResetModules();
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(baseDir);
+		Databases.SetDataDirectoryForTest(DataDir(baseDir));
 		try {
 			ModuleHost.LoadAll();
 			var assembly = ModuleHost.Modules.Single(module => module.Name == "FakeModule").Assembly;
 			var contextType = assembly.GetType("Pengin1011.Modules.FakeModule.FakeModuleDbContext")!;
 			var itemType = assembly.GetType("Pengin1011.Modules.FakeModule.FakeItem")!;
+			await InvokePrepareAsync(contextType);
 			var open = typeof(Databases).GetMethod("Open")!.MakeGenericMethod(contextType);
 			await using (var db = (DbContext)open.Invoke(null, null)!) {
 				var item = Activator.CreateInstance(itemType)!;
@@ -196,6 +209,12 @@ public sealed class ModuleHostTests {
 			File.Delete(copied);
 			ResetModules();
 		}
+	}
+
+	internal static async Task InvokePrepareAsync(Type contextType) {
+		var prepare = typeof(Databases).GetMethod("PrepareAsync")!.MakeGenericMethod(contextType);
+		var task = (Task)prepare.Invoke(null, [CancellationToken.None])!;
+		await task;
 	}
 
 	internal static async Task WaitStateAsync(LoadedModule run, ModuleState expected, int timeoutMs = 5000) {

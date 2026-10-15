@@ -12,8 +12,8 @@ public static class Components {
 	public static readonly TimeSpan DefaultTtl = TimeSpan.FromSeconds(180);
 	internal static readonly TimeSpan SweepInterval = TimeSpan.FromSeconds(30);
 
-	private static readonly object RegistryGate = new();
-	private static readonly Dictionary<string, Entry> Entries = [];
+	private static readonly object _registryGate = new();
+	private static readonly Dictionary<string, Entry> _entries = [];
 	private static readonly List<IDisposable> _handles = [];
 	private static bool _attached;
 	private static TimeProvider _time = TimeProvider.System;
@@ -42,7 +42,7 @@ public static class Components {
 	public static async Task ShutdownAsync() {
 		Task? task;
 		CancellationTokenSource? cts;
-		lock (RegistryGate) {
+		lock (_registryGate) {
 			task = _sweepTask;
 			cts = _sweepCts;
 			_sweepTask = null;
@@ -61,7 +61,7 @@ public static class Components {
 	}
 
 	public static void Register(LoadedModule? owner, string customId, Func<SocketInteraction, CancellationToken, Task> handler, TimeSpan? ttl = null) {
-		if (string.IsNullOrEmpty(customId)) throw new ArgumentException(Localizer.Get("CustomIdRequired"), nameof(customId));
+		if (string.IsNullOrEmpty(customId)) throw new ArgumentException(Loc.Get("CustomIdRequired"), nameof(customId));
 		ArgumentNullException.ThrowIfNull(handler);
 		RegisterEntry(owner, customId, null, handler, ttl);
 	}
@@ -71,37 +71,37 @@ public static class Components {
 	}
 
 	public static void Register<TState>(LoadedModule? owner, string customId, TState state, TimeSpan? ttl, Func<TState, SocketInteraction, CancellationToken, Task> handler) {
-		if (string.IsNullOrEmpty(customId)) throw new ArgumentException(Localizer.Get("CustomIdRequired"), nameof(customId));
+		if (string.IsNullOrEmpty(customId)) throw new ArgumentException(Loc.Get("CustomIdRequired"), nameof(customId));
 		ArgumentNullException.ThrowIfNull(handler);
 		RegisterEntry(owner, customId, state, (interaction, ct) => handler(state, interaction, ct), ttl);
 	}
 
 	public static bool Unregister(string customId) {
-		lock (RegistryGate) {
-			return Entries.Remove(customId);
+		lock (_registryGate) {
+			return _entries.Remove(customId);
 		}
 	}
 
 	public static void Clear() {
-		lock (RegistryGate) {
-			Entries.Clear();
+		lock (_registryGate) {
+			_entries.Clear();
 		}
 	}
 
 	public static void RemoveModule(LoadedModule run) {
-		lock (RegistryGate) {
-			foreach (var key in Entries.Where(pair => pair.Value.Owner == run).Select(pair => pair.Key).ToList()) {
-				Entries.Remove(key);
+		lock (_registryGate) {
+			foreach (var key in _entries.Where(pair => pair.Value.Owner == run).Select(pair => pair.Key).ToList()) {
+				_entries.Remove(key);
 			}
 		}
 	}
 
 	public static bool TryGetState<TState>(string customId, out TState? state) {
 		state = default;
-		lock (RegistryGate) {
-			if (!Entries.TryGetValue(customId, out var entry)) return false;
+		lock (_registryGate) {
+			if (!_entries.TryGetValue(customId, out var entry)) return false;
 			if (IsExpired(entry)) {
-				Entries.Remove(customId);
+				_entries.Remove(customId);
 				return false;
 			}
 			if (entry.State is not TState matched) return false;
@@ -117,11 +117,11 @@ public static class Components {
 	public static async Task RouteByIdAsync(string? customId, SocketInteraction? interaction, CancellationToken ct = default) {
 		if (string.IsNullOrEmpty(customId)) return;
 		Entry? entry;
-		lock (RegistryGate) {
-			if (!Entries.TryGetValue(customId, out var found)) {
+		lock (_registryGate) {
+			if (!_entries.TryGetValue(customId, out var found)) {
 				entry = null;
 			} else if (IsExpired(found)) {
-				Entries.Remove(customId);
+				_entries.Remove(customId);
 				entry = null;
 			} else {
 				entry = found;
@@ -136,8 +136,8 @@ public static class Components {
 			_ = RespondUnavailableAsync(interaction);
 			return;
 		}
-		lock (RegistryGate) {
-			if (Entries.TryGetValue(customId, out var current) && ReferenceEquals(current, entry) && current.ExpiresAt != null) {
+		lock (_registryGate) {
+			if (_entries.TryGetValue(customId, out var current) && ReferenceEquals(current, entry) && current.ExpiresAt != null) {
 				current.ExpiresAt = _time.GetUtcNow() + current.Ttl;
 			}
 		}
@@ -164,35 +164,35 @@ public static class Components {
 			await userMessage.ModifyAsync(properties => properties.Components = builder.Build());
 			return true;
 		} catch (Exception e) {
-			Logger.Error(typeof(Components), e, Localizer.Format("DisableComponentsFailed", message.Id));
+			Logger.Error(typeof(Components), e, Loc.Format("DisableComponentsFailed", message.Id));
 			return false;
 		}
 	}
 
 	internal static IReadOnlyList<string> SweepExpired() {
-		lock (RegistryGate) {
+		lock (_registryGate) {
 			var now = _time.GetUtcNow();
 			var removed = new List<string>();
-			foreach (var pair in Entries) {
+			foreach (var pair in _entries) {
 				if (pair.Value.ExpiresAt == null || now < pair.Value.ExpiresAt) continue;
 				removed.Add(pair.Key);
 			}
 			foreach (var key in removed) {
-				Entries.Remove(key);
+				_entries.Remove(key);
 			}
 			return removed;
 		}
 	}
 
 	internal static void SetTimeProviderForTest(TimeProvider? provider) {
-		lock (RegistryGate) {
+		lock (_registryGate) {
 			_time = provider ?? TimeProvider.System;
 		}
 	}
 
 	internal static bool SweeperRunningForTest {
 		get {
-			lock (RegistryGate) {
+			lock (_registryGate) {
 				return _sweepTask != null;
 			}
 		}
@@ -206,13 +206,13 @@ public static class Components {
 		} else {
 			entry = new Entry(owner, state, handler, lifetime, _time.GetUtcNow() + lifetime);
 		}
-		lock (RegistryGate) {
-			Entries[customId] = entry;
+		lock (_registryGate) {
+			_entries[customId] = entry;
 		}
 	}
 
 	private static void EnsureSweeper() {
-		lock (RegistryGate) {
+		lock (_registryGate) {
 			if (_sweepTask != null) return;
 			var cts = new CancellationTokenSource();
 			_sweepCts = cts;
@@ -234,18 +234,18 @@ public static class Components {
 	private static async Task RespondExpiredAsync(SocketInteraction? interaction) {
 		if (interaction == null || interaction.HasResponded) return;
 		try {
-			await interaction.RespondAsync(Localizer.Get("InteractionExpired"), ephemeral: true);
+			await interaction.RespondAsync(Loc.Get("InteractionExpired"), ephemeral: true);
 		} catch (Exception e) {
-			Logger.Error(typeof(Components), e, Localizer.Get("ExpiredNoticeSendFailed"));
+			Logger.Error(typeof(Components), e, Loc.Get("ExpiredNoticeSendFailed"));
 		}
 	}
 
 	internal static async Task RespondUnavailableAsync(IDiscordInteraction? interaction) {
 		if (interaction == null || interaction.HasResponded) return;
 		try {
-			await interaction.RespondAsync(Localizer.Get("ModuleUnavailable"), ephemeral: true);
+			await interaction.RespondAsync(Loc.Get("ModuleUnavailable"), ephemeral: true);
 		} catch (Exception e) {
-			Logger.Error(typeof(Components), e, Localizer.Get("ModuleUnavailableNoticeSendFailed"));
+			Logger.Error(typeof(Components), e, Loc.Get("ModuleUnavailableNoticeSendFailed"));
 		}
 	}
 

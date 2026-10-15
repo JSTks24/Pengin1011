@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Pengin1011.Core;
 
 namespace Pengin1011.Tests;
@@ -14,47 +14,28 @@ public sealed class FakeItem {
 }
 
 public sealed class FakeDbContext : DbContext {
+	public FakeDbContext() {
+	}
+
+	public FakeDbContext(DbContextOptions<FakeDbContext> options) : base(options) {
+	}
+
 	protected override void OnConfiguring(DbContextOptionsBuilder options) {
+		if (options.IsConfigured) return;
 		Databases.Configure(GetType(), options);
+	}
+
+	protected override void OnModelCreating(ModelBuilder modelBuilder) {
+		modelBuilder.Entity<FakeItem>().HasIndex(item => item.Name);
 	}
 
 	public DbSet<FakeItem> Items => Set<FakeItem>();
 }
 
-[DbContext(typeof(FakeDbContext))]
-[Migration("20260919000001_Init")]
-public sealed class FakeInitMigration : Migration {
-	protected override void Up(MigrationBuilder migrationBuilder) {
-		migrationBuilder.CreateTable(
-			name: "Items",
-			columns: table => new {
-				Id = table.Column<long>(type: "INTEGER", nullable: false)
-					.Annotation("Sqlite:Autoincrement", true),
-				Name = table.Column<string>(type: "TEXT", nullable: false)
-			},
-			constraints: table => {
-				table.PrimaryKey("PK_Items", x => x.Id);
-			});
-	}
-
-	protected override void Down(MigrationBuilder migrationBuilder) {
-		migrationBuilder.DropTable(name: "Items");
-	}
-}
-
-[DbContext(typeof(FakeDbContext))]
-[Migration("20260919000002_AddNote")]
-public sealed class FakeAddNoteMigration : Migration {
-	protected override void Up(MigrationBuilder migrationBuilder) {
-		migrationBuilder.AddColumn<string>(
-			name: "Note",
-			table: "Items",
-			type: "TEXT",
-			nullable: true);
-	}
-
-	protected override void Down(MigrationBuilder migrationBuilder) {
-		migrationBuilder.DropColumn(name: "Note", table: "Items");
+public sealed class FakeDbContextFactory : IDesignTimeDbContextFactory<FakeDbContext> {
+	public FakeDbContext CreateDbContext(string[] args) {
+		var options = new DbContextOptionsBuilder<FakeDbContext>().UseSqlite("Data Source=fake-design.db").Options;
+		return new FakeDbContext(options);
 	}
 }
 
@@ -63,67 +44,75 @@ public sealed class OtherItem {
 }
 
 public sealed class OtherDbContext : DbContext {
+	public OtherDbContext() {
+	}
+
+	public OtherDbContext(DbContextOptions<OtherDbContext> options) : base(options) {
+	}
+
 	protected override void OnConfiguring(DbContextOptionsBuilder options) {
+		if (options.IsConfigured) return;
 		Databases.Configure(GetType(), options);
 	}
 
 	public DbSet<OtherItem> Things => Set<OtherItem>();
 }
 
-[DbContext(typeof(OtherDbContext))]
-[Migration("20260919000001_Init")]
-public sealed class OtherInitMigration : Migration {
-	protected override void Up(MigrationBuilder migrationBuilder) {
-		migrationBuilder.CreateTable(
-			name: "Things",
-			columns: table => new {
-				Id = table.Column<long>(type: "INTEGER", nullable: false)
-					.Annotation("Sqlite:Autoincrement", true)
-			},
-			constraints: table => {
-				table.PrimaryKey("PK_Things", x => x.Id);
-			});
-	}
-
-	protected override void Down(MigrationBuilder migrationBuilder) {
-		migrationBuilder.DropTable(name: "Things");
+public sealed class OtherDbContextFactory : IDesignTimeDbContextFactory<OtherDbContext> {
+	public OtherDbContext CreateDbContext(string[] args) {
+		var options = new DbContextOptionsBuilder<OtherDbContext>().UseSqlite("Data Source=other-design.db").Options;
+		return new OtherDbContext(options);
 	}
 }
 
 public sealed class BareDbContext : DbContext {
+	public BareDbContext() {
+	}
+
+	public BareDbContext(DbContextOptions<BareDbContext> options) : base(options) {
+	}
+
 	protected override void OnConfiguring(DbContextOptionsBuilder options) {
+		if (options.IsConfigured) return;
 		Databases.Configure(GetType(), options);
 	}
+}
+
+public sealed class ClashItem {
+	public long Id { get; set; }
 }
 
 public sealed class ClashDbContext : DbContext {
+	public ClashDbContext() {
+	}
+
+	public ClashDbContext(DbContextOptions<ClashDbContext> options) : base(options) {
+	}
+
 	protected override void OnConfiguring(DbContextOptionsBuilder options) {
+		if (options.IsConfigured) return;
 		Databases.Configure(GetType(), options);
 	}
+
+	public DbSet<ClashItem> Clashes => Set<ClashItem>();
 }
 
-[DbContext(typeof(ClashDbContext))]
-[Migration("20260919000001_Init")]
-public sealed class ClashInitMigration : Migration {
-	protected override void Up(MigrationBuilder migrationBuilder) {
-		migrationBuilder.CreateTable(
-			name: "Clash",
-			columns: table => new {
-				Id = table.Column<long>(type: "INTEGER", nullable: false)
-					.Annotation("Sqlite:Autoincrement", true)
-			},
-			constraints: table => {
-				table.PrimaryKey("PK_Clash", x => x.Id);
-			});
-	}
-
-	protected override void Down(MigrationBuilder migrationBuilder) {
-		migrationBuilder.DropTable(name: "Clash");
+public sealed class ClashDbContextFactory : IDesignTimeDbContextFactory<ClashDbContext> {
+	public ClashDbContext CreateDbContext(string[] args) {
+		var options = new DbContextOptionsBuilder<ClashDbContext>().UseSqlite("Data Source=clash-design.db").Options;
+		return new ClashDbContext(options);
 	}
 }
 
 public sealed class ClashContext : DbContext {
+	public ClashContext() {
+	}
+
+	public ClashContext(DbContextOptions<ClashContext> options) : base(options) {
+	}
+
 	protected override void OnConfiguring(DbContextOptionsBuilder options) {
+		if (options.IsConfigured) return;
 		Databases.Configure(GetType(), options);
 	}
 }

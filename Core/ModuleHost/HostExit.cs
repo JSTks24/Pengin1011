@@ -1,19 +1,19 @@
 namespace Pengin1011.Core;
 
 public static class HostExit {
-	private static readonly object Gate = new();
+	private static readonly object _gate = new();
 	private static Task<ExitCoordinator.ExitReport>? _task;
 
 	public static bool Requested {
 		get {
-			lock (Gate) {
+			lock (_gate) {
 				return _task != null;
 			}
 		}
 	}
 
 	public static Task<ExitCoordinator.ExitReport> StopAsync() {
-		lock (Gate) {
+		lock (_gate) {
 			return _task ??= new ExitCoordinator().RunAsync();
 		}
 	}
@@ -23,7 +23,7 @@ public static class HostExit {
 	}
 
 	internal static void ResetForTest() {
-		lock (Gate) {
+		lock (_gate) {
 			_task = null;
 		}
 	}

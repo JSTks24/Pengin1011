@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="MethodNotPublic" xml:space="preserve">
+    <value>A ModuleBridgeExport method must be public</value>
+  </data>
+  <data name="TypeNotPublic" xml:space="preserve">
+    <value>The type declaring a ModuleBridgeExport method must be public, including every enclosing type</value>
+  </data>
+  <data name="InstanceNotOnRuntime" xml:space="preserve">
+    <value>An instance ModuleBridgeExport must be declared on the module's single IModuleRuntime implementation</value>
+  </data>
+  <data name="GenericDeclaringType" xml:space="preserve">
+    <value>The type declaring a ModuleBridgeExport method must not be generic</value>
+  </data>
+  <data name="GenericMethod" xml:space="preserve">
+    <value>A generic method cannot be marked ModuleBridgeExport</value>
+  </data>
+  <data name="ByRefSignature" xml:space="preserve">
+    <value>ref/out/in parameters and ref or ref readonly returns cannot be marked ModuleBridgeExport</value>
+  </data>
+  <data name="OptionalParameter" xml:space="preserve">
+    <value>Optional parameters are not supported on a ModuleBridgeExport method</value>
+  </data>
+  <data name="LocalTypeSignature" xml:space="preserve">
+    <value>The bridge export signature uses a type the consumer cannot construct: {0}</value>
+  </data>
+  <data name="TooManyParameters" xml:space="preserve">
+    <value>The bridge export declares more than the supported 16 parameters: {0}</value>
+  </data>
+  <data name="UnsupportedType" xml:space="preserve">
+    <value>The bridge export signature contains an unsupported type: {0}</value>
+  </data>
+  <data name="DuplicateExport" xml:space="preserve">
+    <value>Duplicate bridge export name in this module: {0}</value>
+  </data>
+  <data name="InvalidModuleName" xml:space="preserve">
+    <value>The module name is not a valid C# identifier and cannot generate a consumer proxy: {0}</value>
+  </data>
+  <data name="NameCollision" xml:space="preserve">
+    <value>The bridge export name collides with a member generated for this module: {0}</value>
+  </data>
+  <data name="ManifestParse" xml:space="preserve">
+    <value>Cannot parse the bridge manifest entry; it was rejected: {0}</value>
+  </data>
+  <data name="ManifestModuleInvalid" xml:space="preserve">
+    <value>The bridge manifest module name is not a valid C# identifier: {0}</value>
+  </data>
+  <data name="ManifestFormatOutdated" xml:space="preserve">
+    <value>The bridge manifest format is outdated; rebuild the dependency module: {0}</value>
+  </data>
+  <data name="ManifestCountMismatch" xml:space="preserve">
+    <value>The bridge manifest export count or indices are inconsistent (declared: {0}, entries: {1})</value>
+  </data>
+  <data name="ManifestDuplicateModule" xml:space="preserve">
+    <value>More than one bridge manifest was supplied for the same module: {0}</value>
+  </data>
+  <data name="ManifestDuplicateExport" xml:space="preserve">
+    <value>Duplicate bridge export name in the manifest of module {0}: {1}</value>
+  </data>
+</root>

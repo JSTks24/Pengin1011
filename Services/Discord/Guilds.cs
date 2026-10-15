@@ -1,4 +1,5 @@
 using Discord;
+using Pengin1011.Core;
 using Discord.WebSocket;
 using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
@@ -25,7 +26,7 @@ public static class Guilds {
 			await guild.LeaveAsync();
 			return true;
 		} catch (Exception e) {
-			Logger.Error(typeof(Guilds), e, Localizer.Format("GuildLeaveFailed", guildId));
+			Logger.Error(typeof(Guilds), e, Loc.Format("GuildLeaveFailed", guildId));
 			return false;
 		}
 	}

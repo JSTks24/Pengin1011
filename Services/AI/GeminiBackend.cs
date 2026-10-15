@@ -9,29 +9,22 @@ public sealed class GeminiBackend : IAIBackend, IDisposable {
 	private readonly Client _client;
 	private readonly string _defaultModel;
 
-	public GeminiBackend(GeminiConfig config) {
-		_client = config.ApiKey.Length > 0
-			? new Client(enterprise: false, vertexAI: false, apiKey: config.ApiKey)
-			: new Client(enterprise: true, project: config.Project, location: config.Location);
-		_defaultModel = config.Model;
+	public GeminiBackend(AIPreset preset) {
+		_client = BuildClient(preset, null);
+		_defaultModel = preset.Model;
 	}
 
-	public GeminiBackend(AIEndpoint endpoint) {
-		_client = BuildClient(endpoint, null);
-		_defaultModel = "";
+	internal GeminiBackend(AIPreset preset, ClientOptions clientOptions) {
+		_client = BuildClient(preset, clientOptions);
+		_defaultModel = preset.Model;
 	}
 
-	internal GeminiBackend(AIEndpoint endpoint, ClientOptions clientOptions) {
-		_client = BuildClient(endpoint, clientOptions);
-		_defaultModel = "";
-	}
-
-	private static Client BuildClient(AIEndpoint endpoint, ClientOptions? clientOptions) {
+	private static Client BuildClient(AIPreset preset, ClientOptions? clientOptions) {
 		HttpOptions? http = null;
-		if (endpoint.BaseUrl != null) http = new HttpOptions { BaseUrl = endpoint.BaseUrl.ToString() };
-		return endpoint.ApiKey.Length > 0
-			? new Client(enterprise: false, vertexAI: false, apiKey: endpoint.ApiKey, httpOptions: http, clientOptions: clientOptions)
-			: new Client(enterprise: true, project: endpoint.Project!, location: endpoint.Location!, httpOptions: http, clientOptions: clientOptions);
+		if (preset.BaseUrl.Length > 0) http = new HttpOptions { BaseUrl = preset.BaseUrl };
+		return preset.Provider == AIPresetProvider.Vertex
+			? new Client(enterprise: true, project: preset.Project, location: preset.Location, httpOptions: http, clientOptions: clientOptions)
+			: new Client(enterprise: false, vertexAI: false, apiKey: preset.ApiKey, httpOptions: http, clientOptions: clientOptions);
 	}
 
 	public void Dispose() {

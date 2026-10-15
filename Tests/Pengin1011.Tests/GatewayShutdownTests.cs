@@ -8,6 +8,10 @@ namespace Pengin1011.Tests;
 
 [Collection("BaseDirSerial")]
 public sealed class GatewayShutdownTests {
+	private static string DataDir(string baseDir) {
+		return Path.Combine(baseDir, "data");
+	}
+
 	[Theory]
 	[InlineData(false)]
 	[InlineData(true)]
@@ -18,11 +22,12 @@ public sealed class GatewayShutdownTests {
 		var logoutFinished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 		Task<ExitCoordinator.ExitReport>? exit = null;
 		Reset();
-		Databases.SetDataDirectoryForTest(baseDir);
+		Databases.SetDataDirectoryForTest(DataDir(baseDir));
 		Logger.SetLogPathForTest(logPath);
 		ExitCoordinator.GatewayStopBudget = TimeSpan.FromMilliseconds(50);
 		try {
 			Databases.Init();
+			await Databases.PrepareAsync<FakeDbContext>();
 			await using (var db = Databases.Open<FakeDbContext>()) {
 				db.Items.Add(new FakeItem { Name = "BeforeStartupTimeout" });
 				await db.SaveChangesAsync();
@@ -54,8 +59,8 @@ public sealed class GatewayShutdownTests {
 			var log = File.ReadAllText(logPath);
 			Assert.Contains(nameof(TimeoutException), log);
 			Assert.Contains(L.Get("ExitStepGatewayStop"), log);
-			var backup = Assert.Single(Directory.GetFiles(Path.Combine(baseDir, "data", "backup"), "Fake-*.db"));
-			await using var snapshot = new RawSqlContext(backup);
+			var backup = Assert.Single(Databases.ListBackups("Fake", DatabaseBackupStore.RollingCategory));
+			await using var snapshot = new RawSqlContext(backup.SnapshotPath);
 			Assert.Equal("BeforeStartupTimeout", await snapshot.Database.SqlQueryRaw<string>("SELECT \"Name\" AS \"Value\" FROM \"Items\"").SingleAsync());
 		} finally {
 			gate.TrySetResult();
@@ -79,7 +84,7 @@ public sealed class GatewayShutdownTests {
 		var logoutFinished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 		Task<ExitCoordinator.ExitReport>? exit = null;
 		Reset();
-		Databases.SetDataDirectoryForTest(baseDir);
+		Databases.SetDataDirectoryForTest(DataDir(baseDir));
 		ExitCoordinator.GatewayStopBudget = TimeSpan.FromMilliseconds(50);
 		try {
 			Databases.Init();

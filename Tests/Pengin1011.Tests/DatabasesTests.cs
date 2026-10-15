@@ -26,10 +26,11 @@ public sealed class DatabasesTests {
 	[Fact]
 	public async Task Open_CreatesModuleDbUnderData() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(baseDir);
+		Databases.SetDataDirectoryForTest(DataDir(baseDir));
 		try {
 			Databases.Init();
-			await using var db = Databases.Open<FakeDbContext>();
+			await Databases.PrepareAsync<FakeDbContext>();
+			using var db = Databases.Open<FakeDbContext>();
 			Assert.True(File.Exists(Path.Combine(DataDir(baseDir), "Fake.db")));
 		} finally {
 			Databases.SetDataDirectoryForTest(null);
@@ -40,13 +41,15 @@ public sealed class DatabasesTests {
 	[Fact]
 	public async Task DataPersists_AcrossReopen() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(baseDir);
+		Databases.SetDataDirectoryForTest(DataDir(baseDir));
 		try {
 			Databases.Init();
+			await Databases.PrepareAsync<FakeDbContext>();
 			await using (var db = Databases.Open<FakeDbContext>()) {
 				db.Items.Add(new FakeItem { Name = "保留我" });
 				await db.SaveChangesAsync();
 			}
+			await Databases.PrepareAsync<FakeDbContext>();
 			await using (var db = Databases.Open<FakeDbContext>()) {
 				var row = await db.Items.SingleAsync();
 				Assert.Equal("保留我", row.Name);
@@ -60,9 +63,11 @@ public sealed class DatabasesTests {
 	[Fact]
 	public async Task DifferentContexts_GetSeparateFiles() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(baseDir);
+		Databases.SetDataDirectoryForTest(DataDir(baseDir));
 		try {
 			Databases.Init();
+			await Databases.PrepareAsync<FakeDbContext>();
+			await Databases.PrepareAsync<OtherDbContext>();
 			await using (var db = Databases.Open<FakeDbContext>()) {
 				db.Items.Add(new FakeItem { Name = "Fake库数据" });
 				await db.SaveChangesAsync();
@@ -84,11 +89,13 @@ public sealed class DatabasesTests {
 	[Fact]
 	public async Task ConflictingModuleName_Throws() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(baseDir);
+		Databases.SetDataDirectoryForTest(DataDir(baseDir));
 		try {
 			Databases.Init();
-			await using (var first = Databases.Open<ClashDbContext>()) {
-			}
+			await Databases.PrepareAsync<ClashDbContext>();
+			await using var first = Databases.Open<ClashDbContext>();
+
+			await Assert.ThrowsAsync<InvalidOperationException>(() => Databases.PrepareAsync<ClashContext>());
 			Assert.Throws<InvalidOperationException>(() => Databases.Open<ClashContext>());
 		} finally {
 			Databases.SetDataDirectoryForTest(null);
@@ -99,18 +106,19 @@ public sealed class DatabasesTests {
 	[Fact]
 	public async Task GetStatus_ReportsMigrationSizeAndBackup() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(baseDir);
+		Databases.SetDataDirectoryForTest(DataDir(baseDir));
 		try {
 			Databases.Init();
+			await Databases.PrepareAsync<FakeDbContext>();
 			await using (var db = Databases.Open<FakeDbContext>()) {
 				db.Items.Add(new FakeItem { Name = "状态检查" });
 				await db.SaveChangesAsync();
 			}
 			await Databases.BackupNowAsync();
-			var status = Databases.GetStatus().Single(entry => entry.Module == "Fake");
+			var status = Databases.GetStatus().Single(entry => entry.Database == "Fake");
 			Assert.True(status.SizeBytes > 0);
-			Assert.NotNull(status.MigrationId);
-			Assert.NotNull(status.LastBackup);
+			Assert.NotNull(status.CurrentHistory);
+			Assert.NotNull(status.LastCompletedBackup);
 		} finally {
 			Databases.SetDataDirectoryForTest(null);
 			Cleanup(baseDir);
@@ -120,7 +128,7 @@ public sealed class DatabasesTests {
 	[Fact]
 	public async Task Init_RegistersOrphanDbForBackup() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(baseDir);
+		Databases.SetDataDirectoryForTest(DataDir(baseDir));
 		try {
 			var dataDir = DataDir(baseDir);
 			Directory.CreateDirectory(dataDir);
@@ -131,8 +139,9 @@ public sealed class DatabasesTests {
 			}
 			Databases.Init();
 			await Databases.BackupNowAsync();
-			var backups = Directory.GetFiles(Path.Combine(dataDir, "backup"), "Legacy-*.db");
+			var backups = Databases.ListBackups("Legacy", DatabaseBackupStore.RollingCategory);
 			Assert.Single(backups);
+			Assert.True(Directory.Exists(Path.Combine(dataDir, "backup", "Legacy")));
 		} finally {
 			Databases.SetDataDirectoryForTest(null);
 			Cleanup(baseDir);

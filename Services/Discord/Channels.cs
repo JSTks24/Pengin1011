@@ -1,4 +1,5 @@
 using Discord;
+using Pengin1011.Core;
 using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 
@@ -11,15 +12,17 @@ public static class Channels {
 		return client.GetChannel(channelId);
 	}
 
-	public static async Task<IChannel?> ResolveAsync(ulong channelId) {
+	public static async Task<IChannel?> ResolveAsync(ulong channelId, CancellationToken ct = default) {
 		var client = DiscordGateway.Client;
 		if (client == null || channelId == 0) return null;
 		var cached = client.GetChannel(channelId);
 		if (cached != null) return cached;
 		try {
-			return await client.GetChannelAsync(channelId);
+			return await client.GetChannelAsync(channelId, options: ct.CanBeCanceled ? new RequestOptions { CancelToken = ct } : null);
+		} catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+			throw;
 		} catch (Exception e) {
-			Logger.Error(typeof(Channels), e, Localizer.Format("ChannelResolveRestFailed", channelId));
+			Logger.Error(typeof(Channels), e, Loc.Format("ChannelResolveRestFailed", channelId));
 			return null;
 		}
 	}

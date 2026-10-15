@@ -1,13 +1,19 @@
-using System.Runtime.CompilerServices;
+using Pengin1011.Core;
 using Pengin1011.Core.Localization;
 using Pengin1011.Core.Modules;
 
 namespace Pengin1011.Modules.FakeSecond;
 
+public static class FakeSecondBridgeExports {
+	[ModuleBridgeExport]
+	public static long AddValues(int a, int b) {
+		return a + (long)b;
+	}
+}
+
 public static class FakeSecondTexts {
-	[MethodImpl(MethodImplOptions.NoInlining)]
 	public static string GetText(string key) {
-		return Localizer.Get(key);
+		return Loc.Get(key);
 	}
 }
 

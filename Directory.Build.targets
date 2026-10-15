@@ -1,0 +1,19 @@
+<Project>
+
+	<PropertyGroup>
+		<BridgeGeneratorFolderName>Pengin1011Generator.ModuleBridge.ModuleBridgeGenerator</BridgeGeneratorFolderName>
+		<BridgeGeneratedRelativeRoot>$(BaseIntermediateOutputPath)$(Configuration)\$(TargetFramework)\generated\Pengin1011Generator\$(BridgeGeneratorFolderName)\</BridgeGeneratedRelativeRoot>
+		<BridgeManifestFileName>ModuleBridgeManifest.g.cs</BridgeManifestFileName>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<_BridgeDependencyProject Include="@(BridgeDependency->'..\%(Identity)\%(Identity).csproj')" Exclude="@(ProjectReference)" />
+		<ProjectReference Include="@(_BridgeDependencyProject)" ReferenceOutputAssembly="false" />
+		<AdditionalFiles Include="@(BridgeDependency->'..\%(Identity)\$(BridgeGeneratedRelativeRoot)$(BridgeManifestFileName)')" />
+	</ItemGroup>
+
+	<Target Name="ValidateBridgeManifests" Condition="'@(BridgeDependency)' != ''" BeforeTargets="CoreCompile">
+		<Error Condition="!Exists('..\%(BridgeDependency.Identity)\$(BridgeGeneratedRelativeRoot)$(BridgeManifestFileName)')" Text="Bridge manifest missing: dependency module %(BridgeDependency.Identity) has not been built for configuration $(Configuration)/$(TargetFramework), or its ModuleBridge generator is disabled. Build that dependency module first." />
+	</Target>
+
+</Project>

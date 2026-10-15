@@ -13,7 +13,7 @@
 		<value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
 	</resheader>
 	<data name="ConfigLoaded" xml:space="preserve">
-		<value>配置加载成功 Provider={0} Model={1} MaxParallel={2}</value>
+		<value>配置加载成功 预设数={0} 默认={1} MaxParallel={2}</value>
 	</data>
 	<data name="GatewayStartupTimeout" xml:space="preserve">
 		<value>网关未在 {0}s 内就绪，按启动失败处理。</value>
@@ -34,9 +34,15 @@
 		<value>help                 显示本帮助
 status               框架运行概况
 modules              列出已加载模块
-db backup            立即执行全库备份
-db status            查看各数据库状态
+db                   数据库管理（db backup、db status 等），输入 db 查看完整用法
 sync                 重新注册当前进程已加载的 Discord 命令树
+preset list          列出 AI 预设
+preset show &lt;名&gt;     查看某个预设的全部字段
+preset add &lt;名&gt; &lt;provider&gt; [Key=Value...]
+                     新增预设（provider：openai / gemini / vertex）
+preset set &lt;名&gt; [name=&lt;新名&gt;] Key=Value...
+                     修改某个预设的字段
+preset remove &lt;名&gt;   删除某个预设
 exit                 退出框架</value>
 	</data>
 	<data name="CommandTreeSynced" xml:space="preserve">
@@ -54,9 +60,43 @@ exit                 退出框架</value>
 	<data name="CliStatus" xml:space="preserve">
 		<value>运行时长：{0:dd\.hh\:mm\:ss}（启动于 {1:yyyy-MM-dd HH:mm:ss}）
 网关状态：{2}
-AI：{3} / {4}
+AI 预设：{3} 个（默认：{4}）
 模块：{5} 个
-数据库：{6} 个</value>
+数据库：{6} 个
+{7}</value>
+	</data>
+	<data name="CliPresetNone" xml:space="preserve">
+		<value>当前没有任何 AI 预设</value>
+	</data>
+	<data name="CliPresetListEntry" xml:space="preserve">
+		<value>{0}（{1}/{2}）{3}</value>
+	</data>
+	<data name="CliPresetDefaultSuffix" xml:space="preserve">
+		<value>【默认】</value>
+	</data>
+	<data name="CliPresetUsage" xml:space="preserve">
+		<value>用法：preset list | preset show &lt;名&gt; | preset add &lt;名&gt; &lt;provider&gt; [Key=Value...] | preset set &lt;名&gt; [name=&lt;新名&gt;] Key=Value... | preset remove &lt;名&gt;</value>
+	</data>
+	<data name="CliPresetShowLine" xml:space="preserve">
+		<value>{0}：{1}</value>
+	</data>
+	<data name="CliPresetAdded" xml:space="preserve">
+		<value>已新增预设：{0}</value>
+	</data>
+	<data name="CliPresetUpdated" xml:space="preserve">
+		<value>已修改预设：{0}</value>
+	</data>
+	<data name="CliPresetRemoved" xml:space="preserve">
+		<value>已删除预设：{0}</value>
+	</data>
+	<data name="CliPresetProviderInvalid" xml:space="preserve">
+		<value>未知的预设 provider：{0}（仅支持 openai / gemini / vertex）</value>
+	</data>
+	<data name="CliPresetFieldInvalid" xml:space="preserve">
+		<value>不合法的 Key=Value 项：{0}（数值必须格式正确）</value>
+	</data>
+	<data name="CliPresetFieldUnknown" xml:space="preserve">
+		<value>未知的预设字段：{0}</value>
 	</data>
 	<data name="NoModulesLoaded" xml:space="preserve">
 		<value>当前没有已加载的模块</value>
@@ -73,18 +113,6 @@ AI：{3} / {4}
 	</data>
 	<data name="NoDatabases" xml:space="preserve">
 		<value>当前没有任何数据库</value>
-	</data>
-	<data name="DbStatusLine" xml:space="preserve">
-		<value>{0}：{1}，迁移 {2}，最近备份 {3}</value>
-	</data>
-	<data name="DbStatusNoMigration" xml:space="preserve">
-		<value>无记录</value>
-	</data>
-	<data name="DbStatusNoBackup" xml:space="preserve">
-		<value>无</value>
-	</data>
-	<data name="DbUsage" xml:space="preserve">
-		<value>用法：db backup / db status</value>
 	</data>
 	<data name="CliInputDiscarded" xml:space="preserve">
 		<value>停止进行中，丢弃 CLI 输入：{0}</value>
@@ -110,41 +138,11 @@ AI：{3} / {4}
 	<data name="DiscordTokenRequired" xml:space="preserve">
 		<value>Discord.Token 不能为空</value>
 	</data>
-	<data name="AIProviderInvalid" xml:space="preserve">
-		<value>AI.Provider 无效：{0}（仅支持 openai / gemini）</value>
-	</data>
 	<data name="AIMaxParallelInvalid" xml:space="preserve">
-		<value>AI.MaxParallel 必须大于 0，当前 {0}</value>
-	</data>
-	<data name="AIBackendNotConfigured" xml:space="preserve">
-		<value>{0} AI 后端未配置：请在 config.json 的 AI 节配置，或在本次调用通过 AIRequest.Endpoint 指定端点。</value>
+		<value>MaxParallel 必须大于 0，当前 {0}</value>
 	</data>
 	<data name="AIModelNotConfigured" xml:space="preserve">
 		<value>未配置</value>
-	</data>
-	<data name="AIProviderMissingGeminiHint" xml:space="preserve">
-		<value>AI.Provider 未填写但已配置 Gemini 节，当前按 openai 处理；若本意是使用 Gemini，请显式填写 "Provider": "gemini"。</value>
-	</data>
-	<data name="OpenAIApiKeyRequired" xml:space="preserve">
-		<value>AI.OpenAI.ApiKey 不能为空</value>
-	</data>
-	<data name="OpenAIModelRequired" xml:space="preserve">
-		<value>AI.OpenAI.Model 不能为空</value>
-	</data>
-	<data name="OpenAIBaseUrlRequired" xml:space="preserve">
-		<value>AI.OpenAI.BaseUrl 不能为空</value>
-	</data>
-	<data name="OpenAIBaseUrlInvalid" xml:space="preserve">
-		<value>AI.OpenAI.BaseUrl 不是合法的 HTTP(S) 地址：{0}</value>
-	</data>
-	<data name="GeminiModelRequired" xml:space="preserve">
-		<value>AI.Gemini.Model 不能为空</value>
-	</data>
-	<data name="GeminiAuthExclusive" xml:space="preserve">
-		<value>AI.Gemini 的 ApiKey 与 Project/Location 只能二选一</value>
-	</data>
-	<data name="GeminiAuthIncomplete" xml:space="preserve">
-		<value>AI.Gemini 鉴权不完整：ApiKey 或 Project+Location 二选一</value>
 	</data>
 	<data name="MigrationContractText" xml:space="preserve">
 		<value>凡有持久化需求的模块一律使用 EF Core Migration</value>
@@ -154,9 +152,6 @@ AI：{3} / {4}
 	</data>
 	<data name="DbMigrationContractViolated" xml:space="preserve">
 		<value>数据库契约违约：{0} 没有任何 Migration（{1}）</value>
-	</data>
-	<data name="ReadMigrationIdFailed" xml:space="preserve">
-		<value>读取迁移版本失败：{0}</value>
 	</data>
 	<data name="BackupSkippedBusy" xml:space="preserve">
 		<value>上一轮备份仍在进行，本轮定时备份跳过</value>
@@ -208,6 +203,9 @@ AI：{3} / {4}
 	</data>
 	<data name="ExitStepComponents" xml:space="preserve">
 		<value>组件清理</value>
+	</data>
+	<data name="ExitStepLoggerForwarder" xml:space="preserve">
+		<value>日志频道转发排干</value>
 	</data>
 	<data name="ExitStepGatewayStop" xml:space="preserve">
 		<value>网关停止</value>
@@ -428,26 +426,62 @@ AI：{3} / {4}
 	<data name="AITopPInvalid" xml:space="preserve">
 		<value>AIRequest.TopP 不能为负数，当前 {0}</value>
 	</data>
-	<data name="EndpointModelRequired" xml:space="preserve">
-		<value>指定 Endpoint 覆盖端点时必须同时指定 Model</value>
+	<data name="AIPresetNameRequired" xml:space="preserve">
+		<value>预设名不能为空</value>
 	</data>
-	<data name="EndpointBaseUrlInvalid" xml:space="preserve">
-		<value>Endpoint.BaseUrl 必须为 HTTP(S) 地址：{0}</value>
+	<data name="AIPresetDuplicateName" xml:space="preserve">
+		<value>预设名重复：{0}</value>
 	</data>
-	<data name="OpenAIEndpointMissingApiKey" xml:space="preserve">
-		<value>OpenAI 端点覆盖缺少 ApiKey</value>
+	<data name="AIPresetProviderInvalid" xml:space="preserve">
+		<value>预设 Provider 无效：{0}（仅支持 openai / gemini / vertex）</value>
 	</data>
-	<data name="OpenAIEndpointMissingBaseUrl" xml:space="preserve">
-		<value>OpenAI 端点覆盖缺少 BaseUrl</value>
+	<data name="AIPresetApiKeyRequired" xml:space="preserve">
+		<value>预设的 ApiKey 不能为空</value>
 	</data>
-	<data name="OpenAIEndpointProjectLocationUnsupported" xml:space="preserve">
-		<value>OpenAI 端点覆盖不支持 Project / Location</value>
+	<data name="AIPresetModelRequired" xml:space="preserve">
+		<value>预设的 Model 不能为空</value>
 	</data>
-	<data name="GeminiEndpointAuthExclusive" xml:space="preserve">
-		<value>Gemini 端点覆盖的 ApiKey 与 Project/Location 只能二选一</value>
+	<data name="AIPresetBaseUrlRequired" xml:space="preserve">
+		<value>预设的 BaseUrl 不能为空（openai 预设必填）</value>
 	</data>
-	<data name="GeminiEndpointAuthIncomplete" xml:space="preserve">
-		<value>Gemini 端点覆盖鉴权不完整：ApiKey 或 Project+Location 二选一</value>
+	<data name="AIPresetBaseUrlInvalid" xml:space="preserve">
+		<value>预设的 BaseUrl 不是合法的 HTTP(S) 地址：{0}</value>
+	</data>
+	<data name="AIPresetVertexFieldsRequired" xml:space="preserve">
+		<value>vertex 预设必须同时填写 Project 与 Location</value>
+	</data>
+	<data name="AIPresetNameMissing" xml:space="preserve">
+		<value>AI 预设“{0}”不存在；可用预设：{1}</value>
+	</data>
+	<data name="AIPresetDefaultMissing" xml:space="preserve">
+		<value>未配置任何 AI 预设，默认预设不存在；可用预设：{0}</value>
+	</data>
+	<data name="AIPresetNotFound" xml:space="preserve">
+		<value>AI 预设“{0}”不存在</value>
+	</data>
+	<data name="AIPresetInUse" xml:space="preserve">
+		<value>AI 预设“{0}”正被 {1} 引用；请先解除引用再操作</value>
+	</data>
+	<data name="AIPresetsCreatedFromTemplate" xml:space="preserve">
+		<value>已从模板生成 AI 预设文件：{0}；请先添加预设再启动</value>
+	</data>
+	<data name="AIPresetsTemplateWriteFailed" xml:space="preserve">
+		<value>写入 AI 预设模板文件失败：{0}</value>
+	</data>
+	<data name="AIPresetsReadFailed" xml:space="preserve">
+		<value>读取 AI 预设文件失败：{0}</value>
+	</data>
+	<data name="AIPresetsSaveFailed" xml:space="preserve">
+		<value>保存 AI 预设文件失败</value>
+	</data>
+	<data name="AIPresetUsageMissing" xml:space="preserve">
+		<value>模块 {0} 的调用点 {1} 索引了预设「{2}」，该预设不存在，启动失败</value>
+	</data>
+	<data name="AIPresetUsageDefaultMissing" xml:space="preserve">
+		<value>模块 {0} 的调用点 {1} 使用默认预设，但当前没有任何预设，启动失败</value>
+	</data>
+	<data name="AIPresetUsageProviderInvalid" xml:space="preserve">
+		<value>{0} 的 AI 预设清点提供者无效，其使用清单已丢弃</value>
 	</data>
 	<data name="AttachmentDownloadFailed" xml:space="preserve">
 		<value>下载附件失败：{0}</value>
@@ -601,5 +635,363 @@ AI：{3} / {4}
 	</data>
 	<data name="ArchivedThreadsEnumFailed" xml:space="preserve">
 		<value>枚举归档子区失败：{0}</value>
+	</data>
+	<data name="ModuleBridgeExportNotFound" xml:space="preserve">
+		<value>未找到桥导出：{0}.{1}</value>
+	</data>
+	<data name="ModuleBridgeTargetNotReady" xml:space="preserve">
+		<value>桥目标模块未就绪：{0}.{1} 状态={2}</value>
+	</data>
+	<data name="ModuleBridgeSignatureMismatch" xml:space="preserve">
+		<value>桥签名不匹配：{0}.{1} 期望 {2}，实际 {3}</value>
+	</data>
+	<data name="ModuleBridgeDuplicateExport" xml:space="preserve">
+		<value>模块 {0} 存在重复桥导出：{1}</value>
+	</data>
+	<data name="ModuleBridgeProviderInvalid" xml:space="preserve">
+		<value>模块 {0} 的桥提供者初始化失败</value>
+	</data>
+	<data name="LogSubscriberFailed" xml:space="preserve">
+		<value>日志订阅者 {0} 抛出异常：{1}</value>
+	</data>
+	<data name="LoggerChannelInvalid" xml:space="preserve">
+		<value>Logger 频道 ID 无效：{0}</value>
+	</data>
+	<data name="LoggerForwarderStarted" xml:space="preserve">
+		<value>日志频道转发已启用，共 {0} 个频道</value>
+	</data>
+	<data name="LoggerForwarderStopping" xml:space="preserve">
+		<value>日志频道转发会话已结束：已投递 {0}，丢弃 {1}，剩余 {2}</value>
+	</data>
+	<data name="LoggerForwarderChannelMissing" xml:space="preserve">
+		<value>配置的日志频道 {0} 无法解析</value>
+	</data>
+	<data name="LoggerForwarderSendFailed" xml:space="preserve">
+		<value>转发到日志频道 {0} 失败：{1}</value>
+	</data>
+	<data name="AIMaxParallelNull" xml:space="preserve">
+		<value>MaxParallel 必须为正整数，不能为 null</value>
+	</data>
+	<data name="AIPresetsListNull" xml:space="preserve">
+		<value>Presets 列表必须是数组，不能为 null</value>
+	</data>
+	<data name="AIPresetsListInvalid" xml:space="preserve">
+		<value>Presets 的值必须是 JSON 数组</value>
+	</data>
+	<data name="AIPresetEntryInvalid" xml:space="preserve">
+		<value>第 {0} 个预设必须是 JSON 对象</value>
+	</data>
+	<data name="AIPresetFieldNull" xml:space="preserve">
+		<value>第 {0} 个预设的字段 {1} 不能为 null</value>
+	</data>
+	<data name="AIPresetFieldTypeInvalid" xml:space="preserve">
+		<value>第 {0} 个预设的字段 {1} 的 JSON 类型不受支持</value>
+	</data>
+	<data name="AIPresetFieldNotFinite" xml:space="preserve">
+		<value>第 {0} 个预设的字段 {1} 必须是有限数值</value>
+	</data>
+	<data name="AIPresetNameWhitespace" xml:space="preserve">
+		<value>预设名首尾不得含空白字符："{0}"</value>
+	</data>
+	<data name="AIPresetNameControlCharacter" xml:space="preserve">
+		<value>预设名不得包含控制字符</value>
+	</data>
+	<data name="AIPresetStaleVersion" xml:space="preserve">
+		<value>预设配置自版本 {0} 起已被修改（当前版本 {1}）；请重新加载后重试</value>
+	</data>
+	<data name="AIClientShuttingDown" xml:space="preserve">
+		<value>AI 客户端正在关闭，不再接受新请求</value>
+	</data>
+	<data name="AIShutdownNotDrained" xml:space="preserve">
+		<value>AI 关闭等待超时，仍有 {0} 项未结束的请求或后端操作</value>
+	</data>
+	<data name="AIBackendCreateFailed" xml:space="preserve">
+		<value>为连接 {0} 创建 AI 后端失败</value>
+	</data>
+	<data name="AIBackendDisposeFailed" xml:space="preserve">
+		<value>释放连接 {0} 的 AI 后端失败</value>
+	</data>
+	<data name="AIBackendRetiredDuringCreation" xml:space="preserve">
+		<value>连接 {0} 的 AI 后端在创建期间已被退役</value>
+	</data>
+	<data name="SecretNotConfigured" xml:space="preserve">
+		<value>未配置</value>
+	</data>
+	<data name="AIPresetDefaultInUse" xml:space="preserve">
+		<value>存在使用默认预设的消费者，删除「{0}」会使预设列表为空</value>
+	</data>
+	<data name="LoggerForwarderUnsubscribeFailed" xml:space="preserve">
+		<value>日志转发器从 Logger 退订失败</value>
+	</data>
+	<data name="LoggerForwarderStopPending" xml:space="preserve">
+		<value>日志转发未在预算内停止：队列 {0}，在途发送 {1}；会话保留，不允许再启动新会话</value>
+	</data>
+	<data name="LoggerForwarderWorkerFailed" xml:space="preserve">
+		<value>日志转发 worker 因 {0} 结束：{1}</value>
+	</data>
+	<data name="LoggerForwarderSendPartial" xml:space="preserve">
+		<value>向日志频道 {0} 部分投递成功：{1}/{2} 块已发送</value>
+	</data>
+	<data name="ModuleRegistrationRollbackFailed" xml:space="preserve">
+		<value>回滚模块 {0} 的失败注册时出错</value>
+	</data>
+	<data name="ModuleBridgeCallsStillRunning" xml:space="preserve">
+		<value>模块 {0} 在排空预算后仍有 {1} 个在途桥调用；其资源未被释放</value>
+	</data>
+	<data name="BlockerLoggerForwarder" xml:space="preserve">
+		<value>日志转发器未停止</value>
+	</data>
+	<data name="LoggerForwarderNotDrained" xml:space="preserve">
+		<value>日志转发未在预算内排空：队列 {0}，在途发送 {1}</value>
+	</data>
+	<data name="LoggerForwarderDroppedEntries" xml:space="preserve">
+		<value>日志转发因溢出或停机丢弃了 {0} 条</value>
+	</data>
+	<data name="LoggerForwarderChannelFailure" xml:space="preserve">
+		<value>日志转发频道故障：{0}</value>
+	</data>
+	<data name="AIReleaseIncomplete" xml:space="preserve">
+		<value>AI 客户端释放未完成：仍有 {0} 项未结束的请求或后端操作</value>
+	</data>
+	<data name="DatabaseNameInvalid" xml:space="preserve">
+		<value>DbContext 名称无法转换为合法的数据库文件名</value>
+	</data>
+	<data name="DatabaseNameReserved" xml:space="preserve">
+		<value>数据库名与系统保留设备名冲突</value>
+	</data>
+	<data name="DatabasePrepareRequired" xml:space="preserve">
+		<value>数据库 {0} 尚未准备；请在 Open 前调用 Databases.PrepareAsync</value>
+	</data>
+	<data name="DatabasePrepareCancelled" xml:space="preserve">
+		<value>等待数据库 {0} 准备被取消；共享准备工作仍在继续</value>
+	</data>
+	<data name="DatabasePreparedFileMissing" xml:space="preserve">
+		<value>数据库 {0} 已准备但其文件已消失；外部删除或替换不会自愈</value>
+	</data>
+	<data name="DatabasePrepareFailed" xml:space="preserve">
+		<value>准备数据库 {0} 失败</value>
+	</data>
+	<data name="DatabaseMissing" xml:space="preserve">
+		<value>解析出的数据目录中不存在数据库 {0}</value>
+	</data>
+	<data name="DatabaseSnapshotMissing" xml:space="preserve">
+		<value>数据库 {0} 缺少完整模型快照；每个 context 都必须携带生成的 ModelSnapshot</value>
+	</data>
+	<data name="DatabaseModelDrift" xml:space="preserve">
+		<value>数据库 {0}：模型已与快照不一致，且没有迁移覆盖该变更</value>
+	</data>
+	<data name="DatabaseHistoryNotPrefix" xml:space="preserve">
+		<value>数据库 {0}：已应用迁移不是已知迁移序列的合法前缀（{1}）</value>
+	</data>
+	<data name="DatabaseUntrackedTables" xml:space="preserve">
+		<value>数据库 {0} 含业务表却没有迁移历史；不按全新数据库处理</value>
+	</data>
+	<data name="DatabaseResidualMigrationLock" xml:space="preserve">
+		<value>数据库 {0} 仍持有迁移锁行；确认没有外部写入者后，在内部终端使用 db unlock {0} --confirm</value>
+	</data>
+	<data name="DatabaseMigrationIncomplete" xml:space="preserve">
+		<value>数据库 {0}：迁移未达到预期历史（{1}）</value>
+	</data>
+	<data name="DatabaseIntegrityFailed" xml:space="preserve">
+		<value>数据库 {0} 完整性检查失败</value>
+	</data>
+	<data name="DatabaseForeignKeyFailed" xml:space="preserve">
+		<value>数据库 {0} 外键检查失败</value>
+	</data>
+	<data name="DataDirectoryNotOwned" xml:space="preserve">
+		<value>数据目录 {0} 已被另一个进程占有；{1}</value>
+	</data>
+	<data name="DataDirectoryMissing" xml:space="preserve">
+		<value>数据目录不存在：{0}；如确需首次初始化请传 --create-data-dir</value>
+	</data>
+	<data name="PreMigrationSnapshotFailed" xml:space="preserve">
+		<value>数据库 {0}：升级前快照失败（{1}）；未开始升级</value>
+	</data>
+	<data name="BackupSourceMissing" xml:space="preserve">
+		<value>数据库 {0} 没有可快照的文件</value>
+	</data>
+	<data name="BackupSourceNotSqlite" xml:space="preserve">
+		<value>{0} 不是可读的 SQLite 数据库，未生成快照</value>
+	</data>
+	<data name="BackupIntegrityFailed" xml:space="preserve">
+		<value>快照完整性检查失败，未发布</value>
+	</data>
+	<data name="BackupForeignKeyFailed" xml:space="preserve">
+		<value>快照外键检查失败，未发布</value>
+	</data>
+	<data name="BackupIncomplete" xml:space="preserve">
+		<value>备份 {0} 不完整（缺快照或元数据）</value>
+	</data>
+	<data name="BackupIdentityMismatch" xml:space="preserve">
+		<value>备份 {0} 的元数据身份与目录或数据库不一致</value>
+	</data>
+	<data name="BackupHashMismatch" xml:space="preserve">
+		<value>备份 {0} 的摘要与元数据不符</value>
+	</data>
+	<data name="BackupUnreadable" xml:space="preserve">
+		<value>备份 {0} 无法读取，未作为恢复点发布</value>
+	</data>
+	<data name="BackupPruneFailed" xml:space="preserve">
+		<value>裁剪备份 {0} 失败；已完成的快照仍然有效</value>
+	</data>
+	<data name="BackupQuarantineFailed" xml:space="preserve">
+		<value>隔离失败备份 {0} 失败</value>
+	</data>
+	<data name="BackupTimerFailed" xml:space="preserve">
+		<value>定时备份回调失败</value>
+	</data>
+	<data name="DirectoryFlushSkipped" xml:space="preserve">
+		<value>目录 {0} 刷新被跳过（{1}）；该平台不提供目录持久化能力</value>
+	</data>
+	<data name="RestoreBackupIdInvalid" xml:space="preserve">
+		<value>备份 ID {0} 不是合法的受控标识</value>
+	</data>
+	<data name="RestoreBackupInvalid" xml:space="preserve">
+		<value>备份 {0} 不是经验证的完成快照；{1}</value>
+	</data>
+	<data name="RestoreQuarantineMismatch" xml:space="preserve">
+		<value>原现场保全未通过验证；未替换任何文件</value>
+	</data>
+	<data name="RestoreStagingInvalid" xml:space="preserve">
+		<value>staging 库完整性检查失败；切换从未开始</value>
+	</data>
+	<data name="RestoreVerificationIntegrity" xml:space="preserve">
+		<value>恢复出的数据库完整性检查失败</value>
+	</data>
+	<data name="RestoreVerificationForeignKey" xml:space="preserve">
+		<value>恢复出的数据库外键检查失败</value>
+	</data>
+	<data name="RestoreFailed" xml:space="preserve">
+		<value>恢复数据库 {0}（操作 {1}）失败；操作记录保留了阶段</value>
+	</data>
+	<data name="RestoreOperationUnknown" xml:space="preserve">
+		<value>维护操作 {0} 不存在</value>
+	</data>
+	<data name="RestoreAlreadyCompleted" xml:space="preserve">
+		<value>维护操作 {0} 已完成，无需回滚</value>
+	</data>
+	<data name="RestoreRollbackFailed" xml:space="preserve">
+		<value>回滚维护操作 {0} 失败</value>
+	</data>
+	<data name="MaintenanceRecordReadFailed" xml:space="preserve">
+		<value>读取维护记录 {0} 失败</value>
+	</data>
+	<data name="MaintenanceRecordDeleteFailed" xml:space="preserve">
+		<value>删除维护记录 {0} 失败</value>
+	</data>
+	<data name="UnlockWithPendingIntent" xml:space="preserve">
+		<value>数据库 {0} 存在未完成的迁移意图；请 verify 或 restore，而不是删除锁</value>
+	</data>
+	<data name="UnlockNothingToDo" xml:space="preserve">
+		<value>未发现 EF 迁移锁行</value>
+	</data>
+	<data name="UnlockFailed" xml:space="preserve">
+		<value>解锁数据库 {0} 失败</value>
+	</data>
+	<data name="VerifyRequiresConfirmation" xml:space="preserve">
+		<value>verify --accept-interrupted 需要显式确认参数</value>
+	</data>
+	<data name="VerifyTargetUnknown" xml:space="preserve">
+		<value>数据库 {0}：无法确认被中断迁移的目标</value>
+	</data>
+	<data name="LegacyBackupMissing" xml:space="preserve">
+		<value>legacy 备份文件 {0} 不存在</value>
+	</data>
+	<data name="LegacyBackupIsLiveDatabase" xml:space="preserve">
+		<value>该 legacy 文件就是在用数据库本身；请改用副本导入</value>
+	</data>
+	<data name="LegacyBackupNotSqlite" xml:space="preserve">
+		<value>{0} 不是可读的 SQLite 数据库，无法导入</value>
+	</data>
+	<data name="DatabaseVersionReport" xml:space="preserve">
+		<value>SQLite {0}；provider {1}；journal_mode={2}；synchronous={3}；foreign_keys={4}</value>
+	</data>
+	<data name="DbCommandConfirmationRequired" xml:space="preserve">
+		<value>该命令会改动磁盘状态；请传 --confirm 继续</value>
+	</data>
+	<data name="DbCommandCompleted" xml:space="preserve">
+		<value>已完成：{0}</value>
+	</data>
+	<data name="DbCommandRejected" xml:space="preserve">
+		<value>已拒绝：{0}</value>
+	</data>
+	<data name="DbInspectHeader" xml:space="preserve">
+		<value>{0}：状态={1} 大小={2} WAL={3} 历史={4} 备份={5} 未完成={6}</value>
+	</data>
+	<data name="DbBackupsHeader" xml:space="preserve">
+		<value>{0} {1} {2} {3}</value>
+	</data>
+	<data name="HostContractMismatch" xml:space="preserve">
+		<value>模块 {0} 依据生成协议 {1} 构建，但宿主需要 {2}；请重建该模块</value>
+	</data>
+	<data name="HostContractMissing" xml:space="preserve">
+		<value>模块 {0} 未携带宿主契约版本（{1}）；它早于本宿主协议，必须重建</value>
+	</data>
+	<data name="DatabaseWorkPending" xml:space="preserve">
+		<value>数据库工作尚未结束。</value>
+	</data>
+	<data name="DataDirectoryAlreadyOwned" xml:space="preserve">
+		<value>进程持有所有权时不能更换数据目录。</value>
+	</data>
+	<data name="DatabaseMaintenanceRequired" xml:space="preserve">
+		<value>数据库 {0} 有未完成维护，请先检查维护记录。</value>
+	</data>
+	<data name="RestorePhaseRejected" xml:space="preserve">
+		<value>不能从阶段 {0} 继续恢复。</value>
+	</data>
+	<data name="RestoreTargetMismatch" xml:space="preserve">
+		<value>数据库与所选备份不一致。</value>
+	</data>
+	<data name="AdminRoleInvalid" xml:space="preserve">
+		<value>管理身份组 ID 无效：{0}。</value>
+	</data>
+	<data name="AdminPermissionRequired" xml:space="preserve">
+		<value>需要配置的管理身份组或机器人所有者权限。</value>
+	</data>
+	<data name="MaintenanceAccepted" xml:space="preserve">
+		<value>维护请求已受理。将先停止业务再操作文件；恢复成功后自动重启。</value>
+	</data>
+	<data name="MaintenanceBusy" xml:space="preserve">
+		<value>已有维护请求正在执行。</value>
+	</data>
+	<data name="MaintenanceUnavailable" xml:space="preserve">
+		<value>业务工作尚未安全结束，不能执行维护。</value>
+	</data>
+	<data name="MaintenanceConsole" xml:space="preserve">
+		<value>维护终端已可用，可输入 help、db 或 exit。</value>
+	</data>
+	<data name="RestartFailed" xml:space="preserve">
+		<value>重启失败，维护终端保持可用。</value>
+	</data>
+	<data name="Restarting" xml:space="preserve">
+		<value>维护完成，正在重启进程。</value>
+	</data>
+	<data name="DbInternalUsage" xml:space="preserve">
+		<value>db status [数据库]
+db backups &lt;数据库&gt;
+db backup
+db version
+db verify &lt;数据库&gt; &lt;备份&gt;
+db verify &lt;数据库&gt; --confirm --accept-interrupted
+db restore &lt;数据库&gt; &lt;备份&gt; --confirm
+db recover &lt;数据库&gt; &lt;操作&gt; --complete|--rollback --confirm
+db unlock &lt;数据库&gt; --confirm
+db import-backup &lt;数据库&gt; "文件" --confirm
+恢复、恢复收尾、现场校验和解锁成功后重启进程；备份和本地导入不重启。</value>
+	</data>
+	<data name="LoggerForwarderSummary" xml:space="preserve">
+		<value>详情请查看本地日志。</value>
+	</data>
+	<data name="LoggerForwarderSendCancelled" xml:space="preserve">
+		<value>日志向频道 {0} 的转发已取消。</value>
+	</data>
+	<data name="StartupArgumentsInvalid" xml:space="preserve">
+		<value>启动选项：--data-dir &lt;路径&gt; [--create-data-dir]。管理命令请在程序内部终端使用。</value>
+	</data>
+	<data name="ConfigPathsUnavailable" xml:space="preserve">
+		<value>数据目录配置不可读取，请修正 config/config.json 后重新启动。</value>
+	</data>
+	<data name="DataDirectoryResolved" xml:space="preserve">
+		<value>数据目录：{0} (PID {1})</value>
 	</data>
 </root>

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<resheader name="resmimetype">
+		<value>text/microsoft-resx</value>
+	</resheader>
+	<resheader name="version">
+		<value>2.0</value>
+	</resheader>
+	<resheader name="reader">
+		<value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+	</resheader>
+	<resheader name="writer">
+		<value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+	</resheader>
+	<data name="PresetReplyEmpty" xml:space="preserve">
+		<value>No AI presets are configured</value>
+	</data>
+	<data name="PresetReplyListEntry" xml:space="preserve">
+		<value>{0} ({1}/{2}){3}</value>
+	</data>
+	<data name="PresetReplyDefaultSuffix" xml:space="preserve">
+		<value> [default]</value>
+	</data>
+	<data name="PresetReplyNotFound" xml:space="preserve">
+		<value>AI preset "{0}" does not exist</value>
+	</data>
+	<data name="PresetReplyField" xml:space="preserve">
+		<value>{0}: {1}</value>
+	</data>
+	<data name="PresetReplyProviderInvalid" xml:space="preserve">
+		<value>Unknown preset provider: {0} (only openai / gemini / vertex are supported)</value>
+	</data>
+	<data name="PresetReplyFieldUnknown" xml:space="preserve">
+		<value>Unknown preset field: {0}</value>
+	</data>
+	<data name="PresetReplyFieldInvalid" xml:space="preserve">
+		<value>Malformed field assignment: {0}</value>
+	</data>
+	<data name="PresetReplyValueInvalid" xml:space="preserve">
+		<value>Invalid value: {0}</value>
+	</data>
+	<data name="PresetReplyAdded" xml:space="preserve">
+		<value>Preset added: {0}</value>
+	</data>
+	<data name="PresetReplyUpdated" xml:space="preserve">
+		<value>Preset updated: {0}</value>
+	</data>
+	<data name="PresetReplyRemoved" xml:space="preserve">
+		<value>Preset removed: {0}</value>
+	</data>
+	<data name="PresetReplySaveFailed" xml:space="preserve">
+		<value>Failed to save the AI preset file</value>
+	</data>
+</root>

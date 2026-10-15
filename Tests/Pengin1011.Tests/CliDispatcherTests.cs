@@ -84,7 +84,7 @@ public sealed class CliDispatcherTests {
 	[Fact]
 	public async Task Db_WithoutSubcommand_UsageHint() {
 		var result = await CliDispatcher.ExecuteAsync("db");
-		Assert.Contains(L.Get("DbUsage"), result.Output);
+		Assert.Contains(L.Get("DbInternalUsage"), result.Output);
 	}
 
 	[Fact]

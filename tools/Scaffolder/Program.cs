@@ -18,6 +18,6 @@ foreach (var (template, output) in mappings) {
 	var content = File.ReadAllText(Path.Combine(templateDir, $"{template}.tpl"));
 	var target = Path.Combine(moduleDir, output);
 	Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-	File.WriteAllText(target, content.Replace("__MODULE__", moduleName));
+	File.WriteAllText(target, content.Replace("__MODULE__", moduleName).ReplaceLineEndings("\n"));
 }
 Console.WriteLine($"模块骨架已生成：{moduleDir}");

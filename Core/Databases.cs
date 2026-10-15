@@ -1,4 +1,5 @@
-using System.Collections.Concurrent;
+using System.Diagnostics;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
@@ -6,86 +7,285 @@ using Pengin1011.Core.Logging;
 namespace Pengin1011.Core;
 
 public static class Databases {
-	private const int BackupIntervalMinutes = 30;
-	private const int BackupKeepCount = 5;
+	public const int BackupIntervalMinutes = 30;
 
-	private static readonly object Gate = new();
-	internal static readonly SemaphoreSlim BackupGate = new(1, 1);
-	private static readonly ConcurrentDictionary<string, byte> KnownFiles = new(StringComparer.Ordinal);
-	private static readonly ConcurrentDictionary<string, Type> FileOwners = new(StringComparer.Ordinal);
-	private static readonly ConcurrentDictionary<string, byte> WalApplied = new(StringComparer.Ordinal);
+	private static readonly DatabaseService _service = new();
+	private static readonly object _gate = new();
+	private static readonly HashSet<string> _known = new(StringComparer.OrdinalIgnoreCase);
+
 	private static Timer? _backupTimer;
-	private static int _backupSeq;
-	private static string? _dataDirectoryOverride;
 	private static bool _shutdown;
 	private static BackupResult? _finalBackup;
+	private static readonly Dictionary<string, DateTimeOffset?> _lastBackupAttempts = new(StringComparer.OrdinalIgnoreCase);
+	private static readonly Dictionary<string, bool> _lastBackupOutcomes = new(StringComparer.OrdinalIgnoreCase);
 
-	private static string DataDirectory => Path.Combine(_dataDirectoryOverride ?? AppContext.BaseDirectory, "data");
+	public static string DataDirectory => _service.DataDirectory;
 
-	private static string BackupDirectory => Path.Combine(DataDirectory, "backup");
+	public static bool DataDirectoryConfigured => _service.DataDirectoryConfigured;
+
+	internal static SemaphoreSlim BackupGate => _service.MaintenanceGate;
+
+	public static void ConfigureDataDirectory(string dataDirectory) {
+		_service.Configure(dataDirectory);
+	}
+
+	public static bool TryResolveDataDirectory(DatabasePathOptions options, out string directory, out string? failure) {
+		DataDirectoryResolver.Resolve(options, out directory, out failure);
+		return failure == null;
+	}
+
+	internal static void ReleaseOwnership() => _service.ReleaseOwnership();
+	internal static void AcquireOwnership() => _service.AcquireOwnership();
 
 	public static void Init() {
-		lock (Gate) {
-			Directory.CreateDirectory(DataDirectory);
-			foreach (var file in Directory.EnumerateFiles(DataDirectory, "*.db", SearchOption.TopDirectoryOnly)) {
-				if (file.EndsWith(".db", StringComparison.OrdinalIgnoreCase)) KnownFiles.TryAdd(Path.GetFileName(file), 0);
+		lock (_gate) {
+			if (!_service.DataDirectoryConfigured) _service.Configure(DataDirectoryResolver.Default);
+			_service.AcquireOwnership();
+			foreach (var file in Directory.EnumerateFiles(_service.DataDirectory, "*.db", SearchOption.TopDirectoryOnly)) {
+				_known.Add(Path.GetFileNameWithoutExtension(file));
 			}
 			_backupTimer ??= new Timer(OnBackupTimer, null, TimeSpan.FromMinutes(BackupIntervalMinutes), TimeSpan.FromMinutes(BackupIntervalMinutes));
 		}
 	}
 
-	public static TContext Open<TContext>() where TContext : DbContext {
-		var context = Activator.CreateInstance<TContext>();
-		var file = $"{ModuleName(typeof(TContext))}.db";
-		var owner = FileOwners.GetOrAdd(file, typeof(TContext));
-		if (owner != typeof(TContext)) {
-			context.Dispose();
-			var message = Localizer.Format("DbFileConflict", file, owner.Name, typeof(TContext).Name);
+	public static void Register<TContext>() where TContext : DbContext, new() {
+		if (!DatabaseIdentity.TryDerive(typeof(TContext), out var id, out var failure)) {
+			throw new ArgumentException(Loc.Get(failure ?? "DatabaseNameInvalid"), typeof(TContext).Name);
+		}
+		lock (_gate) {
+			_known.Add(id);
+		}
+	}
+
+	public static async Task PrepareAsync<TContext>(CancellationToken ct = default) where TContext : DbContext, new() {
+		DatabasePrepareResult result;
+		try {
+			result = await _service.PrepareAsync<TContext>(ct);
+		} catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+			var cancelledId = DatabaseIdentity.TryDerive(typeof(TContext), out var pendingId, out _) ? pendingId : typeof(TContext).Name;
+			Logger.Info(typeof(Databases), Loc.Format("DatabasePrepareCancelled", cancelledId));
+			throw;
+		}
+		if (!result.Success) {
+			var message = result.Failure ?? Loc.Format("DatabasePrepareFailed", typeof(TContext).Name);
 			Logger.Error(typeof(Databases), message);
 			throw new InvalidOperationException(message);
 		}
-		Directory.CreateDirectory(DataDirectory);
-		KnownFiles.TryAdd(file, 0);
-		if (!context.Database.GetMigrations().Any()) {
-			context.Dispose();
-			var message = Localizer.Format("DbMigrationContractViolated", typeof(TContext).Name, Localizer.Get("MigrationContractText"));
+		if (DatabaseIdentity.TryDerive(typeof(TContext), out var id, out _)) {
+			lock (_gate) {
+				_known.Add(id);
+			}
+		}
+	}
+
+	public static DatabaseState StateOf<TContext>() where TContext : DbContext, new() {
+		return _service.StateOf<TContext>();
+	}
+
+	public static TContext Open<TContext>() where TContext : DbContext, new() {
+		if (!DatabaseIdentity.TryDerive(typeof(TContext), out var id, out var deriveFailure)) {
+			var message = Loc.Get(deriveFailure ?? "DatabaseNameInvalid");
+			Logger.Error(typeof(Databases), message);
+			throw new ArgumentException(message, typeof(TContext).Name);
+		}
+		var state = _service.StateOf(id);
+		if (state != DatabaseState.Prepared) {
+			var message = Loc.Format("DatabasePrepareRequired", id);
 			Logger.Error(typeof(Databases), message);
 			throw new InvalidOperationException(message);
 		}
-		context.Database.Migrate();
-		if (WalApplied.TryAdd(file, 0)) {
-			context.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL");
+		_service.EnsureOwnership(id, typeof(TContext));
+		Directory.CreateDirectory(_service.DataDirectory);
+		lock (_gate) {
+			_known.Add(id);
 		}
-		return context;
+		return new TContext();
 	}
 
 	public static void Configure(Type contextType, DbContextOptionsBuilder options) {
-		options.UseSqlite($"Data Source={Path.Combine(DataDirectory, $"{ModuleName(contextType)}.db")}");
+		options.UseSqlite(_service.ConnectionStringFor(contextType, creating: false));
+		options.AddInterceptors(SqliteConnectionPolicy.Interceptor);
 	}
 
 	public static async Task<BackupResult> BackupNowAsync(CancellationToken ct = default) {
-		await BackupGate.WaitAsync(ct);
+		_service.AcquireOwnership();
+		await _service.MaintenanceGate.WaitAsync(ct);
 		try {
 			return BackupAllCore();
 		} finally {
-			BackupGate.Release();
+			_service.MaintenanceGate.Release();
 		}
 	}
 
-	public static IReadOnlyList<DbStatus> GetStatus() {
-		var list = new List<DbStatus>();
-		foreach (var file in KnownFiles.Keys.OrderBy(file => file, StringComparer.Ordinal)) {
-			var path = Path.Combine(DataDirectory, file);
-			if (!File.Exists(path)) continue;
-			var moduleName = Path.GetFileNameWithoutExtension(file);
-			list.Add(new DbStatus(moduleName, new FileInfo(path).Length, ReadMigrationId(path), ReadLastBackup(moduleName)));
+	public static IReadOnlyList<DatabaseStatus> GetStatus() {
+		var list = new List<DatabaseStatus>();
+		foreach (var id in Ids()) {
+			list.Add(BuildStatus(id));
+		}
+		return list;
+	}
+
+	public static DatabaseStatus GetStatus(string id) {
+		return BuildStatus(id);
+	}
+
+	public static IReadOnlyList<string> DatabaseIds() {
+		return [.. Ids()];
+	}
+
+	public static IReadOnlyList<DatabaseBackupInfo> ListBackups(string id, string category) {
+		return DatabaseBackupStore.ListCompleted(_service.DataDirectory, id, category);
+	}
+
+	public static IReadOnlyList<string> ListLegacyBackups(string id) {
+		return DatabaseBackupStore.ListLegacy(_service.DataDirectory, id);
+	}
+
+	internal static bool TryImportLegacyBackup(string id, string legacyPath, out string? importedBackupId, out string? failure) {
+		_service.AcquireOwnership();
+		importedBackupId = null;
+		failure = null;
+		if (!File.Exists(legacyPath)) {
+			failure = Loc.Format("LegacyBackupMissing", legacyPath);
+			return false;
+		}
+		var path = Path.Combine(_service.DataDirectory, DatabaseIdentity.FileName(id));
+		if (string.Equals(Path.GetFullPath(legacyPath), Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase)) {
+			failure = Loc.Get("LegacyBackupIsLiveDatabase");
+			return false;
+		}
+		try {
+			using var verify = SqliteConnectionPolicy.OpenReadOnly(legacyPath);
+			if (SqliteConnectionPolicy.ReadIntegrityCheck(verify) != 1) {
+				failure = Loc.Get("RestoreVerificationIntegrity");
+				return false;
+			}
+		} catch (Microsoft.Data.Sqlite.SqliteException e) {
+			failure = Loc.Format("LegacyBackupNotSqlite", legacyPath) + ": " + e.Message;
+			return false;
+		}
+		return DatabaseBackupStore.TryCreate(_service.DataDirectory, id, DatabaseBackupStore.RollingCategory, legacyPath, [], out importedBackupId, out failure);
+	}
+
+	internal static async Task<RestoreResult> RestoreAsync(string id, string backupId, CancellationToken ct = default) {
+		_service.AcquireOwnership();
+		await _service.MaintenanceGate.WaitAsync(ct);
+		try {
+			var result = await DatabaseRestoreEngine.RestoreAsync(_service.DataDirectory, id, backupId, ct);
+			if (result.Outcome == RestoreOutcome.Completed) _service.ResetPrepareState();
+			return result;
+		} finally {
+			_service.MaintenanceGate.Release();
+		}
+	}
+
+	internal static MaintenanceResult RollbackRestore(string id, string operationId) {
+		_service.AcquireOwnership();
+		_service.MaintenanceGate.Wait();
+		try {
+			var result = DatabaseRestoreEngine.Rollback(_service.DataDirectory, id, operationId);
+			if (result.Success) _service.ResetPrepareState();
+			return result;
+		} finally {
+			_service.MaintenanceGate.Release();
+		}
+	}
+
+	internal static MaintenanceResult CompleteRestore(string id, string operationId) {
+		_service.AcquireOwnership();
+		_service.MaintenanceGate.Wait();
+		try {
+			var result = DatabaseRestoreEngine.Complete(_service.DataDirectory, id, operationId);
+			if (result.Success) _service.ResetPrepareState();
+			return result;
+		} finally {
+			_service.MaintenanceGate.Release();
+		}
+	}
+
+	internal static MaintenanceResult Unlock(string id) {
+		_service.AcquireOwnership();
+		if (MaintenanceJournal.ListUnfinishedRestores(DataDirectory, id).Count > 0) return new MaintenanceResult(false, Loc.Format("DatabaseMaintenanceRequired", id));
+		var path = Path.Combine(_service.DataDirectory, DatabaseIdentity.FileName(id));
+		if (!File.Exists(path)) return new MaintenanceResult(false, Loc.Format("DatabaseMissing", id));
+		if (MaintenanceJournal.ReadMigrationIntent(_service.DataDirectory, id) != null) {
+			return new MaintenanceResult(false, Loc.Format("UnlockWithPendingIntent", id));
+		}
+		if (!DatabasePrepareEngine.HasResidualMigrationLock(path)) {
+			return new MaintenanceResult(true, Loc.Get("UnlockNothingToDo"));
+		}
+		try {
+			using var connection = SqliteConnectionPolicy.OpenExisting(path);
+			using var command = connection.CreateCommand();
+			command.CommandText = "DELETE FROM __EFMigrationsLock";
+			command.ExecuteNonQuery();
+			return new MaintenanceResult(true, null);
+		} catch (SqliteException e) {
+			Logger.Error(typeof(Databases), e, Loc.Format("UnlockFailed", id));
+			return new MaintenanceResult(false, e.Message);
+		}
+	}
+
+	internal static MaintenanceResult Verify(string id, bool acceptInterrupted) {
+		_service.AcquireOwnership();
+		if (MaintenanceJournal.ListUnfinishedRestores(DataDirectory, id).Count > 0) return new MaintenanceResult(false, Loc.Format("DatabaseMaintenanceRequired", id));
+		var path = Path.Combine(_service.DataDirectory, DatabaseIdentity.FileName(id));
+		if (!File.Exists(path)) return new MaintenanceResult(false, Loc.Format("DatabaseMissing", id));
+		if (!acceptInterrupted) return new MaintenanceResult(false, Loc.Get("VerifyRequiresConfirmation"));
+		var intent = MaintenanceJournal.ReadMigrationIntent(_service.DataDirectory, id);
+		using (var connection = SqliteConnectionPolicy.OpenReadOnly(path)) {
+			if (SqliteConnectionPolicy.ReadIntegrityCheck(connection) != 1) {
+				return new MaintenanceResult(false, Loc.Get("RestoreVerificationIntegrity"));
+			}
+			if (SqliteConnectionPolicy.ReadForeignKeyCheck(connection) != 0) {
+				return new MaintenanceResult(false, Loc.Get("RestoreVerificationForeignKey"));
+			}
+		}
+		if (intent != null && intent.State != nameof(MaintenanceOperationState.Completed)) {
+			var history = DatabaseBackupStore.ReadHistory(path);
+			if (!history.SequenceEqual(intent.TargetHistory)) {
+				return new MaintenanceResult(false, Loc.Format("VerifyTargetUnknown", id));
+			}
+			MaintenanceJournal.ClearMigrationIntent(_service.DataDirectory, id);
+		}
+		return new MaintenanceResult(true, null, intent?.OperationId);
+	}
+
+	public static IReadOnlyList<MaintenanceOperationRecord> PendingMaintenance(string id) {
+		var list = new List<MaintenanceOperationRecord>();
+		var intent = MaintenanceJournal.ReadMigrationIntent(_service.DataDirectory, id);
+		if (intent != null) {
+			list.Add(new MaintenanceOperationRecord {
+				OperationId = intent.OperationId,
+				Database = id,
+				Category = "migration",
+				State = intent.State,
+				StartedUtc = intent.UpdatedUtc,
+				PreviousHistory = string.Join(",", intent.PreviousHistory),
+				TargetHistory = string.Join(",", intent.TargetHistory),
+				SnapshotId = intent.SnapshotId,
+				FreshDatabase = intent.FreshDatabase,
+			});
+		}
+		foreach (var restore in MaintenanceJournal.ListUnfinishedRestores(_service.DataDirectory, id)) {
+			list.Add(new MaintenanceOperationRecord {
+				OperationId = restore.OperationId,
+				Database = id,
+				Category = "restore",
+				State = restore.State,
+				StartedUtc = restore.StartedUtc,
+				SourceBackupId = restore.SourceBackupId,
+				TargetHistory = string.Join(",", restore.TargetHistory),
+				Reason = restore.Failure,
+			});
 		}
 		return list;
 	}
 
 	public static async Task<BackupResult> ShutdownAsync() {
+		await _service.StopPreparingAsync();
 		Timer? timer;
-		lock (Gate) {
+		lock (_gate) {
 			timer = _backupTimer;
 			_backupTimer = null;
 		}
@@ -93,149 +293,184 @@ public static class Databases {
 			await timer.DisposeAsync();
 		}
 		if (_shutdown) {
-			return _finalBackup ?? new BackupResult(0, 0, []);
+			return _finalBackup ?? new BackupResult(0, 0, [], true);
 		}
-		await BackupGate.WaitAsync();
+		await _service.MaintenanceGate.WaitAsync();
 		try {
 			if (_shutdown) {
-				return _finalBackup ?? new BackupResult(0, 0, []);
+				return _finalBackup ?? new BackupResult(0, 0, [], true);
 			}
-			foreach (var file in KnownFiles.Keys) {
-				await CheckpointAsync(file);
+			foreach (var id in Ids()) {
+				await CheckpointAsync(id);
 			}
 			_finalBackup = BackupAllCore();
 			_shutdown = true;
 			return _finalBackup;
 		} finally {
-			BackupGate.Release();
+			_service.MaintenanceGate.Release();
 		}
 	}
 
 	internal static void SetDataDirectoryForTest(string? path) {
-		lock (Gate) {
-			_dataDirectoryOverride = path;
-			FileOwners.Clear();
-			WalApplied.Clear();
-			KnownFiles.Clear();
+		_service.ResetForTest(path);
+		lock (_gate) {
+			_known.Clear();
 			_shutdown = false;
 			_finalBackup = null;
+			_lastBackupAttempts.Clear();
+			_lastBackupOutcomes.Clear();
+			_retentionWarning = null;
+			var timer = _backupTimer;
+			_backupTimer = null;
+			timer?.Dispose();
 		}
 	}
 
-	private static string? ReadMigrationId(string path) {
+	internal static string DatabasePathForTest(string id) {
+		return Path.Combine(_service.DataDirectory, DatabaseIdentity.FileName(id));
+	}
+
+	internal static void ResetPrepareStateForTest() {
+		_service.ResetPrepareState();
+	}
+
+	private static List<string> Ids() {
+		lock (_gate) {
+			var list = new List<string>(_known);
+			list.Sort(StringComparer.Ordinal);
+			return list;
+		}
+	}
+
+	private static DatabaseStatus BuildStatus(string id) {
+		var path = Path.Combine(_service.DataDirectory, DatabaseIdentity.FileName(id));
+		var exists = File.Exists(path);
+		var rolling = DatabaseBackupStore.ListCompleted(_service.DataDirectory, id, DatabaseBackupStore.RollingCategory);
+		var preMigration = DatabaseBackupStore.ListCompleted(_service.DataDirectory, id, DatabaseBackupStore.PreMigrationCategory);
+		IReadOnlyList<MaintenanceOperationRecord> pending;
 		try {
-			using var context = new MaintenanceContext(new DbContextOptionsBuilder().UseSqlite($"Data Source={path}").Options);
-			return context.Database.GetAppliedMigrations()
-				.OrderByDescending(migration => migration, StringComparer.Ordinal)
-				.FirstOrDefault();
-		} catch (Exception e) {
-			Logger.Error(typeof(Databases), e, Localizer.Format("ReadMigrationIdFailed", Path.GetFileName(path)));
-			return null;
+			pending = PendingMaintenance(id);
+		} catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException) {
+			pending = [new MaintenanceOperationRecord { OperationId = "invalid", Database = id, Category = "maintenance", State = "Invalid", StartedUtc = DateTimeOffset.UtcNow, Reason = e.Message }];
 		}
-	}
-
-	private static DateTimeOffset? ReadLastBackup(string moduleName) {
-		if (!Directory.Exists(BackupDirectory)) return null;
-		var latest = Directory.EnumerateFiles(BackupDirectory, $"{moduleName}-*.db")
-			.OrderByDescending(file => file, StringComparer.Ordinal)
-			.FirstOrDefault();
-		return latest == null ? null : new FileInfo(latest).LastWriteTime;
+		var notes = new List<string>();
+		if (!exists) notes.Add("missing");
+		long size = 0;
+		long walSize = 0;
+		string? history = null;
+		if (exists) {
+			size = new FileInfo(path).Length;
+			var wal = path + "-wal";
+			if (File.Exists(wal)) walSize = new FileInfo(wal).Length;
+			try {
+				var applied = pending.Count == 0 ? DatabaseBackupStore.ReadHistory(path) : [];
+				history = applied.LastOrDefault();
+				if (applied.Count == 0) notes.Add("no-history");
+			} catch (SqliteException e) {
+				notes.Add(e.Message);
+			}
+		}
+		var state = _service.StateOf(id);
+		if (pending.Count > 0 && state != DatabaseState.Preparing) state = DatabaseState.MaintenanceRequired;
+		if (!exists && state == DatabaseState.Unprepared) state = DatabaseState.NotPresent;
+		DateTimeOffset? attempt;
+		bool? succeeded;
+		lock (_gate) {
+			_lastBackupAttempts.TryGetValue(id, out attempt);
+			succeeded = _lastBackupOutcomes.TryGetValue(id, out var outcome) ? outcome : null;
+			if (LastRetentionWarning != null) notes.Add(LastRetentionWarning);
+		}
+		var last = rolling.Concat(preMigration).OrderByDescending(info => info.CreatedUtc).FirstOrDefault();
+		return new DatabaseStatus(id, state, size, walSize, history, exists ? path : null, last, attempt, succeeded, pending.Count > 0 ? pending[0] : null, rolling.Count + preMigration.Count, notes);
 	}
 
 	private static void OnBackupTimer(object? state) {
-		if (!BackupGate.Wait(0)) {
-			Logger.Info(typeof(Databases), Localizer.Get("BackupSkippedBusy"));
+		if (!_service.MaintenanceGate.Wait(0)) {
+			Logger.Info(typeof(Databases), Loc.Get("BackupSkippedBusy"));
 			return;
 		}
 		try {
 			BackupAllCore();
+		} catch (Exception e) {
+			Logger.Error(typeof(Databases), e, Loc.Get("BackupTimerFailed"));
 		} finally {
-			BackupGate.Release();
+			_service.MaintenanceGate.Release();
 		}
-	}
-
-	private static string ModuleName(Type contextType) {
-		var name = contextType.Name;
-		if (name.EndsWith("DbContext", StringComparison.Ordinal)) {
-			name = name[..^9];
-		} else if (name.EndsWith("Context", StringComparison.Ordinal)) {
-			name = name[..^7];
-		}
-		if (name.Length == 0) {
-			var message = Localizer.Format("ModuleNameDeriveFailed", contextType.Name);
-			Logger.Error(typeof(Databases), message);
-			throw new ArgumentException(message, nameof(contextType));
-		}
-		return name;
 	}
 
 	private static BackupResult BackupAllCore() {
-		var files = KnownFiles.Keys.OrderBy(file => file, StringComparer.Ordinal).ToList();
+		var list = Ids();
 		var failures = new List<BackupFailure>();
 		var succeeded = 0;
-		foreach (var file in files) {
-			if (BackupOne(file)) succeeded++;
-			else failures.Add(new BackupFailure(file, Localizer.Get("BackupFailedSeeLog")));
+		lock (_gate) _retentionWarning = null;
+		foreach (var id in list) {
+			lock (_gate) _lastBackupAttempts[id] = DateTimeOffset.UtcNow;
+			if (BackupOne(id, out var reason)) {
+				succeeded++;
+				lock (_gate) _lastBackupOutcomes[id] = true;
+			} else {
+				lock (_gate) _lastBackupOutcomes[id] = false;
+				failures.Add(new BackupFailure(DatabaseIdentity.FileName(id), reason ?? Loc.Get("BackupFailedSeeLog")));
+			}
 		}
-		return new BackupResult(files.Count, succeeded, failures);
+		return new BackupResult(list.Count, succeeded, failures, RetentionWarning: LastRetentionWarning != null);
 	}
 
-	private static bool BackupOne(string file) {
-		var path = Path.Combine(DataDirectory, file);
+	private static bool BackupOne(string id, out string? failure) {
+		failure = null;
+		if (MaintenanceBlocked(id, out failure)) return false;
+		var path = Path.Combine(_service.DataDirectory, DatabaseIdentity.FileName(id));
 		if (!File.Exists(path)) {
+			failure = Loc.Format("BackupSourceMissing", id);
 			return false;
 		}
-		try {
-			Directory.CreateDirectory(BackupDirectory);
-			var seq = Interlocked.Increment(ref _backupSeq);
-			var target = Path.Combine(BackupDirectory, $"{Path.GetFileNameWithoutExtension(file)}-{DateTime.Now:yyyyMMdd-HHmmssfff}-{seq:000}.db");
-			using var context = new MaintenanceContext(new DbContextOptionsBuilder().UseSqlite($"Data Source={path}").Options);
-			context.Database.ExecuteSql($"VACUUM INTO {target}");
-			PruneBackups(Path.GetFileNameWithoutExtension(file));
-			return true;
-		} catch (Exception e) {
-			Logger.Error(typeof(Databases), e, Localizer.Format("BackupFailed", file));
+		if (!DatabaseBackupStore.TryCreate(_service.DataDirectory, id, DatabaseBackupStore.RollingCategory, path, [], out _, out failure)) {
 			return false;
 		}
+		if (!DatabaseBackupStore.TryPruneRolling(_service.DataDirectory, id, HostMaintenance.ProtectedRestoreBackupId(id), out var pruneFailure)) {
+			lock (_gate) _retentionWarning = pruneFailure;
+		}
+		return true;
 	}
 
-	private static void PruneBackups(string baseName) {
-		var outdated = Directory.EnumerateFiles(BackupDirectory, $"{baseName}-*.db")
-			.OrderByDescending(file => file, StringComparer.Ordinal)
-			.Skip(BackupKeepCount);
-		foreach (var file in outdated) {
-			File.Delete(file);
+	private static string? _retentionWarning;
+
+	public static string? LastRetentionWarning {
+		get {
+			lock (_gate) return _retentionWarning;
 		}
 	}
 
-	private static async Task CheckpointAsync(string file) {
-		var path = Path.Combine(DataDirectory, file);
-		if (!File.Exists(path)) {
-			return;
-		}
+	private static bool MaintenanceBlocked(string id, out string? reason) {
+		reason = null;
 		try {
-			using var context = new MaintenanceContext(new DbContextOptionsBuilder().UseSqlite($"Data Source={path}").Options);
-			var connection = context.Database.GetDbConnection();
-			if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
-			await using var command = connection.CreateCommand();
+			if (MaintenanceJournal.ListUnfinishedRestores(DataDirectory, id).Count == 0 && MaintenanceJournal.ReadMigrationIntent(DataDirectory, id) == null) return false;
+			reason = Loc.Format("DatabaseMaintenanceRequired", id);
+		} catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException) {
+			reason = e.Message;
+		}
+		return true;
+	}
+
+	private static async Task CheckpointAsync(string id) {
+		if (MaintenanceBlocked(id, out _)) return;
+		var path = Path.Combine(_service.DataDirectory, DatabaseIdentity.FileName(id));
+		if (!File.Exists(path)) return;
+		try {
+			using var connection = SqliteConnectionPolicy.OpenExisting(path);
+			using var command = connection.CreateCommand();
 			command.CommandText = "PRAGMA wal_checkpoint(TRUNCATE)";
 			var result = await command.ExecuteScalarAsync();
 			if (result is not (0 or 0L)) {
-				Logger.Error(typeof(Databases), Localizer.Format("CheckpointBusy", file, result));
+				Logger.Error(typeof(Databases), Loc.Format("CheckpointBusy", DatabaseIdentity.FileName(id), result));
 			}
 		} catch (Exception e) {
-			Logger.Error(typeof(Databases), e, Localizer.Format("CheckpointFailed", file));
+			Logger.Error(typeof(Databases), e, Loc.Format("CheckpointFailed", DatabaseIdentity.FileName(id)));
 		}
-	}
-
-	private sealed class MaintenanceContext : DbContext {
-		public MaintenanceContext(DbContextOptions options) : base(options) { }
 	}
 }
 
-public sealed record DbStatus(string Module, long SizeBytes, string? MigrationId, DateTimeOffset? LastBackup);
-
-public sealed record BackupResult(int Total, int Succeeded, IReadOnlyList<BackupFailure> Failures) {
+public sealed record BackupResult(int Total, int Succeeded, IReadOnlyList<BackupFailure> Failures, bool RetentionWarning = false) {
 	public bool Success => Failures.Count == 0 && Succeeded == Total;
 }
 

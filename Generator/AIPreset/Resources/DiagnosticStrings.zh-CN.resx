@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="PresetNameNotConstant" xml:space="preserve">
+    <value>AI 预设调用点的预设名必须是字符串字面量或 const：{0}</value>
+  </data>
+  <data name="PresetNameBypassed" xml:space="preserve">
+    <value>AI 预设入口 {0} 被当作方法组或委托引用，绕过了预设使用清单。请直接调用 AIClient.CompleteAsync 或 AIClient.StreamAsync。</value>
+  </data>
+</root>

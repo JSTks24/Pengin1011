@@ -8,8 +8,8 @@ namespace Pengin1011.Tests;
 
 [Collection("BaseDirSerial")]
 public sealed class ModuleLifecycleTests {
-	private static readonly TimeSpan ShortWait = TimeSpan.FromMilliseconds(500);
-	private static readonly TimeSpan HandshakeTimeout = TimeSpan.FromSeconds(5);
+	private static readonly TimeSpan _shortWait = TimeSpan.FromMilliseconds(500);
+	private static readonly TimeSpan _handshakeTimeout = TimeSpan.FromSeconds(5);
 
 	private readonly TimeSpan _stopTimeout = ModuleHost.StopTimeout;
 	private readonly TimeSpan _cleanupBudget = ModuleHost.CleanupBudget;
@@ -42,11 +42,11 @@ public sealed class ModuleLifecycleTests {
 	}
 
 	private static Task Entered(LoadedModule run, string field) {
-		return Static<TaskCompletionSource>(run, field).Task.WaitAsync(HandshakeTimeout);
+		return Static<TaskCompletionSource>(run, field).Task.WaitAsync(_handshakeTimeout);
 	}
 
 	private static async Task<string> ReadLogWhenContainsAsync(string path, string expected) {
-		var deadline = DateTime.UtcNow.AddSeconds(HandshakeTimeout.TotalSeconds);
+		var deadline = DateTime.UtcNow.AddSeconds(_handshakeTimeout.TotalSeconds);
 		var text = "";
 		while (DateTime.UtcNow < deadline) {
 			text = File.Exists(path) ? File.ReadAllText(path) : "";
@@ -84,7 +84,7 @@ public sealed class ModuleLifecycleTests {
 		SetStatic(run, "InitEntered", NewGate());
 		SetStatic(run, "StopEntered", NewGate());
 		SetStatic(run, "InitIgnoreCancel", true);
-		ModuleHost.StopTimeout = ShortWait;
+		ModuleHost.StopTimeout = _shortWait;
 		try {
 			ModuleHost.StartRuntime(run);
 			await Entered(run, "InitEntered");
@@ -120,7 +120,7 @@ public sealed class ModuleLifecycleTests {
 		SetStatic(run, "InitGate", NewGate());
 		SetStatic(run, "InitEntered", NewGate());
 		SetStatic(run, "InitIgnoreCancel", true);
-		ModuleHost.StopTimeout = ShortWait;
+		ModuleHost.StopTimeout = _shortWait;
 		try {
 			ModuleHost.StartRuntime(run);
 			await Entered(run, "InitEntered");
@@ -148,11 +148,17 @@ public sealed class ModuleLifecycleTests {
 		ModuleHost.Adopt(run);
 		var logPath = Path.Combine(Path.GetTempPath(), $"qq1011_lc_{Guid.NewGuid():N}", "error.log");
 		Logger.SetLogPathForTest(logPath);
+		SetStatic(run, "InitEntered", NewGate());
+		SetStatic(run, "InitGate", NewGate());
+		SetStatic(run, "InitIgnoreCancel", true);
 		SetStatic(run, "OnInitFailure", (Func<Exception>)(() => new InvalidOperationException("初始化故障-测试")));
 		SetStatic(run, "OnStopFailure", (Func<Exception>)(() => new InvalidOperationException("清理故障-测试")));
 		try {
 			ModuleHost.StartRuntime(run);
-			var stop = await ModuleHost.StopAsync(run);
+			await Entered(run, "InitEntered");
+			var stopping = ModuleHost.StopAsync(run);
+			Release(run, "InitGate");
+			var stop = await stopping;
 
 			Assert.Equal(ModuleStopOutcome.Failed, stop.Outcome);
 			Assert.Contains("清理故障-测试", stop.Reason);
@@ -326,7 +332,7 @@ public sealed class ModuleLifecycleTests {
 		SetStatic(run, "StopGate", NewGate());
 		SetStatic(run, "StopEntered", NewGate());
 		SetStatic(run, "OnStopFailure", (Func<Exception>)(() => new InvalidOperationException("清理故障-测试")));
-		ModuleHost.StopTimeout = ShortWait;
+		ModuleHost.StopTimeout = _shortWait;
 		try {
 			ModuleHost.StartRuntime(run);
 			await ModuleHostTests.WaitStateAsync(run, ModuleState.Ready);
@@ -353,7 +359,7 @@ public sealed class ModuleLifecycleTests {
 		ModuleHost.Adopt(run);
 		SetStatic(run, "StopGate", NewGate());
 		SetStatic(run, "StopEntered", NewGate());
-		ModuleHost.StopTimeout = ShortWait;
+		ModuleHost.StopTimeout = _shortWait;
 		try {
 			ModuleHost.StartRuntime(run);
 			await ModuleHostTests.WaitStateAsync(run, ModuleState.Ready);
@@ -380,7 +386,7 @@ public sealed class ModuleLifecycleTests {
 		ModuleHost.Adopt(run);
 		SetStatic(run, "StopSyncGate", NewGate());
 		SetStatic(run, "StopEntered", NewGate());
-		ModuleHost.StopTimeout = ShortWait;
+		ModuleHost.StopTimeout = _shortWait;
 		try {
 			ModuleHost.StartRuntime(run);
 			ModuleHost.StartRuntime(run);
@@ -415,7 +421,7 @@ public sealed class ModuleLifecycleTests {
 		SetStatic(run, "InitGate", NewGate());
 		SetStatic(run, "InitEntered", NewGate());
 		SetStatic(run, "InitIgnoreCancel", true);
-		ModuleHost.StopTimeout = ShortWait;
+		ModuleHost.StopTimeout = _shortWait;
 		try {
 			ModuleHost.StartRuntime(run);
 			await Entered(run, "InitEntered");
@@ -459,7 +465,7 @@ public sealed class ModuleLifecycleTests {
 		SetStatic(run, "InitEntered", NewGate());
 		SetStatic(run, "StopGate", NewGate());
 		SetStatic(run, "StopEntered", NewGate());
-		ModuleHost.StopTimeout = ShortWait;
+		ModuleHost.StopTimeout = _shortWait;
 		try {
 			ModuleHost.StartRuntime(run);
 			await Entered(run, "InitEntered");

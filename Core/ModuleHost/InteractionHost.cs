@@ -11,9 +11,9 @@ namespace Pengin1011.Core;
 public static class InteractionHost {
 	internal static TimeSpan SyncStopWaitForTest = TimeSpan.FromSeconds(5);
 
-	private static readonly SemaphoreSlim ControlGate = new(1, 1);
-	private static readonly object ExitSync = new();
-	private static readonly object SyncGate = new();
+	private static readonly SemaphoreSlim _controlGate = new(1, 1);
+	private static readonly object _exitSync = new();
+	private static readonly object _syncGate = new();
 	private static InteractionSnapshot? _current;
 	private static CancellationTokenSource _shutdownCts = new();
 	private static bool _exiting;
@@ -30,16 +30,16 @@ public static class InteractionHost {
 
 	public static bool Exiting {
 		get {
-			lock (ExitSync) {
+			lock (_exitSync) {
 				return _exiting;
 			}
 		}
 	}
 
-	public static InteractionSnapshot Current => _current ?? throw new InvalidOperationException(Localizer.Get("InteractionServiceNotInitialized"));
+	public static InteractionSnapshot Current => _current ?? throw new InvalidOperationException(Loc.Get("InteractionServiceNotInitialized"));
 
 	public static void RequestShutdown() {
-		lock (ExitSync) {
+		lock (_exitSync) {
 			_exiting = true;
 		}
 		DiscordGateway.RequestExitClose();
@@ -50,23 +50,23 @@ public static class InteractionHost {
 	}
 
 	internal static bool TryBeginModuleInitialization(LoadedModule run) {
-		lock (ExitSync) {
+		lock (_exitSync) {
 			if (_exiting) return false;
 			return run.TryBeginInit(() => run.Runtime.InitializeAsync(run.Lifecycle.Token)) != null;
 		}
 	}
 
 	internal static bool TryMarkModuleReady(LoadedModule run) {
-		lock (ExitSync) {
+		lock (_exitSync) {
 			if (_exiting) return false;
 			return run.TryMarkReady();
 		}
 	}
 
 	public static async Task PublishInitialAsync() {
-		await ControlGate.WaitAsync(ShutdownToken);
+		await _controlGate.WaitAsync(ShutdownToken);
 		try {
-			lock (ExitSync) {
+			lock (_exitSync) {
 				if (_exiting || _current != null) {
 					return;
 				}
@@ -76,22 +76,22 @@ public static class InteractionHost {
 			var attach = await AttachAsync(service, runs);
 			var routable = attach.Valid;
 			foreach (var error in attach.Errors) {
-				Logger.Error(typeof(InteractionHost), Localizer.Format("StartupAttachContractError", error));
+				Logger.Error(typeof(InteractionHost), Loc.Format("StartupAttachContractError", error));
 			}
 			if (attach.Invalid.Count > 0) {
 				RetireService(service);
 				service = CreateService();
 				var rebuilt = await AttachAsync(service, attach.Valid);
 				foreach (var error in rebuilt.Errors) {
-					Logger.Error(typeof(InteractionHost), Localizer.Format("StartupRebuildContractError", error));
+					Logger.Error(typeof(InteractionHost), Loc.Format("StartupRebuildContractError", error));
 				}
 				routable = rebuilt.Valid;
 				foreach (var run in attach.Invalid.Concat(rebuilt.Invalid)) {
-					run.MarkInitFailed(Localizer.Get("StartupContractCheckFailed"));
+					run.MarkInitFailed(Loc.Get("StartupContractCheckFailed"));
 				}
 			}
 			var published = false;
-			lock (ExitSync) {
+			lock (_exitSync) {
 				if (_exiting) {
 					RetireService(service);
 				} else {
@@ -109,7 +109,7 @@ public static class InteractionHost {
 			}
 			DiscordGateway.OpenAccepting();
 		} finally {
-			ControlGate.Release();
+			_controlGate.Release();
 		}
 	}
 
@@ -121,7 +121,7 @@ public static class InteractionHost {
 	}
 
 	internal static void OnGatewayReady() {
-		lock (SyncGate) {
+		lock (_syncGate) {
 			if (_syncExecuting) {
 				_syncPending = true;
 				return;
@@ -133,7 +133,7 @@ public static class InteractionHost {
 
 	internal static Task? SyncTaskForTest {
 		get {
-			lock (SyncGate) {
+			lock (_syncGate) {
 				return _syncTask;
 			}
 		}
@@ -141,13 +141,13 @@ public static class InteractionHost {
 
 	internal static bool SyncPendingForTest {
 		get {
-			lock (SyncGate) {
+			lock (_syncGate) {
 				return _syncPending;
 			}
 		}
 	}
 
-	internal static int ControlGateCountForTest => ControlGate.CurrentCount;
+	internal static int ControlGateCountForTest => _controlGate.CurrentCount;
 
 	internal static InteractionSnapshot? SnapshotForTest => _current;
 
@@ -159,19 +159,19 @@ public static class InteractionHost {
 		while (true) {
 			try {
 				using var linked = CancellationTokenSource.CreateLinkedTokenSource(CurrentShutdownToken());
-				await ControlGate.WaitAsync(linked.Token);
+				await _controlGate.WaitAsync(linked.Token);
 				try {
 					if (!Exiting) {
 						await SyncBodyAsync(linked.Token);
 					}
 				} finally {
-					ControlGate.Release();
+					_controlGate.Release();
 				}
 			} catch (OperationCanceledException) {
 			} catch (Exception e) {
-				Logger.Error(typeof(InteractionHost), e, Localizer.Get("ReadySyncFailed"));
+				Logger.Error(typeof(InteractionHost), e, Loc.Get("ReadySyncFailed"));
 			}
-			lock (SyncGate) {
+			lock (_syncGate) {
 				if (!_syncPending || Exiting) {
 					_syncExecuting = false;
 					_syncPending = false;
@@ -202,36 +202,36 @@ public static class InteractionHost {
 	public static async Task<string?> RegisterCommandsSafeAsync() {
 		try {
 			await Current.Service.RegisterCommandsGloballyAsync();
-			Logger.Info(typeof(InteractionHost), Localizer.Get("CommandGlobalRegisterCompleted"));
+			Logger.Info(typeof(InteractionHost), Loc.Get("CommandGlobalRegisterCompleted"));
 			return null;
 		} catch (Exception e) {
-			Logger.Error(typeof(InteractionHost), e, Localizer.Get("CommandGlobalRegisterFailed"));
+			Logger.Error(typeof(InteractionHost), e, Loc.Get("CommandGlobalRegisterFailed"));
 			return e.Message;
 		}
 	}
 
 	public static async Task<string?> SyncAsync(CancellationToken ct) {
-		if (Exiting) return Localizer.Get("FrameworkExiting");
-		await ControlGate.WaitAsync(ct);
+		if (Exiting) return Loc.Get("FrameworkExiting");
+		await _controlGate.WaitAsync(ct);
 		try {
-			if (Exiting) return Localizer.Get("FrameworkExiting");
+			if (Exiting) return Loc.Get("FrameworkExiting");
 			return await RegisterCommandsSafeAsync();
 		} finally {
-			ControlGate.Release();
+			_controlGate.Release();
 		}
 	}
 
 	internal static async Task<bool> EnterControlSectionAsync(TimeSpan budget) {
-		return await ControlGate.WaitAsync(budget);
+		return await _controlGate.WaitAsync(budget);
 	}
 
 	internal static void LeaveControlSection() {
-		ControlGate.Release();
+		_controlGate.Release();
 	}
 
 	internal static void ResetForTest() {
 		InteractionSnapshot? snapshot;
-		lock (ExitSync) {
+		lock (_exitSync) {
 			snapshot = _current;
 			_current = null;
 			_exiting = false;
@@ -245,21 +245,21 @@ public static class InteractionHost {
 
 	public static async Task<ServiceReleaseResult> ShutdownAsync() {
 		Task? syncTask;
-		lock (SyncGate) {
+		lock (_syncGate) {
 			syncTask = _syncTask;
 		}
 		if (syncTask != null && !syncTask.IsCompleted) {
 			try {
 				await syncTask.WaitAsync(SyncStopWaitForTest);
 			} catch (TimeoutException) {
-				var reason = Localizer.Format("ReadySyncStopTimeout", SyncStopWaitForTest.TotalSeconds);
+				var reason = Loc.Format("ReadySyncStopTimeout", SyncStopWaitForTest.TotalSeconds);
 				Logger.Error(typeof(InteractionHost), reason);
 				return new ServiceReleaseResult(false, reason);
 			} catch (OperationCanceledException) {
 			}
 		}
 		InteractionSnapshot? snapshot;
-		lock (ExitSync) {
+		lock (_exitSync) {
 			snapshot = _current;
 			_current = null;
 		}
@@ -282,14 +282,14 @@ public static class InteractionHost {
 				}
 				if (runErrors.Count == 0) {
 					valid.Add(run);
-					Logger.Info(typeof(InteractionHost), Localizer.Format("ModuleCommandsAttached", run.Name, built.Count()));
+					Logger.Info(typeof(InteractionHost), Loc.Format("ModuleCommandsAttached", run.Name, built.Count()));
 				} else {
 					invalid.Add(run);
 					errors.AddRange(runErrors);
-					Logger.Error(typeof(InteractionHost), Localizer.Format("ModuleAttachContractFailed", run.Name, runErrors.Count));
+					Logger.Error(typeof(InteractionHost), Loc.Format("ModuleAttachContractFailed", run.Name, runErrors.Count));
 				}
 			} catch (Exception e) {
-				Logger.Error(typeof(InteractionHost), e, Localizer.Format("ModuleAttachFailed", run.Name));
+				Logger.Error(typeof(InteractionHost), e, Loc.Format("ModuleAttachFailed", run.Name));
 				invalid.Add(run);
 				errors.Add($"{run.Name}: {e.Message}");
 			}
@@ -302,20 +302,20 @@ public static class InteractionHost {
 			.Concat(module.ContextCommands.Cast<ICommandInfo>())
 			.Concat(module.ComponentCommands.Cast<ICommandInfo>())) {
 			if (command.RunMode != RunMode.Sync) {
-				errors.Add(Localizer.Format("ContractRunModeOverride", run.Name, command.Name, command.RunMode));
+				errors.Add(Loc.Format("ContractRunModeOverride", run.Name, command.Name, command.RunMode));
 			}
 		}
 		var attributes = module.Preconditions.OfType<ModuleAvailabilityAttribute>().ToList();
 		if (!module.IsSubModule && attributes.Count == 0) {
-			errors.Add(Localizer.Format("ContractMissingAvailability", run.Name, module.Name));
+			errors.Add(Loc.Format("ContractMissingAvailability", run.Name, module.Name));
 		}
 		foreach (var attribute in attributes) {
 			if (attribute.RuntimeType != run.Runtime.GetType()) {
-				errors.Add(Localizer.Format("ContractAvailabilityMismatch", run.Name, module.Name, attribute.RuntimeType.Name, run.Runtime.GetType().Name));
+				errors.Add(Loc.Format("ContractAvailabilityMismatch", run.Name, module.Name, attribute.RuntimeType.Name, run.Runtime.GetType().Name));
 			}
 		}
 		if (module.ComponentCommands.Count > 0) {
-			errors.Add(Localizer.Format("ContractComponentCommands", run.Name, module.Name, module.ComponentCommands.Count));
+			errors.Add(Loc.Format("ContractComponentCommands", run.Name, module.Name, module.ComponentCommands.Count));
 		}
 		foreach (var sub in module.SubModules) {
 			CheckCommandContracts(sub, errors, run);
@@ -324,7 +324,7 @@ public static class InteractionHost {
 
 	private static InteractionService CreateService() {
 		Interlocked.Increment(ref _createdServices);
-		var client = DiscordGateway.Client ?? throw new InvalidOperationException(Localizer.Get("DiscordClientNotInitialized"));
+		var client = DiscordGateway.Client ?? throw new InvalidOperationException(Loc.Get("DiscordClientNotInitialized"));
 		var interactions = new InteractionService(client.Rest, new InteractionServiceConfig {
 			AutoServiceScopes = false,
 			DefaultRunMode = RunMode.Sync,
@@ -343,7 +343,7 @@ public static class InteractionHost {
 	}
 
 	private static Task OnServiceLog(LogMessage message) {
-		var text = Localizer.Format("InteractionServiceLog", message.Severity, message.Message ?? Localizer.Get("LogMessageNoText"));
+		var text = Loc.Format("InteractionServiceLog", message.Severity, message.Message ?? Loc.Get("LogMessageNoText"));
 		if (message.Exception != null) {
 			Logger.Error(typeof(InteractionHost), message.Exception, text);
 		} else if (message.Severity is LogSeverity.Error or LogSeverity.Critical) {
@@ -363,9 +363,9 @@ public static class InteractionHost {
 			return Task.CompletedTask;
 		}
 		if (result is ExecuteResult { Exception: { } executedException }) {
-			Logger.Error(typeof(InteractionHost), executedException, Localizer.Format("CommandExecutionException", command?.Name ?? "?"));
+			Logger.Error(typeof(InteractionHost), executedException, Loc.Format("CommandExecutionException", command?.Name ?? "?"));
 		} else {
-			Logger.Error(typeof(InteractionHost), Localizer.Format("CommandExecutionFailed", command?.Name ?? "?", result.Error, result.ErrorReason));
+			Logger.Error(typeof(InteractionHost), Loc.Format("CommandExecutionFailed", command?.Name ?? "?", result.Error, result.ErrorReason));
 		}
 		return Task.CompletedTask;
 	}
@@ -374,7 +374,7 @@ public static class InteractionHost {
 		try {
 			await interaction.RespondAsync(reason, ephemeral: true);
 		} catch (Exception e) {
-			Logger.Error(typeof(InteractionHost), e, Localizer.Get("ModuleUnavailableNoticeSendFailed"));
+			Logger.Error(typeof(InteractionHost), e, Loc.Get("ModuleUnavailableNoticeSendFailed"));
 		}
 	}
 }

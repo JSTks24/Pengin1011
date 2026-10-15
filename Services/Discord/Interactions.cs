@@ -1,4 +1,5 @@
 using Discord;
+using Pengin1011.Core;
 using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 
@@ -12,7 +13,7 @@ public static class Interactions {
 			await interaction.DeferAsync(ephemeral);
 			return true;
 		} catch (Exception e) {
-			Logger.Error(typeof(Interactions), e, Localizer.Get("DeferFailed"));
+			Logger.Error(typeof(Interactions), e, Loc.Get("DeferFailed"));
 			return false;
 		}
 	}
@@ -22,7 +23,7 @@ public static class Interactions {
 		try {
 			return await interaction.FollowupAsync(text, ephemeral: ephemeral, allowedMentions: AllowedMentions.None);
 		} catch (Exception e) {
-			Logger.Error(typeof(Interactions), e, Localizer.Get("FollowupFailed"));
+			Logger.Error(typeof(Interactions), e, Loc.Get("FollowupFailed"));
 			return null;
 		}
 	}
@@ -33,7 +34,7 @@ public static class Interactions {
 			using var stream = new MemoryStream(data);
 			return await interaction.FollowupWithFileAsync(stream, filename, text, ephemeral: ephemeral);
 		} catch (Exception e) {
-			Logger.Error(typeof(Interactions), e, Localizer.Format("FollowupFileFailed", filename));
+			Logger.Error(typeof(Interactions), e, Loc.Format("FollowupFileFailed", filename));
 			return null;
 		}
 	}
@@ -47,7 +48,7 @@ public static class Interactions {
 			});
 			return true;
 		} catch (Exception e) {
-			Logger.Error(typeof(Interactions), e, Localizer.Get("EditOriginalFailed"));
+			Logger.Error(typeof(Interactions), e, Loc.Get("EditOriginalFailed"));
 			return false;
 		}
 	}

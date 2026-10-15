@@ -1,80 +1,134 @@
 using Pengin1011.Services.AI;
-using Pengin1011.Core;
 
 namespace Pengin1011.Tests;
 
 public sealed class AIClientTests {
 	[Fact]
-	public async Task Complete_RoutesToDefaultStack() {
-		var openAI = new FakeBackend(static _ => Result("open"));
-		var gemini = new FakeBackend(static _ => Result("gem"));
-		AIClient.Init(openAI, gemini, AIProvider.Gemini, 2);
+	public async Task Complete_RoutesToDefaultPreset() {
+		var first = new FakeBackend(static _ => Result("one"));
+		var second = new FakeBackend(static _ => Result("two"));
+		InitPresets(("first", first), ("second", second));
 
 		var result = await AIClient.CompleteAsync(MakeRequest());
 
 		Assert.NotNull(result);
-		Assert.Equal("gem", result!.Text);
-		Assert.Equal(1, gemini.Calls);
-		Assert.Equal(0, openAI.Calls);
+		Assert.Equal("one", result!.Text);
+		Assert.Equal(1, first.Calls);
+		Assert.Equal(0, second.Calls);
 	}
 
 	[Fact]
-	public async Task Complete_ExplicitStackOverridesDefault() {
-		var openAI = new FakeBackend(static _ => Result("open"));
-		var gemini = new FakeBackend(static _ => Result("gem"));
-		AIClient.Init(openAI, gemini, AIProvider.Gemini, 2);
+	public async Task Complete_NamedPresetRoutes() {
+		var first = new FakeBackend(static _ => Result("one"));
+		var second = new FakeBackend(static _ => Result("two"));
+		InitPresets(("first", first), ("second", second));
 
-		var result = await AIClient.CompleteAsync(AIProvider.OpenAI, MakeRequest());
+		var result = await AIClient.CompleteAsync("second", MakeRequest());
 
 		Assert.NotNull(result);
-		Assert.Equal("open", result!.Text);
-		Assert.Equal(1, openAI.Calls);
+		Assert.Equal("two", result!.Text);
+		Assert.Equal(1, second.Calls);
+		Assert.Equal(0, first.Calls);
 	}
 
 	[Fact]
-	public async Task Complete_UninitializedStack_Throws() {
-		var openAI = new FakeBackend(static _ => Result("open"));
-		AIClient.Init(openAI, null, AIProvider.OpenAI, 2);
+	public async Task Complete_UnknownPreset_ThrowsWithAvailableList() {
+		var first = new FakeBackend(static _ => Result("one"));
+		InitPresets(("first", first));
 
-		var exception = await Assert.ThrowsAnyAsync<InvalidOperationException>(() => AIClient.CompleteAsync(AIProvider.Gemini, MakeRequest()));
+		var exception = await Assert.ThrowsAsync<AIPresetNotFoundException>(() => AIClient.CompleteAsync("missing", MakeRequest()));
 
-		Assert.Contains(L.Prefix("AIBackendNotConfigured"), exception.Message);
-		Assert.Equal(0, openAI.Calls);
+		Assert.Contains("missing", exception.Message);
+		Assert.Contains("first", exception.Message);
+		Assert.Equal(0, first.Calls);
 	}
 
 	[Fact]
-	public void Stream_UninitializedStack_ThrowsWithoutEnumerating() {
-		var openAI = new FakeBackend(static _ => Result("open"));
-		AIClient.Init(openAI, null, AIProvider.OpenAI, 2);
+	public async Task Complete_NoPresetsAtAll_Throws() {
+		var fake = new FakeBackend(static _ => Result("one"));
+		AIPresetStore.LoadForTest(new AIPresetDocument());
+		AIClient.Init(2, _ => fake);
 
-		var exception = Assert.ThrowsAny<InvalidOperationException>(() => AIClient.StreamAsync(AIProvider.Gemini, MakeRequest()));
+		var exception = await Assert.ThrowsAsync<AIPresetNotFoundException>(() => AIClient.CompleteAsync(MakeRequest()));
 
-		Assert.Contains(L.Prefix("AIBackendNotConfigured"), exception.Message);
-		Assert.Equal(0, openAI.Calls);
+		Assert.Contains(L.Prefix("AIPresetDefaultMissing"), exception.Message);
+		Assert.Equal(0, fake.Calls);
 	}
 
 	[Fact]
-	public async Task Complete_DefaultStackUnconfigured_Throws() {
-		AIClient.Init(null, null, AIProvider.OpenAI, 2);
+	public void Stream_UnknownPreset_ThrowsWithoutInvokingBackend() {
+		var fake = new FakeBackend(static _ => Result("one"));
+		InitPresets(("first", fake));
 
-		var exception = await Assert.ThrowsAnyAsync<InvalidOperationException>(() => AIClient.CompleteAsync(MakeRequest()));
+		Assert.Throws<AIPresetNotFoundException>(() => AIClient.StreamAsync("missing", MakeRequest()));
 
-		Assert.Contains(L.Prefix("AIBackendNotConfigured"), exception.Message);
+		Assert.Equal(0, fake.Calls);
 	}
 
 	[Fact]
-	public void Stream_DefaultStackUnconfigured_ThrowsWithoutEnumerating() {
-		AIClient.Init(null, null, AIProvider.OpenAI, 2);
+	public async Task Stream_NamedPresetRoutes() {
+		var first = new FakeBackend(static _ => Result("one"));
+		var second = new FakeBackend(static _ => Result("two"));
+		InitPresets(("first", first), ("second", second));
 
-		var exception = Assert.ThrowsAny<InvalidOperationException>(() => AIClient.StreamAsync(MakeRequest()));
+		var deltas = new List<AIStreamDelta>();
+		await foreach (var delta in AIClient.StreamAsync("second", MakeRequest())) {
+			deltas.Add(delta);
+		}
 
-		Assert.Contains(L.Prefix("AIBackendNotConfigured"), exception.Message);
+		Assert.Equal("hello", string.Concat(deltas.Select(delta => delta.Text)));
+		Assert.Equal(1, second.Calls);
+		Assert.Equal(0, first.Calls);
+	}
+
+	[Fact]
+	public async Task Complete_PresetFillsMissingRequestFields() {
+		var fake = new FakeBackend(static _ => Result("ok"));
+		LoadSinglePreset(new AIPreset {
+			Name = "first",
+			Provider = AIPresetProvider.OpenAI,
+			ApiKey = "k",
+			BaseUrl = "https://api.example.com/v1",
+			Model = "preset-model",
+			Temperature = 0.7f,
+			TopP = 0.9f,
+			MaxOutputTokens = 123,
+		}, fake);
+
+		await AIClient.CompleteAsync(MakeRequest());
+
+		Assert.Equal("preset-model", fake.LastModel);
+		Assert.Equal(0.7f, fake.LastTemperature);
+		Assert.Equal(0.9f, fake.LastTopP);
+		Assert.Equal(123, fake.LastMaxOutputTokens);
+	}
+
+	[Fact]
+	public async Task Complete_RequestOverridesPresetFields() {
+		var fake = new FakeBackend(static _ => Result("ok"));
+		LoadSinglePreset(new AIPreset {
+			Name = "first",
+			Provider = AIPresetProvider.OpenAI,
+			ApiKey = "k",
+			BaseUrl = "https://api.example.com/v1",
+			Model = "preset-model",
+			Temperature = 0.7f,
+			TopP = 0.9f,
+			MaxOutputTokens = 123,
+		}, fake);
+
+		await AIClient.CompleteAsync(MakeRequest(model: "custom-model", temperature: 0.1f, topP: 0.2f, maxOutputTokens: 45));
+
+		Assert.Equal("custom-model", fake.LastModel);
+		Assert.Equal(0.1f, fake.LastTemperature);
+		Assert.Equal(0.2f, fake.LastTopP);
+		Assert.Equal(45, fake.LastMaxOutputTokens);
 	}
 
 	[Fact]
 	public async Task Complete_TransientFailure_RetriesThenSucceeds() {
 		var fake = new FakeBackend(call => call == 1 ? throw new HttpRequestException("服务端临时失败") : Result("ok"));
-		AIClient.Init(fake, null, AIProvider.OpenAI, 2);
+		InitPresets(("first", fake));
 
 		var result = await AIClient.CompleteAsync(MakeRequest());
 
@@ -86,7 +140,7 @@ public sealed class AIClientTests {
 	[Fact]
 	public async Task Complete_TransientExhausted_ReturnsNull() {
 		var fake = new FakeBackend(static _ => throw new HttpRequestException("服务端临时失败"));
-		AIClient.Init(fake, null, AIProvider.OpenAI, 2);
+		InitPresets(("first", fake));
 
 		var result = await AIClient.CompleteAsync(MakeRequest());
 
@@ -97,7 +151,7 @@ public sealed class AIClientTests {
 	[Fact]
 	public async Task Complete_NonTransientError_SingleCallNoRetry() {
 		var fake = new FakeBackend(static _ => throw new InvalidOperationException("参数错误"));
-		AIClient.Init(fake, null, AIProvider.OpenAI, 2);
+		InitPresets(("first", fake));
 
 		var result = await AIClient.CompleteAsync(MakeRequest());
 
@@ -106,9 +160,24 @@ public sealed class AIClientTests {
 	}
 
 	[Fact]
+	public async Task Complete_BackendFactoryThrows_TreatedAsTransientFailure() {
+		var calls = 0;
+		AIPresetStore.LoadForTest(new AIPresetDocument { Presets = [MakePreset("first")] });
+		AIClient.Init(2, _ => {
+			calls++;
+			throw new HttpRequestException("构造后端失败");
+		});
+
+		var result = await AIClient.CompleteAsync(MakeRequest());
+
+		Assert.Null(result);
+		Assert.Equal(AIClient.RetryCount + 1, calls);
+	}
+
+	[Fact]
 	public async Task Complete_CancelDuringBackoff_Propagates() {
 		var fake = new FakeBackend(static _ => throw new HttpRequestException("限流"));
-		AIClient.Init(fake, null, AIProvider.OpenAI, 2);
+		InitPresets(("first", fake));
 		using var cts = new CancellationTokenSource(50);
 
 		await Assert.ThrowsAnyAsync<OperationCanceledException>(() => AIClient.CompleteAsync(MakeRequest(), cts.Token));
@@ -118,7 +187,7 @@ public sealed class AIClientTests {
 	public async Task Complete_CancelWhileWaitingSlot_Propagates() {
 		var slotGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 		var blocker = new BlockingBackend(slotGate.Task);
-		AIClient.Init(blocker, null, AIProvider.OpenAI, 1);
+		InitPresets(("first", blocker));
 		var occupying = AIClient.CompleteAsync(MakeRequest());
 		while (blocker.Calls == 0) {
 			await Task.Delay(50);
@@ -134,7 +203,7 @@ public sealed class AIClientTests {
 	[Fact]
 	public async Task Complete_FailureReleasesSlot() {
 		var fake = new FakeBackend(static _ => throw new InvalidOperationException("不可重试"));
-		AIClient.Init(fake, null, AIProvider.OpenAI, 1);
+		InitPresets(("first", fake));
 
 		var first = await AIClient.CompleteAsync(MakeRequest());
 		var second = await AIClient.CompleteAsync(MakeRequest());
@@ -149,7 +218,7 @@ public sealed class AIClientTests {
 		var fake = new FakeBackend(static _ => Result("ok")) {
 			StreamThrowAfterFirst = true,
 		};
-		AIClient.Init(fake, null, AIProvider.OpenAI, 2);
+		InitPresets(("first", fake));
 
 		var deltas = new List<AIStreamDelta>();
 		await Assert.ThrowsAsync<HttpRequestException>(async () => {
@@ -164,7 +233,7 @@ public sealed class AIClientTests {
 	[Fact]
 	public async Task Complete_RespectsMaxParallel() {
 		var fake = new FakeBackend(static _ => Result("ok"));
-		AIClient.Init(fake, null, AIProvider.OpenAI, 2);
+		InitPresets(("first", fake));
 
 		var tasks = Enumerable.Range(0, 6).Select(static _ => AIClient.CompleteAsync(MakeRequest())).ToArray();
 		var results = await Task.WhenAll(tasks);
@@ -175,65 +244,106 @@ public sealed class AIClientTests {
 	}
 
 	[Fact]
-	public async Task Complete_PassesModelOverride() {
-		var fake = new FakeBackend(static _ => Result("ok"));
-		AIClient.Init(fake, null, AIProvider.OpenAI, 2);
+	public async Task Complete_ReusesBackendInstanceForSamePreset() {
+		var created = 0;
+		AIPresetStore.LoadForTest(new AIPresetDocument { Presets = [MakePreset("first")] });
+		AIClient.Init(2, _ => {
+			created++;
+			return new FakeBackend(static _ => Result("ok"));
+		});
 
-		await AIClient.CompleteAsync(MakeRequest("custom-model"));
+		await AIClient.CompleteAsync(MakeRequest());
+		await AIClient.CompleteAsync(MakeRequest());
 
-		Assert.Equal("custom-model", fake.LastModel);
+		Assert.Equal(1, created);
 	}
 
 	[Fact]
-	public void Init_ConfigFailure_ReleasesHalfBuiltBackends() {
-		var config = new OpenAIConfig { ApiKey = "k", BaseUrl = new Uri("https://api.example.com"), Model = "m" };
-		var geminiConfig = new GeminiConfig { Project = "p", Location = "l", Model = "m" };
-		var clearedEnv = Environment.GetEnvironmentVariable("GOOGLE_GENAI_USE_ENTERPRISE") is null && Environment.GetEnvironmentVariable("GOOGLE_GENAI_USE_VERTEXAI") is null;
-		if (!clearedEnv) {
-			return;
-		}
-		Assert.ThrowsAny<Exception>(() => AIClient.Init(config, geminiConfig, AIProvider.OpenAI, 2));
+	public async Task Complete_InvalidateBackendCache_CreatesFreshBackend() {
+		var created = 0;
+		AIPresetStore.LoadForTest(new AIPresetDocument { Presets = [MakePreset("first")] });
+		AIClient.Init(2, _ => {
+			created++;
+			return new FakeBackend(static _ => Result("ok"));
+		});
+
+		await AIClient.CompleteAsync(MakeRequest());
+		AIClient.InvalidateBackendCache();
+		await AIClient.CompleteAsync(MakeRequest());
+
+		Assert.Equal(2, created);
 	}
 
 	private static AIResult Result(string text) {
 		return new AIResult(text, new AIUsage(1, 2));
 	}
 
-	private static AIRequest MakeRequest(string? model = null) {
+	private static AIPreset MakePreset(string name) {
+		return new AIPreset {
+			Name = name,
+			Provider = AIPresetProvider.OpenAI,
+			ApiKey = "key-" + name,
+			BaseUrl = "https://api.example.com/v1",
+			Model = "model-" + name,
+		};
+	}
+
+	private static AIRequest MakeRequest(string? model = null, float? temperature = null, float? topP = null, int? maxOutputTokens = null) {
 		return new AIRequest {
 			System = "sys",
 			Messages = [new AIMessage(AIRole.User, "hi")],
 			Model = model,
+			Temperature = temperature,
+			TopP = topP,
+			MaxOutputTokens = maxOutputTokens,
 		};
+	}
+
+	private static void InitPresets(params (string Name, IAIBackend Backend)[] entries) {
+		AIPresetStore.LoadForTest(new AIPresetDocument { MaxParallel = 2, Presets = [.. entries.Select(entry => MakePreset(entry.Name))] });
+		var map = entries.ToDictionary(entry => entry.Name, entry => entry.Backend);
+		AIClient.Init(2, preset => map[preset.Name]);
+	}
+
+	private static void LoadSinglePreset(AIPreset preset, IAIBackend backend) {
+		AIPresetStore.LoadForTest(new AIPresetDocument { MaxParallel = 2, Presets = [preset] });
+		AIClient.Init(2, _ => backend);
 	}
 
 	private sealed class FakeBackend(Func<int, AIResult?> handler) : IAIBackend {
 		private readonly object _lock = new();
 		public int Calls;
-		private int Concurrent;
+		private int _concurrent;
 		public int MaxConcurrent;
 		public string? LastModel;
+		public float? LastTemperature;
+		public float? LastTopP;
+		public int? LastMaxOutputTokens;
 		public bool StreamThrowAfterFirst;
 
 		public async Task<AIResult?> CompleteAsync(AIRequest request, CancellationToken ct) {
 			var call = Interlocked.Increment(ref Calls);
 			LastModel = request.Model;
+			LastTemperature = request.Temperature;
+			LastTopP = request.TopP;
+			LastMaxOutputTokens = request.MaxOutputTokens;
 			lock (_lock) {
-				Concurrent++;
-				if (Concurrent > MaxConcurrent) MaxConcurrent = Concurrent;
+				_concurrent++;
+				if (_concurrent > MaxConcurrent) MaxConcurrent = _concurrent;
 			}
 			try {
 				await Task.Delay(80, ct);
 				return handler(call);
 			} finally {
 				lock (_lock) {
-					Concurrent--;
+					_concurrent--;
 				}
 			}
 		}
 
 		public async IAsyncEnumerable<AIStreamDelta> StreamAsync(AIRequest request, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct) {
 			await Task.Yield();
+			Interlocked.Increment(ref Calls);
 			yield return new AIStreamDelta("he");
 			if (StreamThrowAfterFirst) {
 				throw new HttpRequestException("流中途失败");

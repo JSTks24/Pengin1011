@@ -1,4 +1,5 @@
 using Discord;
+using Pengin1011.Core;
 using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 
@@ -27,7 +28,7 @@ public static class History {
 					? (await channel.GetMessagesAsync(cursor.Value, direction, take).FlattenAsync()).ToList()
 					: (await channel.GetMessagesAsync(take).FlattenAsync()).ToList();
 			} catch (Exception e) {
-				Logger.Error(typeof(History), e, Localizer.Format("HistoryBatchReadFailed", channel.Id, cursor));
+				Logger.Error(typeof(History), e, Loc.Format("HistoryBatchReadFailed", channel.Id, cursor));
 				break;
 			}
 			if (batch.Count == 0) break;

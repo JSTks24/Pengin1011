@@ -13,7 +13,7 @@
 		<value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
 	</resheader>
 	<data name="ConfigLoaded" xml:space="preserve">
-		<value>Configuration loaded Provider={0} Model={1} MaxParallel={2}</value>
+		<value>Configuration loaded Presets={0} Default={1} MaxParallel={2}</value>
 	</data>
 	<data name="GatewayStartupTimeout" xml:space="preserve">
 		<value>Gateway did not become ready within {0}s; startup failed.</value>
@@ -34,9 +34,15 @@
 		<value>help                 Show this help
 status               Framework overview
 modules              List loaded modules
-db backup            Run a full database backup now
-db status            Show per-database status
+db                   Database commands (db backup, db status); type db for full usage
 sync                 Re-register the Discord command tree loaded in this process
+preset list          List AI presets
+preset show &lt;name&gt;   Show every field of one preset
+preset add &lt;name&gt; &lt;provider&gt; [Key=Value...]
+                     Add a preset (providers: openai / gemini / vertex)
+preset set &lt;name&gt; [name=&lt;new&gt;] Key=Value...
+                     Change fields of one preset
+preset remove &lt;name&gt; Remove a preset
 exit                 Exit the framework</value>
 	</data>
 	<data name="CommandTreeSynced" xml:space="preserve">
@@ -54,9 +60,43 @@ exit                 Exit the framework</value>
 	<data name="CliStatus" xml:space="preserve">
 		<value>Uptime: {0:dd\.hh\:mm\:ss} (started at {1:yyyy-MM-dd HH:mm:ss})
 Gateway state: {2}
-AI: {3} / {4}
+AI presets: {3} (default: {4})
 Modules: {5}
-Databases: {6}</value>
+Databases: {6}
+{7}</value>
+	</data>
+	<data name="CliPresetNone" xml:space="preserve">
+		<value>No AI presets are configured</value>
+	</data>
+	<data name="CliPresetListEntry" xml:space="preserve">
+		<value>{0} ({1}/{2}){3}</value>
+	</data>
+	<data name="CliPresetDefaultSuffix" xml:space="preserve">
+		<value> [default]</value>
+	</data>
+	<data name="CliPresetUsage" xml:space="preserve">
+		<value>Usage: preset list | preset show &lt;name&gt; | preset add &lt;name&gt; &lt;provider&gt; [Key=Value...] | preset set &lt;name&gt; [name=&lt;new&gt;] Key=Value... | preset remove &lt;name&gt;</value>
+	</data>
+	<data name="CliPresetShowLine" xml:space="preserve">
+		<value>{0}: {1}</value>
+	</data>
+	<data name="CliPresetAdded" xml:space="preserve">
+		<value>Preset added: {0}</value>
+	</data>
+	<data name="CliPresetUpdated" xml:space="preserve">
+		<value>Preset updated: {0}</value>
+	</data>
+	<data name="CliPresetRemoved" xml:space="preserve">
+		<value>Preset removed: {0}</value>
+	</data>
+	<data name="CliPresetProviderInvalid" xml:space="preserve">
+		<value>Unknown preset provider: {0} (only openai / gemini / vertex are supported)</value>
+	</data>
+	<data name="CliPresetFieldInvalid" xml:space="preserve">
+		<value>Invalid Key=Value pair: {0} (numbers must be well-formed)</value>
+	</data>
+	<data name="CliPresetFieldUnknown" xml:space="preserve">
+		<value>Unknown preset field: {0}</value>
 	</data>
 	<data name="NoModulesLoaded" xml:space="preserve">
 		<value>No modules loaded</value>
@@ -73,18 +113,6 @@ Databases: {6}</value>
 	</data>
 	<data name="NoDatabases" xml:space="preserve">
 		<value>No databases</value>
-	</data>
-	<data name="DbStatusLine" xml:space="preserve">
-		<value>{0}: {1}, migration {2}, last backup {3}</value>
-	</data>
-	<data name="DbStatusNoMigration" xml:space="preserve">
-		<value>none recorded</value>
-	</data>
-	<data name="DbStatusNoBackup" xml:space="preserve">
-		<value>never</value>
-	</data>
-	<data name="DbUsage" xml:space="preserve">
-		<value>Usage: db backup / db status</value>
 	</data>
 	<data name="CliInputDiscarded" xml:space="preserve">
 		<value>Shutdown in progress; discarding CLI input: {0}</value>
@@ -110,41 +138,11 @@ Databases: {6}</value>
 	<data name="DiscordTokenRequired" xml:space="preserve">
 		<value>Discord.Token must not be empty</value>
 	</data>
-	<data name="AIProviderInvalid" xml:space="preserve">
-		<value>AI.Provider invalid: {0} (only openai / gemini are supported)</value>
-	</data>
 	<data name="AIMaxParallelInvalid" xml:space="preserve">
-		<value>AI.MaxParallel must be greater than 0, current value {0}</value>
-	</data>
-	<data name="AIBackendNotConfigured" xml:space="preserve">
-		<value>The {0} AI backend is not configured. Set it in config.json (AI section) or pass AIRequest.Endpoint for this call.</value>
+		<value>MaxParallel must be greater than 0, current value {0}</value>
 	</data>
 	<data name="AIModelNotConfigured" xml:space="preserve">
 		<value>not configured</value>
-	</data>
-	<data name="AIProviderMissingGeminiHint" xml:space="preserve">
-		<value>AI.Provider is empty while the Gemini section is configured; defaulting to openai. Add "Provider": "gemini" if Gemini was intended.</value>
-	</data>
-	<data name="OpenAIApiKeyRequired" xml:space="preserve">
-		<value>AI.OpenAI.ApiKey must not be empty</value>
-	</data>
-	<data name="OpenAIModelRequired" xml:space="preserve">
-		<value>AI.OpenAI.Model must not be empty</value>
-	</data>
-	<data name="OpenAIBaseUrlRequired" xml:space="preserve">
-		<value>AI.OpenAI.BaseUrl must not be empty</value>
-	</data>
-	<data name="OpenAIBaseUrlInvalid" xml:space="preserve">
-		<value>AI.OpenAI.BaseUrl is not a valid HTTP(S) URL: {0}</value>
-	</data>
-	<data name="GeminiModelRequired" xml:space="preserve">
-		<value>AI.Gemini.Model must not be empty</value>
-	</data>
-	<data name="GeminiAuthExclusive" xml:space="preserve">
-		<value>AI.Gemini: ApiKey and Project/Location are mutually exclusive</value>
-	</data>
-	<data name="GeminiAuthIncomplete" xml:space="preserve">
-		<value>AI.Gemini authentication incomplete: provide ApiKey or Project+Location</value>
 	</data>
 	<data name="MigrationContractText" xml:space="preserve">
 		<value>Modules requiring persistence must all use EF Core migrations</value>
@@ -154,9 +152,6 @@ Databases: {6}</value>
 	</data>
 	<data name="DbMigrationContractViolated" xml:space="preserve">
 		<value>Database contract violation: {0} has no migrations ({1})</value>
-	</data>
-	<data name="ReadMigrationIdFailed" xml:space="preserve">
-		<value>Failed to read the applied migration: {0}</value>
 	</data>
 	<data name="BackupSkippedBusy" xml:space="preserve">
 		<value>Previous backup still running; skipping this scheduled round</value>
@@ -208,6 +203,9 @@ Databases: {6}</value>
 	</data>
 	<data name="ExitStepComponents" xml:space="preserve">
 		<value>Components cleanup</value>
+	</data>
+	<data name="ExitStepLoggerForwarder" xml:space="preserve">
+		<value>Logger channel forwarder drain</value>
 	</data>
 	<data name="ExitStepGatewayStop" xml:space="preserve">
 		<value>Gateway stop</value>
@@ -428,26 +426,62 @@ Databases: {6}</value>
 	<data name="AITopPInvalid" xml:space="preserve">
 		<value>AIRequest.TopP must not be negative, current value {0}</value>
 	</data>
-	<data name="EndpointModelRequired" xml:space="preserve">
-		<value>Model must be specified when overriding the endpoint with Endpoint</value>
+	<data name="AIPresetNameRequired" xml:space="preserve">
+		<value>Preset name must not be empty</value>
 	</data>
-	<data name="EndpointBaseUrlInvalid" xml:space="preserve">
-		<value>Endpoint.BaseUrl must be an HTTP(S) URL: {0}</value>
+	<data name="AIPresetDuplicateName" xml:space="preserve">
+		<value>Duplicate preset name: {0}</value>
 	</data>
-	<data name="OpenAIEndpointMissingApiKey" xml:space="preserve">
-		<value>OpenAI endpoint override is missing ApiKey</value>
+	<data name="AIPresetProviderInvalid" xml:space="preserve">
+		<value>Preset provider invalid: {0} (only openai / gemini / vertex are supported)</value>
 	</data>
-	<data name="OpenAIEndpointMissingBaseUrl" xml:space="preserve">
-		<value>OpenAI endpoint override is missing BaseUrl</value>
+	<data name="AIPresetApiKeyRequired" xml:space="preserve">
+		<value>Preset ApiKey must not be empty</value>
 	</data>
-	<data name="OpenAIEndpointProjectLocationUnsupported" xml:space="preserve">
-		<value>OpenAI endpoint override does not support Project / Location</value>
+	<data name="AIPresetModelRequired" xml:space="preserve">
+		<value>Preset Model must not be empty</value>
 	</data>
-	<data name="GeminiEndpointAuthExclusive" xml:space="preserve">
-		<value>Gemini endpoint override: ApiKey and Project/Location are mutually exclusive</value>
+	<data name="AIPresetBaseUrlRequired" xml:space="preserve">
+		<value>Preset BaseUrl must not be empty (openai presets require it)</value>
 	</data>
-	<data name="GeminiEndpointAuthIncomplete" xml:space="preserve">
-		<value>Gemini endpoint override authentication incomplete: provide ApiKey or Project+Location</value>
+	<data name="AIPresetBaseUrlInvalid" xml:space="preserve">
+		<value>Preset BaseUrl is not a valid HTTP(S) URL: {0}</value>
+	</data>
+	<data name="AIPresetVertexFieldsRequired" xml:space="preserve">
+		<value>Vertex presets require both Project and Location</value>
+	</data>
+	<data name="AIPresetNameMissing" xml:space="preserve">
+		<value>AI preset "{0}" does not exist; available presets: {1}</value>
+	</data>
+	<data name="AIPresetDefaultMissing" xml:space="preserve">
+		<value>No AI presets are configured, so the default preset does not exist; available presets: {0}</value>
+	</data>
+	<data name="AIPresetNotFound" xml:space="preserve">
+		<value>AI preset "{0}" does not exist</value>
+	</data>
+	<data name="AIPresetInUse" xml:space="preserve">
+		<value>AI preset "{0}" is referenced by {1}; remove those references first</value>
+	</data>
+	<data name="AIPresetsCreatedFromTemplate" xml:space="preserve">
+		<value>AI preset file created from template at {0}; add presets before starting</value>
+	</data>
+	<data name="AIPresetsTemplateWriteFailed" xml:space="preserve">
+		<value>Failed to write the AI preset template file at {0}</value>
+	</data>
+	<data name="AIPresetsReadFailed" xml:space="preserve">
+		<value>Failed to read the AI preset file at {0}</value>
+	</data>
+	<data name="AIPresetsSaveFailed" xml:space="preserve">
+		<value>Failed to save the AI preset file</value>
+	</data>
+	<data name="AIPresetUsageMissing" xml:space="preserve">
+		<value>Module {0} call site {1} references preset "{2}", which does not exist; startup failed</value>
+	</data>
+	<data name="AIPresetUsageDefaultMissing" xml:space="preserve">
+		<value>Module {0} call site {1} uses the default preset, but no preset is configured; startup failed</value>
+	</data>
+	<data name="AIPresetUsageProviderInvalid" xml:space="preserve">
+		<value>The AI preset usage provider of {0} is invalid; its usage list was discarded</value>
 	</data>
 	<data name="AttachmentDownloadFailed" xml:space="preserve">
 		<value>Failed to download the attachment: {0}</value>
@@ -601,5 +635,363 @@ Databases: {6}</value>
 	</data>
 	<data name="ArchivedThreadsEnumFailed" xml:space="preserve">
 		<value>Failed to enumerate archived threads: {0}</value>
+	</data>
+	<data name="ModuleBridgeExportNotFound" xml:space="preserve">
+		<value>Module bridge export not found: {0}.{1}</value>
+	</data>
+	<data name="ModuleBridgeTargetNotReady" xml:space="preserve">
+		<value>Module bridge target is not ready: {0}.{1} state={2}</value>
+	</data>
+	<data name="ModuleBridgeSignatureMismatch" xml:space="preserve">
+		<value>Module bridge signature mismatch for {0}.{1}: expected {2}, actual {3}</value>
+	</data>
+	<data name="ModuleBridgeDuplicateExport" xml:space="preserve">
+		<value>Duplicate module bridge export in {0}: {1}</value>
+	</data>
+	<data name="ModuleBridgeProviderInvalid" xml:space="preserve">
+		<value>Module bridge provider failed for module {0}</value>
+	</data>
+	<data name="LogSubscriberFailed" xml:space="preserve">
+		<value>Log subscriber {0} threw an exception: {1}</value>
+	</data>
+	<data name="LoggerChannelInvalid" xml:space="preserve">
+		<value>Logger channel id is invalid: {0}</value>
+	</data>
+	<data name="LoggerForwarderStarted" xml:space="preserve">
+		<value>Logger channel forwarding enabled for {0} channel(s)</value>
+	</data>
+	<data name="LoggerForwarderStopping" xml:space="preserve">
+		<value>Logger channel forwarding session ended: delivered={0} dropped={1} leftover={2}</value>
+	</data>
+	<data name="LoggerForwarderChannelMissing" xml:space="preserve">
+		<value>Configured log channel {0} could not be resolved</value>
+	</data>
+	<data name="LoggerForwarderSendFailed" xml:space="preserve">
+		<value>Forwarding to log channel {0} failed: {1}</value>
+	</data>
+	<data name="AIMaxParallelNull" xml:space="preserve">
+		<value>MaxParallel must be a positive integer, not null</value>
+	</data>
+	<data name="AIPresetsListNull" xml:space="preserve">
+		<value>The Presets list must be an array, not null</value>
+	</data>
+	<data name="AIPresetsListInvalid" xml:space="preserve">
+		<value>The Presets value must be a JSON array</value>
+	</data>
+	<data name="AIPresetEntryInvalid" xml:space="preserve">
+		<value>Preset #{0} must be a JSON object</value>
+	</data>
+	<data name="AIPresetFieldNull" xml:space="preserve">
+		<value>Preset #{0} field {1} must not be null</value>
+	</data>
+	<data name="AIPresetFieldTypeInvalid" xml:space="preserve">
+		<value>Preset #{0} field {1} has an unsupported JSON type</value>
+	</data>
+	<data name="AIPresetFieldNotFinite" xml:space="preserve">
+		<value>Preset #{0} field {1} must be a finite number</value>
+	</data>
+	<data name="AIPresetNameWhitespace" xml:space="preserve">
+		<value>Preset name must not start or end with whitespace: "{0}"</value>
+	</data>
+	<data name="AIPresetNameControlCharacter" xml:space="preserve">
+		<value>Preset name must not contain control characters</value>
+	</data>
+	<data name="AIPresetStaleVersion" xml:space="preserve">
+		<value>Preset configuration changed since version {0} (current version {1}); reload and retry</value>
+	</data>
+	<data name="AIClientShuttingDown" xml:space="preserve">
+		<value>The AI client is shutting down and no longer admits new requests</value>
+	</data>
+	<data name="AIShutdownNotDrained" xml:space="preserve">
+		<value>AI shutdown timed out with {0} unfinished request(s) or backend operation(s)</value>
+	</data>
+	<data name="AIBackendCreateFailed" xml:space="preserve">
+		<value>Creating the AI backend for connection {0} failed</value>
+	</data>
+	<data name="AIBackendDisposeFailed" xml:space="preserve">
+		<value>Disposing the AI backend for connection {0} failed</value>
+	</data>
+	<data name="AIBackendRetiredDuringCreation" xml:space="preserve">
+		<value>The AI backend for connection {0} was retired while it was being created</value>
+	</data>
+	<data name="SecretNotConfigured" xml:space="preserve">
+		<value>not configured</value>
+	</data>
+	<data name="AIPresetDefaultInUse" xml:space="preserve">
+		<value>Deleting preset "{0}" would leave the list empty while a consumer uses the default preset</value>
+	</data>
+	<data name="LoggerForwarderUnsubscribeFailed" xml:space="preserve">
+		<value>Unsubscribing the log forwarder from the logger failed</value>
+	</data>
+	<data name="LoggerForwarderStopPending" xml:space="preserve">
+		<value>Log forwarding did not stop within the budget: queued={0} activeSends={1}; the session is kept and no new session may start</value>
+	</data>
+	<data name="LoggerForwarderWorkerFailed" xml:space="preserve">
+		<value>The log forwarding worker stopped with {0}: {1}</value>
+	</data>
+	<data name="LoggerForwarderSendPartial" xml:space="preserve">
+		<value>Partial delivery to log channel {0}: {1}/{2} chunks sent</value>
+	</data>
+	<data name="ModuleRegistrationRollbackFailed" xml:space="preserve">
+		<value>Rolling back the failed registration of module {0} hit an error</value>
+	</data>
+	<data name="ModuleBridgeCallsStillRunning" xml:space="preserve">
+		<value>Module {0} still has {1} bridge call(s) in flight after the drain budget; its resources were not released</value>
+	</data>
+	<data name="BlockerLoggerForwarder" xml:space="preserve">
+		<value>logger forwarder did not stop</value>
+	</data>
+	<data name="LoggerForwarderNotDrained" xml:space="preserve">
+		<value>Log forwarding did not drain within its budget: queued={0} activeSends={1}</value>
+	</data>
+	<data name="LoggerForwarderDroppedEntries" xml:space="preserve">
+		<value>Log forwarding dropped {0} entr(ies) because of overflow or shutdown</value>
+	</data>
+	<data name="LoggerForwarderChannelFailure" xml:space="preserve">
+		<value>Log forwarding channel failure: {0}</value>
+	</data>
+	<data name="AIReleaseIncomplete" xml:space="preserve">
+		<value>AI client release incomplete: {0} unfinished request(s) or backend operation(s) remain</value>
+	</data>
+	<data name="DatabaseNameInvalid" xml:space="preserve">
+		<value>The DbContext name cannot be turned into a legal database file name</value>
+	</data>
+	<data name="DatabaseNameReserved" xml:space="preserve">
+		<value>The database name collides with a reserved device name</value>
+	</data>
+	<data name="DatabasePrepareRequired" xml:space="preserve">
+		<value>Database {0} has not been prepared; call Databases.PrepareAsync before Open</value>
+	</data>
+	<data name="DatabasePrepareCancelled" xml:space="preserve">
+		<value>Waiting for database {0} preparation was cancelled; the shared preparation keeps running</value>
+	</data>
+	<data name="DatabasePreparedFileMissing" xml:space="preserve">
+		<value>Database {0} was prepared but its file is gone; external deletion or replacement is not self-healed</value>
+	</data>
+	<data name="DatabasePrepareFailed" xml:space="preserve">
+		<value>Preparing database {0} failed</value>
+	</data>
+	<data name="DatabaseMissing" xml:space="preserve">
+		<value>Database {0} does not exist in the resolved data directory</value>
+	</data>
+	<data name="DatabaseSnapshotMissing" xml:space="preserve">
+		<value>Database {0} has no complete model snapshot; every context must ship a generated ModelSnapshot</value>
+	</data>
+	<data name="DatabaseModelDrift" xml:space="preserve">
+		<value>Database {0}: the model no longer matches its snapshot and no migration covers the change</value>
+	</data>
+	<data name="DatabaseHistoryNotPrefix" xml:space="preserve">
+		<value>Database {0}: applied migrations are not a legal prefix of the known migration sequence ({1})</value>
+	</data>
+	<data name="DatabaseUntrackedTables" xml:space="preserve">
+		<value>Database {0} contains tables but no migration history; it is not treated as a fresh database</value>
+	</data>
+	<data name="DatabaseResidualMigrationLock" xml:space="preserve">
+		<value>Database {0} still holds a migration lock row; use db unlock {0} --confirm in the internal terminal after confirming no external writer is active</value>
+	</data>
+	<data name="DatabaseMigrationIncomplete" xml:space="preserve">
+		<value>Database {0}: migration did not reach the expected history ({1})</value>
+	</data>
+	<data name="DatabaseIntegrityFailed" xml:space="preserve">
+		<value>Database {0} failed its integrity check</value>
+	</data>
+	<data name="DatabaseForeignKeyFailed" xml:space="preserve">
+		<value>Database {0} failed its foreign key check</value>
+	</data>
+	<data name="DataDirectoryNotOwned" xml:space="preserve">
+		<value>Another process already owns data directory {0}; {1}</value>
+	</data>
+	<data name="DataDirectoryMissing" xml:space="preserve">
+		<value>Data directory does not exist: {0}; pass --create-data-dir for a deliberate first initialisation</value>
+	</data>
+	<data name="PreMigrationSnapshotFailed" xml:space="preserve">
+		<value>Database {0}: the pre-migration snapshot failed ({1}); the upgrade was not started</value>
+	</data>
+	<data name="BackupSourceMissing" xml:space="preserve">
+		<value>Database {0} has no file to snapshot</value>
+	</data>
+	<data name="BackupSourceNotSqlite" xml:space="preserve">
+		<value>{0} is not a readable SQLite database and was not snapshotted</value>
+	</data>
+	<data name="BackupIntegrityFailed" xml:space="preserve">
+		<value>The snapshot failed its integrity check and was not published</value>
+	</data>
+	<data name="BackupForeignKeyFailed" xml:space="preserve">
+		<value>The snapshot failed its foreign key check and was not published</value>
+	</data>
+	<data name="BackupIncomplete" xml:space="preserve">
+		<value>Backup {0} is incomplete (snapshot or metadata missing)</value>
+	</data>
+	<data name="BackupIdentityMismatch" xml:space="preserve">
+		<value>Backup {0} metadata identity does not match its directory or database</value>
+	</data>
+	<data name="BackupHashMismatch" xml:space="preserve">
+		<value>Backup {0} digest does not match its metadata</value>
+	</data>
+	<data name="BackupUnreadable" xml:space="preserve">
+		<value>Backup {0} could not be read and is not published as a recovery point</value>
+	</data>
+	<data name="BackupPruneFailed" xml:space="preserve">
+		<value>Pruning backup {0} failed; the completed snapshot is still valid</value>
+	</data>
+	<data name="BackupQuarantineFailed" xml:space="preserve">
+		<value>Quarantining the failed backup {0} failed</value>
+	</data>
+	<data name="BackupTimerFailed" xml:space="preserve">
+		<value>The scheduled backup callback failed</value>
+	</data>
+	<data name="DirectoryFlushSkipped" xml:space="preserve">
+		<value>Directory flush for {0} was skipped ({1}); the platform does not expose directory persistence</value>
+	</data>
+	<data name="RestoreBackupIdInvalid" xml:space="preserve">
+		<value>Backup id {0} is not a legal controlled identifier</value>
+	</data>
+	<data name="RestoreBackupInvalid" xml:space="preserve">
+		<value>Backup {0} is not a verified completed snapshot; {1}</value>
+	</data>
+	<data name="RestoreQuarantineMismatch" xml:space="preserve">
+		<value>The preserved original site did not verify; nothing was replaced</value>
+	</data>
+	<data name="RestoreStagingInvalid" xml:space="preserve">
+		<value>The staging database failed its integrity check; cutover never started</value>
+	</data>
+	<data name="RestoreVerificationIntegrity" xml:space="preserve">
+		<value>The restored database failed its integrity check</value>
+	</data>
+	<data name="RestoreVerificationForeignKey" xml:space="preserve">
+		<value>The restored database failed its foreign key check</value>
+	</data>
+	<data name="RestoreFailed" xml:space="preserve">
+		<value>Restoring database {0} (operation {1}) failed; the operation record keeps the stage</value>
+	</data>
+	<data name="RestoreOperationUnknown" xml:space="preserve">
+		<value>Maintenance operation {0} is unknown</value>
+	</data>
+	<data name="RestoreAlreadyCompleted" xml:space="preserve">
+		<value>Maintenance operation {0} already completed; nothing to roll back</value>
+	</data>
+	<data name="RestoreRollbackFailed" xml:space="preserve">
+		<value>Rolling back maintenance operation {0} failed</value>
+	</data>
+	<data name="MaintenanceRecordReadFailed" xml:space="preserve">
+		<value>Reading maintenance record {0} failed</value>
+	</data>
+	<data name="MaintenanceRecordDeleteFailed" xml:space="preserve">
+		<value>Deleting maintenance record {0} failed</value>
+	</data>
+	<data name="UnlockWithPendingIntent" xml:space="preserve">
+		<value>Database {0} has an unfinished migration intent; verify or restore instead of deleting the lock</value>
+	</data>
+	<data name="UnlockNothingToDo" xml:space="preserve">
+		<value>No EF migration lock row was present</value>
+	</data>
+	<data name="UnlockFailed" xml:space="preserve">
+		<value>Unlocking database {0} failed</value>
+	</data>
+	<data name="VerifyRequiresConfirmation" xml:space="preserve">
+		<value>verify --accept-interrupted requires the explicit confirmation flag</value>
+	</data>
+	<data name="VerifyTargetUnknown" xml:space="preserve">
+		<value>Database {0}: the interrupted migration target could not be confirmed</value>
+	</data>
+	<data name="LegacyBackupMissing" xml:space="preserve">
+		<value>Legacy backup file {0} does not exist</value>
+	</data>
+	<data name="LegacyBackupIsLiveDatabase" xml:space="preserve">
+		<value>The legacy file is the live database itself; import a copy instead</value>
+	</data>
+	<data name="LegacyBackupNotSqlite" xml:space="preserve">
+		<value>{0} is not a readable SQLite database and cannot be imported</value>
+	</data>
+	<data name="DatabaseVersionReport" xml:space="preserve">
+		<value>SQLite {0}; provider {1}; journal_mode={2}; synchronous={3}; foreign_keys={4}</value>
+	</data>
+	<data name="DbCommandConfirmationRequired" xml:space="preserve">
+		<value>This command changes on-disk state; pass --confirm to proceed</value>
+	</data>
+	<data name="DbCommandCompleted" xml:space="preserve">
+		<value>Completed: {0}</value>
+	</data>
+	<data name="DbCommandRejected" xml:space="preserve">
+		<value>Rejected: {0}</value>
+	</data>
+	<data name="DbInspectHeader" xml:space="preserve">
+		<value>{0}: state={1} size={2} wal={3} history={4} backups={5} pending={6}</value>
+	</data>
+	<data name="DbBackupsHeader" xml:space="preserve">
+		<value>{0} {1} {2} {3}</value>
+	</data>
+	<data name="HostContractMismatch" xml:space="preserve">
+		<value>Module {0} was built against generation protocol {1} but this host requires {2}; rebuild the module</value>
+	</data>
+	<data name="HostContractMissing" xml:space="preserve">
+		<value>Module {0} carries no host contract version ({1}); it predates this host protocol and must be rebuilt</value>
+	</data>
+	<data name="DatabaseWorkPending" xml:space="preserve">
+		<value>Database work has not stopped.</value>
+	</data>
+	<data name="DataDirectoryAlreadyOwned" xml:space="preserve">
+		<value>The data directory cannot change while this process owns it.</value>
+	</data>
+	<data name="DatabaseMaintenanceRequired" xml:space="preserve">
+		<value>Database {0} has unfinished maintenance; inspect its maintenance records before preparing it.</value>
+	</data>
+	<data name="RestorePhaseRejected" xml:space="preserve">
+		<value>Recovery cannot continue from phase {0}.</value>
+	</data>
+	<data name="RestoreTargetMismatch" xml:space="preserve">
+		<value>The database does not match the selected backup.</value>
+	</data>
+	<data name="AdminRoleInvalid" xml:space="preserve">
+		<value>Invalid administrator role ID: {0}.</value>
+	</data>
+	<data name="AdminPermissionRequired" xml:space="preserve">
+		<value>A configured management role or bot ownership is required.</value>
+	</data>
+	<data name="MaintenanceAccepted" xml:space="preserve">
+		<value>Maintenance accepted. Business will stop before files are changed; successful recovery restarts the process.</value>
+	</data>
+	<data name="MaintenanceBusy" xml:space="preserve">
+		<value>Another maintenance request is already running.</value>
+	</data>
+	<data name="MaintenanceUnavailable" xml:space="preserve">
+		<value>Maintenance is unavailable because business work has not safely stopped.</value>
+	</data>
+	<data name="MaintenanceConsole" xml:space="preserve">
+		<value>Maintenance console is available. Use help, db, or exit.</value>
+	</data>
+	<data name="RestartFailed" xml:space="preserve">
+		<value>Restart failed; the maintenance console remains available.</value>
+	</data>
+	<data name="Restarting" xml:space="preserve">
+		<value>Maintenance completed. Restarting the process.</value>
+	</data>
+	<data name="DbInternalUsage" xml:space="preserve">
+		<value>db status [database]
+db backups &lt;database&gt;
+db backup
+db version
+db verify &lt;database&gt; &lt;backup&gt;
+db verify &lt;database&gt; --confirm --accept-interrupted
+db restore &lt;database&gt; &lt;backup&gt; --confirm
+db recover &lt;database&gt; &lt;operation&gt; --complete|--rollback --confirm
+db unlock &lt;database&gt; --confirm
+db import-backup &lt;database&gt; "file" --confirm
+Restore, recovery, live verification and unlock restart the process after success; backup and local import do not.</value>
+	</data>
+	<data name="LoggerForwarderSummary" xml:space="preserve">
+		<value>Details are available in the local log.</value>
+	</data>
+	<data name="LoggerForwarderSendCancelled" xml:space="preserve">
+		<value>Logger forwarding to channel {0} was cancelled.</value>
+	</data>
+	<data name="StartupArgumentsInvalid" xml:space="preserve">
+		<value>Supported startup options: --data-dir &lt;path&gt; [--create-data-dir]. Use management commands inside the terminal.</value>
+	</data>
+	<data name="ConfigPathsUnavailable" xml:space="preserve">
+		<value>The data directory configuration is invalid; fix config/config.json and restart.</value>
+	</data>
+	<data name="DataDirectoryResolved" xml:space="preserve">
+		<value>Data directory: {0} (PID {1})</value>
 	</data>
 </root>

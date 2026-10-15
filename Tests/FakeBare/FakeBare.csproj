@@ -6,11 +6,13 @@
     <AssemblyName>FakeBare</AssemblyName>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <BareOutputDir>$(MSBuildThisFileDirectory)..\Pengin1011.Tests\bin\$(Configuration)\$(TargetFramework)\baremodule\</BareOutputDir>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Pengin1011.csproj" />
+    <ProjectReference Include="..\..\Generator\Pengin1011Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <Target Name="CopyToBareModuleDir" AfterTargets="Build">

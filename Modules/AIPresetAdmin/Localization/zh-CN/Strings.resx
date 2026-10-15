@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<resheader name="resmimetype">
+		<value>text/microsoft-resx</value>
+	</resheader>
+	<resheader name="version">
+		<value>2.0</value>
+	</resheader>
+	<resheader name="reader">
+		<value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+	</resheader>
+	<resheader name="writer">
+		<value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+	</resheader>
+	<data name="PresetReplyEmpty" xml:space="preserve">
+		<value>当前没有任何 AI 预设</value>
+	</data>
+	<data name="PresetReplyListEntry" xml:space="preserve">
+		<value>{0}（{1}/{2}）{3}</value>
+	</data>
+	<data name="PresetReplyDefaultSuffix" xml:space="preserve">
+		<value>【默认】</value>
+	</data>
+	<data name="PresetReplyNotFound" xml:space="preserve">
+		<value>AI 预设「{0}」不存在</value>
+	</data>
+	<data name="PresetReplyField" xml:space="preserve">
+		<value>{0}：{1}</value>
+	</data>
+	<data name="PresetReplyProviderInvalid" xml:space="preserve">
+		<value>未知的预设 provider：{0}（仅支持 openai / gemini / vertex）</value>
+	</data>
+	<data name="PresetReplyFieldUnknown" xml:space="preserve">
+		<value>未知的预设字段：{0}</value>
+	</data>
+	<data name="PresetReplyFieldInvalid" xml:space="preserve">
+		<value>不合法的 Key=Value 项：{0}</value>
+	</data>
+	<data name="PresetReplyValueInvalid" xml:space="preserve">
+		<value>不合法的值：{0}</value>
+	</data>
+	<data name="PresetReplyAdded" xml:space="preserve">
+		<value>已新增预设：{0}</value>
+	</data>
+	<data name="PresetReplyUpdated" xml:space="preserve">
+		<value>已修改预设：{0}</value>
+	</data>
+	<data name="PresetReplyRemoved" xml:space="preserve">
+		<value>已删除预设：{0}</value>
+	</data>
+	<data name="PresetReplySaveFailed" xml:space="preserve">
+		<value>保存 AI 预设文件失败</value>
+	</data>
+</root>

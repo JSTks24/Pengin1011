@@ -13,7 +13,7 @@ namespace Pengin1011.Tests;
 
 [Collection("BaseDirSerial")]
 public sealed class ModuleLocalizationTests {
-	private static readonly CultureInfo Zh = new("zh-CN");
+	private static readonly CultureInfo _zh = new("zh-CN");
 
 	private static Assembly FakeModuleAssembly => typeof(FakeModuleTexts).Assembly;
 
@@ -24,7 +24,7 @@ public sealed class ModuleLocalizationTests {
 		Localizer.RegisterModule(FakeModuleAssembly);
 
 		Assert.Equal("hello from FakeModule", Localizer.Get(FakeModuleAssembly, "FakeHello", CultureInfo.InvariantCulture));
-		Assert.Equal("来自 FakeModule 的问候", Localizer.Get(FakeModuleAssembly, "FakeHello", Zh));
+		Assert.Equal("来自 FakeModule 的问候", Localizer.Get(FakeModuleAssembly, "FakeHello", _zh));
 	}
 
 	[Fact]
@@ -32,7 +32,7 @@ public sealed class ModuleLocalizationTests {
 		Localizer.RegisterModule(FakeModuleAssembly);
 
 		var original = CultureInfo.CurrentUICulture;
-		CultureInfo.CurrentUICulture = Zh;
+		CultureInfo.CurrentUICulture = _zh;
 		try {
 			Assert.Equal("来自 FakeModule 的问候", FakeModuleTexts.GetText("FakeHello"));
 		} finally {
@@ -45,7 +45,7 @@ public sealed class ModuleLocalizationTests {
 		Localizer.RegisterModule(FakeModuleAssembly);
 
 		var original = CultureInfo.CurrentUICulture;
-		CultureInfo.CurrentUICulture = Zh;
+		CultureInfo.CurrentUICulture = _zh;
 		try {
 			Assert.Equal("来自 FakeModule 的问候 7", FakeModuleTexts.FormatText("FakeHelloWithArg", 7));
 		} finally {
@@ -57,7 +57,7 @@ public sealed class ModuleLocalizationTests {
 	public void ModuleCall_FormatWithCulture_AutoRoutesToModuleTable() {
 		Localizer.RegisterModule(FakeModuleAssembly);
 
-		Assert.Equal("来自 FakeModule 的问候 7", FakeModuleTexts.FormatText(Zh, "FakeHelloWithArg", 7));
+		Assert.Equal("来自 FakeModule 的问候 7", FakeModuleTexts.FormatText(_zh, "FakeHelloWithArg", 7));
 		Assert.Equal("hello from FakeModule 7", FakeModuleTexts.FormatText(CultureInfo.InvariantCulture, "FakeHelloWithArg", 7));
 	}
 
@@ -65,22 +65,22 @@ public sealed class ModuleLocalizationTests {
 	public void ModuleMiss_FallsBackToMainResources() {
 		Localizer.RegisterModule(FakeModuleAssembly);
 
-		Assert.Equal(Localizer.Get("CliHelp", Zh), Localizer.Get(FakeModuleAssembly, "CliHelp", Zh));
-		Assert.Equal("NoSuchKeyAnywhere", Localizer.Get(FakeModuleAssembly, "NoSuchKeyAnywhere", Zh));
+		Assert.Equal(Loc.Get("CliHelp", _zh), Localizer.Get(FakeModuleAssembly, "CliHelp", _zh));
+		Assert.Equal("NoSuchKeyAnywhere", Localizer.Get(FakeModuleAssembly, "NoSuchKeyAnywhere", _zh));
 	}
 
 	[Fact]
 	public void ModuleTable_WinsOver_FrameworkTable_OnSameKey() {
 		Localizer.RegisterModule(FakeModuleAssembly);
-		var frameworkZh = Localizer.Get("ModuleUnavailable", Zh);
-		var frameworkNeutral = Localizer.Get("ModuleUnavailable", CultureInfo.InvariantCulture);
+		var frameworkZh = Loc.Get("ModuleUnavailable", _zh);
+		var frameworkNeutral = Loc.Get("ModuleUnavailable", CultureInfo.InvariantCulture);
 
-		Assert.Equal("FakeModule 覆盖了这条主程序 key", Localizer.Get(FakeModuleAssembly, "ModuleUnavailable", Zh));
+		Assert.Equal("FakeModule 覆盖了这条主程序 key", Localizer.Get(FakeModuleAssembly, "ModuleUnavailable", _zh));
 		Assert.Equal("FakeModule overrides this framework key", Localizer.Get(FakeModuleAssembly, "ModuleUnavailable", CultureInfo.InvariantCulture));
-		Assert.NotEqual(frameworkZh, Localizer.Get(FakeModuleAssembly, "ModuleUnavailable", Zh));
+		Assert.NotEqual(frameworkZh, Localizer.Get(FakeModuleAssembly, "ModuleUnavailable", _zh));
 		Assert.NotEqual(frameworkNeutral, Localizer.Get(FakeModuleAssembly, "ModuleUnavailable", CultureInfo.InvariantCulture));
-		Assert.Equal(frameworkZh, Localizer.Get("ModuleUnavailable", Zh));
-		Assert.Equal(frameworkNeutral, Localizer.Get("ModuleUnavailable", CultureInfo.InvariantCulture));
+		Assert.Equal(frameworkZh, Loc.Get("ModuleUnavailable", _zh));
+		Assert.Equal(frameworkNeutral, Loc.Get("ModuleUnavailable", CultureInfo.InvariantCulture));
 	}
 
 	[Fact]
@@ -125,8 +125,8 @@ public sealed class ModuleLocalizationTests {
 		var bare = typeof(FakeBareRuntime).Assembly;
 		Localizer.RegisterModule(bare);
 
-		Assert.Equal(Localizer.Get("CliHelp", Zh), Localizer.Get(bare, "CliHelp", Zh));
-		Assert.Equal("FakeHello", Localizer.Get(bare, "FakeHello", Zh));
+		Assert.Equal(Loc.Get("CliHelp", _zh), Localizer.Get(bare, "CliHelp", _zh));
+		Assert.Equal("FakeHello", Localizer.Get(bare, "FakeHello", _zh));
 	}
 
 	[Fact]
@@ -151,7 +151,7 @@ public sealed class ModuleLocalizationTests {
 	[Fact]
 	public void BrokenModuleResources_ThrowOnRegister() {
 		Assert.ThrowsAny<Exception>(() => Localizer.RegisterModule(typeof(FakeBrokenLocaleRuntime).Assembly));
-		Assert.Equal(Localizer.Get("CliHelp", Zh), Localizer.Get(typeof(FakeBrokenLocaleRuntime).Assembly, "CliHelp", Zh));
+		Assert.Equal(Loc.Get("CliHelp", _zh), Localizer.Get(typeof(FakeBrokenLocaleRuntime).Assembly, "CliHelp", _zh));
 	}
 
 	[Fact]
@@ -164,8 +164,8 @@ public sealed class ModuleLocalizationTests {
 
 			var run = ModuleHost.Find("FakeBrokenLocale");
 			Assert.NotNull(run);
-			Assert.Equal(Localizer.Get("CliHelp", Zh), Localizer.Get(run!.Assembly, "CliHelp", Zh));
-			Assert.Equal("FakeHello", Localizer.Get(run.Assembly, "FakeHello", Zh));
+			Assert.Equal(Loc.Get("CliHelp", _zh), Localizer.Get(run!.Assembly, "CliHelp", _zh));
+			Assert.Equal("FakeHello", Localizer.Get(run.Assembly, "FakeHello", _zh));
 		} finally {
 			ModuleHost.ModuleDirectoryOverrideForTest = previousDirectory;
 			ModuleHost.ResetForTest();
@@ -183,7 +183,7 @@ public sealed class ModuleLocalizationTests {
 			var run = ModuleHost.Find("FakeModule");
 			Assert.NotNull(run);
 			var original = CultureInfo.CurrentUICulture;
-			CultureInfo.CurrentUICulture = Zh;
+			CultureInfo.CurrentUICulture = _zh;
 			try {
 				Assert.Equal("来自 FakeModule 的问候", FakeModuleTexts.GetText("FakeHello"));
 			} finally {

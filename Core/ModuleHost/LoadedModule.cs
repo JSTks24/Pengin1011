@@ -16,7 +16,7 @@ public sealed record ModuleStopResult(LoadedModule Module, ModuleStopOutcome Out
 }
 
 public sealed class LoadedModule {
-	private readonly object SyncGate = new();
+	private readonly object _syncGate = new();
 	private Task? _initTask;
 	private Task<ModuleStopResult>? _stopTask;
 
@@ -32,7 +32,7 @@ public sealed class LoadedModule {
 
 	public Task? InitTask {
 		get {
-			lock (SyncGate) {
+			lock (_syncGate) {
 				return _initTask;
 			}
 		}
@@ -40,14 +40,14 @@ public sealed class LoadedModule {
 
 	public ModuleStopResult? FinalStopResult {
 		get {
-			lock (SyncGate) {
+			lock (_syncGate) {
 				return _stopTask is { IsCompletedSuccessfully: true } task ? task.Result : null;
 			}
 		}
 	}
 
 	internal Task? TryBeginInit(Func<Task> body) {
-		lock (SyncGate) {
+		lock (_syncGate) {
 			if (_initTask != null || _stopTask != null || State != ModuleState.Starting) return null;
 			_initTask = Task.Run(body);
 			return _initTask;
@@ -55,7 +55,7 @@ public sealed class LoadedModule {
 	}
 
 	internal bool TryMarkReady() {
-		lock (SyncGate) {
+		lock (_syncGate) {
 			if (State != ModuleState.Starting || _stopTask != null) return false;
 			State = ModuleState.Ready;
 			return true;
@@ -63,7 +63,7 @@ public sealed class LoadedModule {
 	}
 
 	internal void MarkInitFailed(string reason) {
-		lock (SyncGate) {
+		lock (_syncGate) {
 			if (State != ModuleState.Starting) return;
 			State = ModuleState.Disabled;
 			DisabledReason = reason;
@@ -71,7 +71,7 @@ public sealed class LoadedModule {
 	}
 
 	internal Task<ModuleStopResult> GetOrStartStop(Func<CancellationToken, Task> cleanup) {
-		lock (SyncGate) {
+		lock (_syncGate) {
 			if (_stopTask != null) return _stopTask;
 			if (State is ModuleState.Starting or ModuleState.Ready) {
 				State = ModuleState.Stopping;
@@ -83,32 +83,32 @@ public sealed class LoadedModule {
 				try {
 					lifecycle.Cancel();
 				} catch (Exception e) {
-					Logger.Error(typeof(LoadedModule), e, Localizer.Format("ModuleLifecycleCancelFailed", name));
+					Logger.Error(typeof(LoadedModule), e, Loc.Format("ModuleLifecycleCancelFailed", name));
 				}
 				var init = InitTask;
 				if (init != null) {
 					try {
 						await init;
 					} catch (Exception e) {
-						Logger.Info(typeof(LoadedModule), Localizer.Format("ModuleInitEndedFaulted", name, e.Message));
+						Logger.Info(typeof(LoadedModule), Loc.Format("ModuleInitEndedFaulted", name, e.Message));
 					}
 				}
 				using var budget = new CancellationTokenSource(ModuleHost.CleanupBudget);
 				try {
 					await cleanup(budget.Token);
-					lock (SyncGate) {
+					lock (_syncGate) {
 						if (State == ModuleState.Stopping) State = ModuleState.Stopped;
 					}
 					return new ModuleStopResult(this, ModuleStopOutcome.Clean, null);
 				} catch (OperationCanceledException) when (budget.IsCancellationRequested) {
-					lock (SyncGate) {
+					lock (_syncGate) {
 						State = ModuleState.Disabled;
-						DisabledReason = Localizer.Get("CleanupBudgetExceeded");
+						DisabledReason = Loc.Get("CleanupBudgetExceeded");
 					}
-					return new ModuleStopResult(this, ModuleStopOutcome.Failed, Localizer.Get("CleanupBudgetExceededDetail"));
+					return new ModuleStopResult(this, ModuleStopOutcome.Failed, Loc.Get("CleanupBudgetExceededDetail"));
 				} catch (Exception e) {
-					Logger.Error(typeof(LoadedModule), e, Localizer.Format("ModuleCleanupFailed", name));
-					lock (SyncGate) {
+					Logger.Error(typeof(LoadedModule), e, Loc.Format("ModuleCleanupFailed", name));
+					lock (_syncGate) {
 						State = ModuleState.Disabled;
 						DisabledReason = e.Message;
 					}
@@ -120,6 +120,6 @@ public sealed class LoadedModule {
 	}
 
 	public override string ToString() {
-		return Localizer.Format("ModuleToString", Name, State);
+		return Loc.Format("ModuleToString", Name, State);
 	}
 }

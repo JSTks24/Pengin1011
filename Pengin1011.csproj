@@ -6,11 +6,15 @@
     <RootNamespace>Pengin1011</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <DefaultItemExcludes>$(DefaultItemExcludes);Tests\**;Modules\**;BuildTemplates\**;tools\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);Tests\**;Modules\**;BuildTemplates\**;tools\**;Generator\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="Pengin1011.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="Generator\Pengin1011Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>
@@ -70,8 +74,11 @@
     <Exec Command="dotnet publish Pengin1011.csproj -c $(Configuration)" />
     <Exec Command="dotnet build Pengin1011.csproj -t:BuildAllModules -c $(Configuration)" />
     <ItemGroup>
-      <_ModuleDll Include="bin/$(Configuration)/$(TargetFramework)/module/*.dll" />
+      <_ProductionModule Include="Modules/*/*.csproj" />
+      <_ModuleDll Include="@(_ProductionModule->'bin/$(Configuration)/$(TargetFramework)/module/%(Filename).dll')" />
+      <_StaleModuleDll Include="bin/$(Configuration)/$(TargetFramework)/publish/module/*.dll" Exclude="@(_ProductionModule->'bin/$(Configuration)/$(TargetFramework)/publish/module/%(Filename).dll')" />
     </ItemGroup>
+    <Delete Files="@(_StaleModuleDll)" />
     <Copy SourceFiles="@(_ModuleDll)" DestinationFolder="bin/$(Configuration)/$(TargetFramework)/publish/module/" />
   </Target>
 

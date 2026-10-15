@@ -1,5 +1,4 @@
 using Google.GenAI;
-using Pengin1011.Core;
 using Pengin1011.Services.AI;
 
 namespace Pengin1011.Tests;
@@ -19,7 +18,7 @@ public sealed class GeminiBackendTests {
 		Environment.SetEnvironmentVariable(VertexEnv, "true");
 		Environment.SetEnvironmentVariable(EnterpriseEnv, "true");
 		try {
-			var backend = new GeminiBackend(new GeminiConfig { ApiKey = "fake-key", Model = "gemini-fake" });
+			var backend = new GeminiBackend(new AIPreset { Name = "k", Provider = AIPresetProvider.Gemini, ApiKey = "fake-key", Model = "gemini-fake" });
 			Assert.NotNull(backend);
 		} finally {
 			ClearGenAIEnv();
@@ -31,7 +30,7 @@ public sealed class GeminiBackendTests {
 		ClearGenAIEnv();
 		try {
 			try {
-				var backend = new GeminiBackend(new GeminiConfig { Project = "fake-project", Location = "us-central1", Model = "gemini-fake" });
+				var backend = new GeminiBackend(new AIPreset { Name = "v", Provider = AIPresetProvider.Vertex, Project = "fake-project", Location = "us-central1", Model = "gemini-fake" });
 				Assert.NotNull(backend);
 			} catch (Exception e) {
 				Assert.False(e.Message.Contains("vertex", StringComparison.OrdinalIgnoreCase) || e.Message.Contains("enterprise", StringComparison.OrdinalIgnoreCase), $"仍处于模式校验失败：{e.Message}");

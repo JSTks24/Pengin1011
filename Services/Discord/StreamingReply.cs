@@ -1,4 +1,5 @@
 using System.Text;
+using Pengin1011.Core;
 using Discord;
 using Discord.Net;
 using Pengin1011.Core.Localization;
@@ -148,7 +149,7 @@ public sealed class StreamingReply {
 			} catch (OperationCanceledException) {
 				throw;
 			} catch (Exception e) {
-				Logger.Error(typeof(StreamingReply), e, Localizer.Format("StreamTailDeleteFailed", post.Id));
+				Logger.Error(typeof(StreamingReply), e, Loc.Format("StreamTailDeleteFailed", post.Id));
 				removed = false;
 			}
 			if (!removed) {
@@ -178,7 +179,7 @@ internal sealed class MessageReplySink : IReplySink {
 		var result = await Messages.SendAsync(_channel, content, ct: ct);
 		if (!result.Success) {
 			if (result.Status == MessageSendStatus.Partial) {
-				Logger.Error(typeof(StreamingReply), Localizer.Format("StreamPartialDelivery", result.Sent.Count, result.PlannedChunks));
+				Logger.Error(typeof(StreamingReply), Loc.Format("StreamPartialDelivery", result.Sent.Count, result.PlannedChunks));
 			}
 			return null;
 		}

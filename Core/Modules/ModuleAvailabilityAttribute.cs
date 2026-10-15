@@ -17,7 +17,7 @@ public sealed class ModuleAvailabilityAttribute : PreconditionAttribute {
 	public override Task<PreconditionResult> CheckRequirementsAsync(IInteractionContext context, ICommandInfo commandInfo, IServiceProvider services) {
 		var run = ModuleRegistry.RunOf(_runtimeType.Assembly);
 		if (run == null || run.State != ModuleState.Ready) {
-			return Task.FromResult(PreconditionResult.FromError(Localizer.Get("ModuleUnavailable")));
+			return Task.FromResult(PreconditionResult.FromError(Loc.Get("ModuleUnavailable")));
 		}
 		return Task.FromResult(PreconditionResult.FromSuccess());
 	}

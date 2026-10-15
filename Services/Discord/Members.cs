@@ -1,4 +1,5 @@
 using Discord;
+using Pengin1011.Core;
 using Discord.WebSocket;
 using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
@@ -25,7 +26,7 @@ public static class Members {
 		try {
 			return await ((IGuild)guild).GetUserAsync(userId);
 		} catch (Exception e) {
-			Logger.Error(typeof(Members), e, Localizer.Format("MemberResolveRestFailed", guildId, userId));
+			Logger.Error(typeof(Members), e, Loc.Format("MemberResolveRestFailed", guildId, userId));
 			return null;
 		}
 	}
@@ -65,7 +66,7 @@ public static class Members {
 			if (remove) await member.RemoveRolesAsync(roles); else await member.AddRolesAsync(roles);
 			return RoleOpResult.Ok;
 		} catch (Exception e) {
-			Logger.Error(typeof(Members), e, Localizer.Format(remove ? "RoleRemoveFailed" : "RoleAddFailed", guildId, userId, string.Join(",", roleIds)));
+			Logger.Error(typeof(Members), e, Loc.Format(remove ? "RoleRemoveFailed" : "RoleAddFailed", guildId, userId, string.Join(",", roleIds)));
 			return RoleOpResult.Failed;
 		}
 	}
@@ -77,7 +78,7 @@ public static class Members {
 			await guild.DownloadUsersAsync();
 			return true;
 		} catch (Exception e) {
-			Logger.Error(typeof(Members), e, Localizer.Format("MemberDownloadFailed", guildId));
+			Logger.Error(typeof(Members), e, Loc.Format("MemberDownloadFailed", guildId));
 			return false;
 		}
 	}

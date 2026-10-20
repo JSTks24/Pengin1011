@@ -24,9 +24,12 @@ public static class History {
 			var take = Math.Min(remaining, BatchSize);
 			List<IMessage> batch;
 			try {
+				var options = ct.CanBeCanceled ? new RequestOptions { CancelToken = ct } : null;
 				batch = cursor != null
-					? (await channel.GetMessagesAsync(cursor.Value, direction, take).FlattenAsync()).ToList()
-					: (await channel.GetMessagesAsync(take).FlattenAsync()).ToList();
+					? (await channel.GetMessagesAsync(cursor.Value, direction, take, options: options).FlattenAsync()).ToList()
+					: (await channel.GetMessagesAsync(take, options: options).FlattenAsync()).ToList();
+			} catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+				break;
 			} catch (Exception e) {
 				Logger.Error(typeof(History), e, Loc.Format("HistoryBatchReadFailed", channel.Id, cursor));
 				break;

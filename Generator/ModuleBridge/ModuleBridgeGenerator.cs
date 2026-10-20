@@ -166,6 +166,10 @@ public sealed class ModuleBridgeGenerator : IIncrementalGenerator {
 		}
 		var parameters = ImmutableArray.CreateBuilder<ParameterInfo>(method.Parameters.Length);
 		foreach (var parameter in method.Parameters) {
+			if (ReturnShape.CapturesParameters(returnText) && parameter.Type.IsRefLikeType) {
+				spc.ReportDiagnostic(Diagnostic.Create(BridgeDiagnostics.RuleUnsupportedType, location, parameter.Type.ToDisplayString()));
+				return null;
+			}
 			var text = BridgeTypeText.TrySerialize(parameter.Type, scope, out var failure);
 			if (text == null) {
 				ReportTypeFailure(spc, location, failure, parameter.Type);
@@ -406,6 +410,11 @@ public sealed class ModuleBridgeGenerator : IIncrementalGenerator {
 					spc.ReportDiagnostic(Diagnostic.Create(BridgeDiagnostics.RuleManifestParse, null, line));
 					return null;
 				}
+				if (ReturnShape.CapturesParameters(parts[2])
+					&& model.GetSpeculativeTypeInfo(model.SyntaxTree.Length, SyntaxFactory.ParseTypeName(typeCSharp), SpeculativeBindingOption.BindAsTypeOrNamespace).Type is { IsRefLikeType: true }) {
+					spc.ReportDiagnostic(Diagnostic.Create(BridgeDiagnostics.RuleManifestParse, null, line));
+					return null;
+				}
 				parameters.Add(new ParameterInfo(parameterName, typeText, typeCSharp, isParams));
 			}
 		}
@@ -499,6 +508,11 @@ public sealed class ModuleBridgeGenerator : IIncrementalGenerator {
 	}
 
 	private static class ReturnShape {
+		internal static bool CapturesParameters(string returnText) {
+			return Of(returnText) is ReturnKind.Task or ReturnKind.TaskOfT or ReturnKind.ValueTask or ReturnKind.ValueTaskOfT
+				or ReturnKind.AsyncEnumerable or ReturnKind.SyncEnumerable;
+		}
+
 		internal static ReturnKind Of(string returnText) {
 			if (returnText == BridgeTypeText.VoidText) return ReturnKind.Void;
 			return Of(TypeOf(returnText));

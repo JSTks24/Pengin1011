@@ -334,6 +334,22 @@ public sealed class StreamingReplyTests {
 		Assert.Equal(3, _sink.Posts.Count);
 	}
 
+	[Theory]
+	[InlineData(0)]
+	[InlineData(-1)]
+	[InlineData(2000)]
+	[InlineData(int.MaxValue)]
+	public async Task CustomOptions_InvalidOrOversizedLimit_UsesMessageLimit(int limit) {
+		var session = MakeSession(new StreamingReplyOptions { Limit = limit });
+		var content = new string('x', 3801);
+
+		var result = await session.FinalizeAsync(content);
+
+		Assert.Equal(StreamSyncStatus.Updated, result);
+		Assert.Equal([1900, 1900, 1], _sink.Posts.Select(post => post.Content.Length));
+		Assert.Equal(content, string.Concat(_sink.Posts.Select(post => post.Content)));
+	}
+
 	private sealed class FakeReplySink : IReplySink {
 		public List<FakeReplyPost> Posts { get; } = [];
 		public List<ulong> Deletions { get; } = [];

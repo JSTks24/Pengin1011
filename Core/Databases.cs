@@ -108,9 +108,10 @@ public static class Databases {
 	}
 
 	public static async Task<BackupResult> BackupNowAsync(CancellationToken ct = default) {
-		_service.AcquireOwnership();
 		await _service.MaintenanceGate.WaitAsync(ct);
 		try {
+			if (HostMaintenance.DataAccessPaused) return new BackupResult(0, 0, [new BackupFailure("", Loc.Get("MaintenanceBusy"))]);
+			_service.AcquireOwnership();
 			return BackupAllCore();
 		} finally {
 			_service.MaintenanceGate.Release();
@@ -142,7 +143,21 @@ public static class Databases {
 	}
 
 	internal static bool TryImportLegacyBackup(string id, string legacyPath, out string? importedBackupId, out string? failure) {
-		_service.AcquireOwnership();
+		_service.MaintenanceGate.Wait();
+		try {
+			if (HostMaintenance.DataAccessPaused) {
+				importedBackupId = null;
+				failure = Loc.Get("MaintenanceBusy");
+				return false;
+			}
+			_service.AcquireOwnership();
+			return TryImportLegacyBackupCore(id, legacyPath, out importedBackupId, out failure);
+		} finally {
+			_service.MaintenanceGate.Release();
+		}
+	}
+
+	private static bool TryImportLegacyBackupCore(string id, string legacyPath, out string? importedBackupId, out string? failure) {
 		importedBackupId = null;
 		failure = null;
 		if (!File.Exists(legacyPath)) {
@@ -160,6 +175,10 @@ public static class Databases {
 				failure = Loc.Get("RestoreVerificationIntegrity");
 				return false;
 			}
+			if (!DatabaseBackupStore.HasTrackedSchema(legacyPath, DatabaseBackupStore.ReadHistory(legacyPath))) {
+				failure = Loc.Format("DatabaseUntrackedTables", id);
+				return false;
+			}
 		} catch (Microsoft.Data.Sqlite.SqliteException e) {
 			failure = Loc.Format("LegacyBackupNotSqlite", legacyPath) + ": " + e.Message;
 			return false;
@@ -168,9 +187,10 @@ public static class Databases {
 	}
 
 	internal static async Task<RestoreResult> RestoreAsync(string id, string backupId, CancellationToken ct = default) {
-		_service.AcquireOwnership();
 		await _service.MaintenanceGate.WaitAsync(ct);
 		try {
+			if (HostMaintenance.DataAccessPaused) return new RestoreResult(RestoreOutcome.Rejected, null, Loc.Get("MaintenanceBusy"));
+			_service.AcquireOwnership();
 			var result = await DatabaseRestoreEngine.RestoreAsync(_service.DataDirectory, id, backupId, ct);
 			if (result.Outcome == RestoreOutcome.Completed) _service.ResetPrepareState();
 			return result;
@@ -180,9 +200,10 @@ public static class Databases {
 	}
 
 	internal static MaintenanceResult RollbackRestore(string id, string operationId) {
-		_service.AcquireOwnership();
 		_service.MaintenanceGate.Wait();
 		try {
+			if (HostMaintenance.DataAccessPaused) return new MaintenanceResult(false, Loc.Get("MaintenanceBusy"));
+			_service.AcquireOwnership();
 			var result = DatabaseRestoreEngine.Rollback(_service.DataDirectory, id, operationId);
 			if (result.Success) _service.ResetPrepareState();
 			return result;
@@ -192,9 +213,10 @@ public static class Databases {
 	}
 
 	internal static MaintenanceResult CompleteRestore(string id, string operationId) {
-		_service.AcquireOwnership();
 		_service.MaintenanceGate.Wait();
 		try {
+			if (HostMaintenance.DataAccessPaused) return new MaintenanceResult(false, Loc.Get("MaintenanceBusy"));
+			_service.AcquireOwnership();
 			var result = DatabaseRestoreEngine.Complete(_service.DataDirectory, id, operationId);
 			if (result.Success) _service.ResetPrepareState();
 			return result;

@@ -101,13 +101,11 @@ public sealed class HostMaintenanceTests {
 	[Theory]
 	[InlineData(false)]
 	[InlineData(true)]
-	public async Task ActualProgramRecovery_RestartsAndKeepsTheTargetUnderItsNewProcess(bool interrupted) {
+	public async Task ActualProgramRecovery_RejectsMaintenanceOnlyReplacementAndKeepsOriginalTerminal(bool interrupted) {
 		var root = TempDirectory();
 		var directory = Path.Combine(root, "data");
 		var runtime = CloneHost(root, "host");
 		Process? original = null;
-		Process? replacement = null;
-		Task<string>? output = null;
 		Task<string>? error = null;
 		try {
 			var backupId = await SeedAsync(directory);
@@ -127,41 +125,37 @@ public sealed class HostMaintenanceTests {
 			await original.StandardInput.WriteLineAsync(interrupted
 				? $"db recover Fake {value} --complete --confirm"
 				: $"db restore Fake {value} --confirm");
-			using var budget = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-			while (replacement == null) {
-				var line = await original.StandardOutput.ReadLineAsync(budget.Token);
-				Assert.NotNull(line);
-				var match = Regex.Match(line, @"\(PID (\d+)\)");
-				if (!match.Success) continue;
-				var processId = int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
-				if (processId != original.Id) {
-					replacement = Process.GetProcessById(processId);
-				}
-			}
-			await original.WaitForExitAsync(budget.Token);
-			Assert.Equal(0, original.ExitCode);
-			Assert.NotEqual(original.Id, replacement.Id);
 			await WaitForMaintenanceConsoleAsync(original);
-			output = original.StandardOutput.ReadToEndAsync();
-			Assert.False(replacement.HasExited);
+
+			Assert.False(original.HasExited);
 			Assert.False(DataDirectoryOwnership.TryAcquire(directory, out _, out _));
 			Assert.Equal("backup-target", ReadName(directory));
 			Assert.Empty(MaintenanceJournal.ListUnfinishedRestores(directory, "Fake"));
+			using (var replacement = FindReplacement(runtime, original.Id)) {
+				Assert.True(replacement == null || replacement.HasExited);
+			}
+
+			await original.StandardInput.WriteLineAsync("db status Fake");
+			await original.StandardInput.WriteLineAsync("exit");
+			original.StandardInput.Close();
+			var output = original.StandardOutput.ReadToEndAsync();
+			await original.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(30));
+			Assert.Equal(1, original.ExitCode);
+			Assert.Contains("Fake", await output);
+			Assert.Contains(Localizer.Get(typeof(Databases).Assembly, "MaintenanceCompletedRestartFailed", CultureInfo.InvariantCulture), await error);
+			Assert.True(DataDirectoryOwnership.TryAcquire(directory, out var ownership, out var failure), failure);
+			ownership!.Dispose();
 		} finally {
-			if (replacement == null && original != null) replacement = FindReplacement(runtime, original.Id);
-			if (replacement != null) {
-				if (!replacement.HasExited) {
-					replacement.Kill(true);
+			if (original != null) {
+				using var replacement = FindReplacement(runtime, original.Id);
+				if (replacement != null && !replacement.HasExited) {
+					replacement.Kill();
 					await replacement.WaitForExitAsync();
 				}
-				replacement.Dispose();
-			}
-			if (original != null) {
 				if (!original.HasExited) {
-					original.Kill(true);
+					original.Kill();
 					await original.WaitForExitAsync();
 				}
-				if (output != null) await output;
 				if (error != null) await error;
 				original.Dispose();
 			}

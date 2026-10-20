@@ -134,17 +134,47 @@ public sealed class GatewayDispatchTests : IDisposable {
 	}
 
 	[Fact]
-	public void RemoveModuleHandlers_DropsOwnerSubscriptions() {
+	public async Task RemoveModuleHandlers_DropsOwnerSubscriptions() {
 		var run = MakeRun("gw-remove");
-		DiscordGateway.SubscribeMessage(run, (message, ct) => Task.CompletedTask);
+		var calls = 0;
+		var otherCalls = 0;
+		DiscordGateway.SubscribeMessage(run, (message, ct) => {
+			Interlocked.Increment(ref calls);
+			return Task.CompletedTask;
+		});
+		using var other = DiscordGateway.SubscribeMessage(null, (message, ct) => {
+			Interlocked.Increment(ref otherCalls);
+			return Task.CompletedTask;
+		});
+		await DiscordGateway.DispatchMessageForTest(null);
+		await DiscordGateway.DrainWorkAsync(TimeSpan.FromSeconds(5));
+		Assert.Equal(1, calls);
 		DiscordGateway.RemoveModuleHandlers(run);
+
+		await DiscordGateway.DispatchMessageForTest(null);
+		await DiscordGateway.DrainWorkAsync(TimeSpan.FromSeconds(5));
+
+		Assert.Equal(1, calls);
+		Assert.Equal(2, otherCalls);
 	}
 
 	[Fact]
-	public void SubscriptionHandle_DisposeRemovesHandler() {
-		var handle = DiscordGateway.SubscribeMessage(null, (message, ct) => Task.CompletedTask);
+	public async Task SubscriptionHandle_DisposeRemovesHandler() {
+		var calls = 0;
+		var handle = DiscordGateway.SubscribeMessage(null, (message, ct) => {
+			Interlocked.Increment(ref calls);
+			return Task.CompletedTask;
+		});
+		await DiscordGateway.DispatchMessageForTest(null);
+		await DiscordGateway.DrainWorkAsync(TimeSpan.FromSeconds(5));
+		Assert.Equal(1, calls);
 		handle.Dispose();
 		handle.Dispose();
+
+		await DiscordGateway.DispatchMessageForTest(null);
+		await DiscordGateway.DrainWorkAsync(TimeSpan.FromSeconds(5));
+
+		Assert.Equal(1, calls);
 	}
 
 	[Fact]

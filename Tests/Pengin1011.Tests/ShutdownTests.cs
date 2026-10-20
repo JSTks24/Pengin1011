@@ -13,7 +13,10 @@ using Pengin1011.Services.Discord;
 namespace Pengin1011.Tests;
 
 [Collection("BaseDirSerial")]
-public sealed class ShutdownTests {
+public sealed class ShutdownTests : IDisposable {
+	private readonly TimeSpan _stopTimeout = ModuleHost.StopTimeout;
+	private readonly TimeSpan _cleanupBudget = ModuleHost.CleanupBudget;
+
 	private static string TempBase() {
 		return Path.Combine(Path.GetTempPath(), $"qq1011_shutdown_{Guid.NewGuid():N}");
 	}
@@ -119,6 +122,11 @@ public sealed class ShutdownTests {
 		}
 		ResetGlobalState();
 		DiscordGateway.DetachForTest();
+	}
+
+	public void Dispose() {
+		ModuleHost.StopTimeout = _stopTimeout;
+		ModuleHost.CleanupBudget = _cleanupBudget;
 	}
 
 	private static async Task<LoadedModule> BootResourceModuleAsync() {

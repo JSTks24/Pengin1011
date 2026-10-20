@@ -42,7 +42,8 @@ public sealed class StreamingReply {
 
 	public StreamingReply(IReplySink sink, StreamingReplyOptions? options = null, TimeProvider? time = null) {
 		_sink = sink;
-		_limit = options?.Limit ?? MessageSplitter.DefaultLimit;
+		var limit = options?.Limit ?? MessageSplitter.DefaultLimit;
+		_limit = limit <= 0 ? MessageSplitter.DefaultLimit : Math.Min(limit, MessageSplitter.DefaultLimit);
 		_editIntervalMs = options?.EditIntervalMs ?? 3000;
 		_time = time ?? TimeProvider.System;
 	}

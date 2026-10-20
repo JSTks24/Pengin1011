@@ -1,6 +1,7 @@
 using Discord.Interactions;
 using Pengin1011.Core;
 using Pengin1011.Core.Modules;
+using Pengin1011.Services.Discord;
 
 namespace Pengin1011.Modules.AIPresetAdmin;
 
@@ -10,12 +11,12 @@ namespace Pengin1011.Modules.AIPresetAdmin;
 public class AIPresetAdmin : InteractionModuleBase<SocketInteractionContext> {
 	[SlashCommand("list", "列出全部 AI 预设")]
 	public async Task List() {
-		await RespondAsync(AIPresetAdminLogic.List(), ephemeral: true);
+		await ReplyAsync(AIPresetAdminLogic.List);
 	}
 
 	[SlashCommand("show", "查看某个预设的全部字段")]
 	public async Task Show([Summary("name", "预设名")] string name) {
-		await RespondAsync(AIPresetAdminLogic.Show(name), ephemeral: true);
+		await ReplyAsync(() => AIPresetAdminLogic.Show(name));
 	}
 
 	[SlashCommand("add", "新增一个 AI 预设")]
@@ -28,7 +29,7 @@ public class AIPresetAdmin : InteractionModuleBase<SocketInteractionContext> {
 		[Summary("location", "GCP Location（vertex 必填）")] string? location = null,
 		[Summary("model", "模型名")] string? model = null) {
 		var fields = new AIPresetAddFields(apiKey, baseUrl, project, location, model);
-		await RespondAsync(AIPresetAdminLogic.Add(name, provider.ToString(), fields), ephemeral: true);
+		await ReplyAsync(() => AIPresetAdminLogic.Add(name, provider.ToString(), fields));
 	}
 
 	[SlashCommand("set", "修改某个预设的单个字段")]
@@ -36,12 +37,19 @@ public class AIPresetAdmin : InteractionModuleBase<SocketInteractionContext> {
 		[Summary("name", "预设名")] string name,
 		[Summary("field", "要修改的字段")] AIPresetFieldChoice field,
 		[Summary("value", "新值（改名时填新名）")] string value) {
-		await RespondAsync(AIPresetAdminLogic.Set(name, field.ToString(), value), ephemeral: true);
+		await ReplyAsync(() => AIPresetAdminLogic.Set(name, field.ToString(), value));
 	}
 
 	[SlashCommand("remove", "删除一个 AI 预设")]
 	public async Task Remove([Summary("name", "预设名")] string name) {
-		await RespondAsync(AIPresetAdminLogic.Remove(name), ephemeral: true);
+		await ReplyAsync(() => AIPresetAdminLogic.Remove(name));
+	}
+
+	private async Task ReplyAsync(Func<string> execute) {
+		await DeferAsync(ephemeral: true);
+		foreach (var chunk in MessageSplitter.Split(execute())) {
+			await FollowupAsync(chunk, ephemeral: true, allowedMentions: Discord.AllowedMentions.None);
+		}
 	}
 }
 

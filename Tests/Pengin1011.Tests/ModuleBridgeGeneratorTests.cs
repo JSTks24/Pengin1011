@@ -126,6 +126,48 @@ public static class Exports {
 	}
 
 	[Theory]
+	[InlineData("System.Threading.Tasks.Task")]
+	[InlineData("System.Threading.Tasks.Task<int>")]
+	[InlineData("System.Threading.Tasks.ValueTask")]
+	[InlineData("System.Threading.Tasks.ValueTask<int>")]
+	[InlineData("System.Collections.Generic.IEnumerable<int>")]
+	[InlineData("System.Collections.Generic.IAsyncEnumerable<int>")]
+	public void DeferredReturn_WithRefLikeParameter_ReportsPbg010(string returnType) {
+		foreach (var parameterType in new[] { "System.Span<int>", "System.ReadOnlySpan<int>" }) {
+			var outcome = Run(Host($$"""
+public static class Exports {
+	[Pengin1011.Core.ModuleBridgeExport]
+	public static {{returnType}} Value({{parameterType}} items) => default!;
+}
+"""));
+
+			GeneratorTestHost.Single(outcome, "PBG010");
+			GeneratorTestHost.AssertCompiles(outcome);
+			Assert.DoesNotContain(outcome.GeneratedSources, source => source.HintName == "ModuleBridgeProvider.g.cs");
+			Assert.Contains("__ExportCount = 0;", outcome.SourceContaining("__ModuleBridgeManifest"));
+		}
+	}
+
+	[Theory]
+	[InlineData("System.Span<int>")]
+	[InlineData("System.ReadOnlySpan<int>")]
+	public void SynchronousReturn_WithRefLikeParameter_ProviderAndProxyCompile(string parameterType) {
+		var source = Host($$"""
+public static class Exports {
+	[Pengin1011.Core.ModuleBridgeExport]
+	public static int Count({{parameterType}} items) => items.Length;
+	[Pengin1011.Core.ModuleBridgeExport]
+	public static void Accept({{parameterType}} items) { }
+}
+""");
+		var outcome = Run(source, ("ModuleBridgeManifest.g.cs", ManifestFor(source, "SpanModule")));
+
+		GeneratorTestHost.AssertNoGeneratorDiagnostics(outcome);
+		GeneratorTestHost.AssertCompiles(outcome);
+		Assert.Contains(outcome.GeneratedSources, generated => generated.HintName == "ModuleBridge.SpanModule.g.cs");
+	}
+
+	[Theory]
 	[InlineData("System.Threading.Tasks.TaskFactory", "System.Threading.Tasks.TaskFactory")]
 	[InlineData("int[]", "int[]")]
 	[InlineData("System.Collections.Generic.List<int>", "List<int>")]

@@ -161,7 +161,7 @@ public static class Components {
 					}
 				}
 			}
-			await userMessage.ModifyAsync(properties => properties.Components = builder.Build());
+			await userMessage.ModifyAsync(properties => properties.Components = builder.Build(), ct.CanBeCanceled ? new RequestOptions { CancelToken = ct } : null);
 			return true;
 		} catch (Exception e) {
 			Logger.Error(typeof(Components), e, Loc.Format("DisableComponentsFailed", message.Id));

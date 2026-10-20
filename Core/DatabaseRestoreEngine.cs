@@ -25,6 +25,9 @@ internal static class DatabaseRestoreEngine {
 				if (DatabaseBackupStore.TryVerify(directory, id, category, backupId, out backup, out _)) break;
 			}
 			if (backup == null) return new RestoreResult(RestoreOutcome.Rejected, null, Loc.Format("RestoreBackupInvalid", backupId, ""));
+			if (!DatabaseBackupStore.HasTrackedSchema(backup.SnapshotPath, backup.History)) {
+				return new RestoreResult(RestoreOutcome.Rejected, null, Loc.Format("DatabaseUntrackedTables", id));
+			}
 			var livePath = Path.Combine(directory, DatabaseIdentity.FileName(id));
 			record = new MaintenanceJournal.RestoreRecord {
 				FormatVersion = 2,
@@ -94,6 +97,9 @@ internal static class DatabaseRestoreEngine {
 			VerifyFiles(record, quarantine, id);
 			if (!DatabaseBackupStore.TryVerify(directory, id, record.SourceCategory, record.SourceBackupId, out var backup, out var failure) || backup == null) {
 				return new MaintenanceResult(false, failure, operationId);
+			}
+			if (!DatabaseBackupStore.HasTrackedSchema(backup.SnapshotPath, backup.History)) {
+				return new MaintenanceResult(false, Loc.Format("DatabaseUntrackedTables", id), operationId);
 			}
 			var staging = Path.Combine(operation, MaintenanceJournal.StagingFileName);
 			CopyDurably(backup.SnapshotPath, staging);

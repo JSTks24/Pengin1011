@@ -237,11 +237,17 @@ public sealed class OfflineDatabaseCommandTests {
 		using var runtime = new IsolatedHost();
 		var legacyPath = Path.Combine(runtime.RootDirectory, "legacy source with spaces.db");
 		SeedDatabase(legacyPath, "imported-target");
+		using (var source = SqliteConnectionPolicy.OpenExisting(legacyPath)) {
+			using var history = source.CreateCommand();
+			history.CommandText = "CREATE TABLE __EFMigrationsHistory (MigrationId TEXT NOT NULL PRIMARY KEY, ProductVersion TEXT NOT NULL); INSERT INTO __EFMigrationsHistory VALUES ('20261019000000_CreateProbeItems', '10.0.12')";
+			history.ExecuteNonQuery();
+		}
 
 		var result = await runtime.RunAsync($"db import-backup Target \"{legacyPath}\" --confirm\ndb backups Target\nexit\n");
 
 		Assert.Equal(1, result.ExitCode);
 		var imported = Assert.Single(DatabaseBackupStore.ListCompleted(runtime.DefaultDataDirectory, "Target", DatabaseBackupStore.RollingCategory));
+		Assert.Equal(["20261019000000_CreateProbeItems"], imported.History);
 		Assert.Contains(imported.BackupId, result.Output);
 		Assert.Contains(DatabaseBackupStore.RollingCategory, result.Output);
 		Assert.Contains(Prefix("DbCommandCompleted"), result.Output);

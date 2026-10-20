@@ -13,6 +13,7 @@ public sealed record LogEntry(DateTime Time, LogLevel Level, Type Source, string
 public static class Logger {
 	private static readonly object _gate = new();
 	private static readonly object _subscribeGate = new();
+	private static readonly AsyncLocal<PublishScope?> _publishing = new();
 	private static SubscriptionEntry[] _subscribers = [];
 
 	private static string? _errorLogPathOverride;
@@ -75,32 +76,55 @@ public static class Logger {
 		var time = DateTime.Now;
 		var entry = $"[{time:yyyy-MM-dd HH:mm:ss.fff}] [{source.Name}] {body}\n";
 		lock (_gate) {
-			console.WriteLine(entry);
+			var consoleFailure = TryWriteConsole(console, entry);
 			try {
 				var dir = Path.GetDirectoryName(Path.GetFullPath(logPath));
 				if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-				File.AppendAllText(logPath, entry + Environment.NewLine);
+				var output = consoleFailure == null ? entry : entry + Loc.Format("LogConsoleWriteFailed", consoleFailure.Message) + Environment.NewLine;
+				File.AppendAllText(logPath, output + Environment.NewLine);
 			} catch (Exception e) {
-				Console.Error.WriteLine(Loc.Format("LogFileWriteFailed", e.Message));
+				_ = TryWriteConsole(Console.Error, Loc.Format("LogFileWriteFailed", e.Message));
 			}
 		}
 		Publish(new LogEntry(time, level, source, message, exception));
 	}
 
 	private static void Publish(LogEntry entry) {
+		if (_publishing.Value?.Active == true) return;
 		var batch = _subscribers;
 		if (batch.Length == 0) return;
-		foreach (var subscription in batch) {
-			try {
-				subscription.Handler(entry);
-			} catch (Exception e) {
-				Console.Error.WriteLine(Loc.Format("LogSubscriberFailed", entry.Source.Name, e));
+		var previous = _publishing.Value;
+		var scope = new PublishScope();
+		_publishing.Value = scope;
+		try {
+			foreach (var subscription in batch) {
+				try {
+					subscription.Handler(entry);
+				} catch (Exception e) {
+					_ = TryWriteConsole(Console.Error, Loc.Format("LogSubscriberFailed", entry.Source.Name, e));
+				}
 			}
+		} finally {
+			scope.Active = false;
+			_publishing.Value = previous;
+		}
+	}
+
+	private static Exception? TryWriteConsole(TextWriter console, string text) {
+		try {
+			console.WriteLine(text);
+			return null;
+		} catch (Exception e) {
+			return e;
 		}
 	}
 
 	internal sealed class SubscriptionEntry(Action<LogEntry> handler) {
 		public Action<LogEntry> Handler { get; } = handler;
+	}
+
+	private sealed class PublishScope {
+		public volatile bool Active = true;
 	}
 
 	private sealed class Subscription(Action dispose) : IDisposable {

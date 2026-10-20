@@ -72,6 +72,35 @@ public sealed class ModuleBridgeManifestValidationTests {
 	}
 
 	[Theory]
+	[InlineData("global::System.Threading.Tasks.Task")]
+	[InlineData("global::System.Threading.Tasks.Task<int>")]
+	[InlineData("global::System.Threading.Tasks.ValueTask")]
+	[InlineData("global::System.Threading.Tasks.ValueTask<int>")]
+	[InlineData("global::System.Collections.Generic.IEnumerable<int>")]
+	[InlineData("global::System.Collections.Generic.IAsyncEnumerable<int>")]
+	public void ManifestSignature_DeferredReturnWithRefLikeParameterRejectsTheWholeProxy(string returnType) {
+		foreach (var parameterType in new[] { "global::System.Span<int>", "global::System.ReadOnlySpan<int>" }) {
+			var entries = ExportDeclaration(0, "Good|static|string|") + "\n"
+				+ ExportDeclaration(1, $"Value|static|{returnType}|-:items:{parameterType}");
+
+			AssertRejected(Run(Manifest(count: 2, entries: entries)), "PBG101");
+		}
+	}
+
+	[Theory]
+	[InlineData("global::System.Span<int>")]
+	[InlineData("global::System.ReadOnlySpan<int>")]
+	public void ManifestSignature_SynchronousReturnWithRefLikeParameterCompiles(string parameterType) {
+		var entries = ExportDeclaration(0, $"Count|static|int|-:items:{parameterType}") + "\n"
+			+ ExportDeclaration(1, $"Accept|static|void|-:items:{parameterType}");
+		var outcome = Run(Manifest(count: 2, entries: entries));
+
+		GeneratorTestHost.AssertNoGeneratorDiagnostics(outcome);
+		GeneratorTestHost.AssertCompiles(outcome);
+		Assert.Contains(outcome.GeneratedSources, generated => generated.HintName == "ModuleBridge.Dep.g.cs");
+	}
+
+	[Theory]
 	[InlineData("global::System.Threading.Tasks.Task<global::System.Collections.Generic.IEnumerable<int>>")]
 	[InlineData("global::System.Threading.Tasks.ValueTask<global::System.Collections.Generic.IAsyncEnumerable<int>>")]
 	[InlineData("global::System.Threading.Tasks.Task<global::System.Threading.Tasks.Task<int>>")]

@@ -54,6 +54,19 @@ public sealed class ComponentsTests : IDisposable {
 	}
 
 	[Fact]
+	public async Task DisableMessageComponentsAsync_CanceledRequest_PreservesFailureContract() {
+		using var source = new CancellationTokenSource();
+		source.Cancel();
+		var message = new FakeUserMessage { Components = new ComponentBuilder().WithButton("button", "id").Build().Components };
+
+		var result = await Components.DisableMessageComponentsAsync(message, source.Token);
+
+		Assert.False(result);
+		Assert.Equal(source.Token, message.LastModifyOptions!.CancelToken);
+		Assert.Equal(0, message.Edits);
+	}
+
+	[Fact]
 	public async Task RouteByIdAsync_HandlerThrows_PropagatesToBoundary() {
 		Components.Register("btn", (interaction, ct) => throw new InvalidOperationException("业务异常"));
 

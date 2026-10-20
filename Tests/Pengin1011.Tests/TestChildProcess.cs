@@ -4,6 +4,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Pengin1011.Core;
 using Pengin1011.Core.Logging;
+using Pengin1011.Core.Modules;
 using Pengin1011.Services.Discord;
 
 namespace Pengin1011.Tests;
@@ -62,6 +63,10 @@ internal static class TestChildProcess {
 	public static async Task<int> Main(string[] args) {
 		if (args.Length == 0) return 2;
 		return args[0] switch {
+			"maintenance-admission-probe" when args.Length == 2 => await HostMaintenanceAdmissionTests.RunProbeAsync(args[1]),
+			"restart-probe" when args.Length == 3 => await RestartHandoffTests.RunProbeAsync(args[1], args[2]),
+			"signal-probe" when args.Length == 2 => await ShutdownSignalsTests.RunProbeAsync(args[1]),
+			"module-name-reject" when args.Length == 3 => RejectModuleName(args[1], args[2]),
 			"startup-persist-write" or "startup-persist-verify" when args.Length == 2 => await StartupPersistProbeAsync(args[1], args[0] == "startup-persist-verify"),
 			"db-seed" when args.Length == 2 => await SeedDatabaseAsync(args[1]),
 			"db-interrupt" when args.Length == 5 => await InterruptDatabaseAsync(args[1], args[2], args[3], args[4]),
@@ -71,6 +76,34 @@ internal static class TestChildProcess {
 			"module-contract-reject" when args.Length == 2 => RejectLegacyContract(args[1]),
 			_ => 2
 		};
+	}
+
+	private static int RejectModuleName(string path, string assemblyName) {
+		var name = Path.GetFileNameWithoutExtension(path);
+		try {
+			ModuleHost.LoadOne(name, path);
+			Logger.Error(typeof(TestChildProcess), "Renamed module unexpectedly passed the assembly name check");
+			return 3;
+		} catch (InvalidOperationException e) {
+			var expected = Loc.Format("ModuleAssemblyNameMismatch", name, assemblyName);
+			if (e.Message != expected) {
+				Logger.Error(typeof(TestChildProcess), e, "Renamed module was rejected for an unexpected reason");
+				return 4;
+			}
+			Logger.Info(typeof(TestChildProcess), e.Message);
+		}
+		foreach (var module in new[] { name, assemblyName }) {
+			try {
+				var call = ModuleBridgeDispatcher.Admit<Func<string>>(module, "RenamedValue");
+				call.Lease.Dispose();
+				Logger.Error(typeof(TestChildProcess), "Rejected renamed module left a bridge export registered");
+				return 5;
+			} catch (KeyNotFoundException e) {
+				Logger.Info(typeof(TestChildProcess), $"Rejected renamed module left no bridge export: {e.Message}");
+			}
+		}
+		var assembly = AppDomain.CurrentDomain.GetAssemblies().Single(item => item.GetName().Name == assemblyName);
+		return ModuleHost.Find(name) == null && ModuleRegistry.RunOf(assembly) == null ? 0 : 6;
 	}
 
 	private static int RejectLegacyContract(string path) {

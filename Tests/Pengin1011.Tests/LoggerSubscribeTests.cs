@@ -98,4 +98,59 @@ public sealed class LoggerSubscribeTests {
 			Cleanup(errorPath);
 		}
 	}
+
+	[Theory]
+	[InlineData(false)]
+	[InlineData(true)]
+	public void Subscriber_NestedLogging_WritesLocallyWithoutRepublishing(bool dispatchOnTask) {
+		var infoPath = TempLog("info.log");
+		Logger.SetInfoPathForTest(infoPath);
+		try {
+			var calls = 0;
+			var received = new List<LogEntry>();
+			using var first = Logger.Subscribe(_ => {
+				if (++calls > 2) return;
+				if (dispatchOnTask) Task.Run(() => Logger.Info(typeof(FakeSource), "嵌套")).GetAwaiter().GetResult();
+				else Logger.Info(typeof(FakeSource), "嵌套");
+			});
+			using var second = Logger.Subscribe(received.Add);
+
+			Logger.Info(typeof(FakeSource), "外层");
+
+			Assert.Equal(1, calls);
+			Assert.Equal("外层", Assert.Single(received).Message);
+			var content = File.ReadAllText(infoPath);
+			Assert.Contains("外层", content);
+			Assert.Contains("嵌套", content);
+		} finally {
+			Cleanup(infoPath);
+		}
+	}
+
+	[Fact]
+	public async Task Subscriber_DeferredChildLoggingAfterPublish_ReceivesItsOwnDelivery() {
+		var infoPath = TempLog("info.log");
+		Logger.SetInfoPathForTest(infoPath);
+		try {
+			var continueLogging = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+			Task? child = null;
+			var received = new List<LogEntry>();
+			using var subscription = Logger.Subscribe(entry => {
+				received.Add(entry);
+				if (entry.Message != "外层") return;
+				child = Task.Run(async () => {
+					await continueLogging.Task;
+					Logger.Info(typeof(FakeSource), "后续");
+				});
+			});
+			Logger.Info(typeof(FakeSource), "外层");
+
+			continueLogging.SetResult();
+			await child!.WaitAsync(TimeSpan.FromSeconds(5));
+
+			Assert.Equal(["外层", "后续"], received.Select(entry => entry.Message));
+		} finally {
+			Cleanup(infoPath);
+		}
+	}
 }

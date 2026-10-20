@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Pengin1011.Helper;
 using Pengin1011.Services.AI;
 
 namespace Pengin1011.Tests;
@@ -408,6 +410,61 @@ public sealed class AIPresetStoreTests : IDisposable {
 			{ "MaxParallel": 5, "Presets": [{ "Name": "prod", "Provider": "openai", "ApiKey": "k", "BaseUrl": "https://api.example.com/v1", "Model": "m1" }] }
 			""");
 		return _path;
+	}
+
+	[Fact]
+	public void Apply_LegacyConnection_LoadsTopLevelKeyAndSavesOneCopy() {
+		File.WriteAllText(_path, """
+			{ "MaxParallel": 5, "Presets": [{ "Name": "prod", "Provider": "openai", "ApiKey": "current-key", "BaseUrl": "https://api.example.com/v1", "Model": "m1", "Connection": { "ApiKey": "stale-key" } }] }
+			""");
+		Assert.True(AIPresetStore.TryLoad(_path, out var errors), string.Join("; ", errors));
+		Assert.Equal("current-key", AIPresetStore.Find("prod")?.Connection.ApiKey);
+
+		Assert.True(AIPresetStore.Apply("prod", new AIPresetPatch { Model = Patch<string>.SetTo("m2") }, null, out var result), result.Error);
+
+		using var saved = JsonDocument.Parse(File.ReadAllText(_path));
+		var preset = saved.RootElement.GetProperty("Presets")[0];
+		Assert.Equal("current-key", preset.GetProperty("ApiKey").GetString());
+		Assert.False(preset.TryGetProperty("Connection", out _));
+		Assert.DoesNotContain("stale-key", File.ReadAllText(_path));
+		Assert.True(AIPresetStore.TryLoad(_path, out errors), string.Join("; ", errors));
+		Assert.Equal("m2", AIPresetStore.Find("prod")?.Model);
+	}
+
+	[Theory]
+	[InlineData(AIPresetProvider.Gemini)]
+	[InlineData(AIPresetProvider.Vertex)]
+	public void TryLoad_GoogleUnofficialEndpoint_KeepsPublishedPreset(AIPresetProvider provider) {
+		Assert.True(AIPresetStore.TryLoad(WriteDocument(), out _));
+		var source = JsonSerializer.Serialize(new AIPresetDocument { Presets = [GooglePreset(provider, "https://untrusted.example.com")] }, JsonHelper.Options);
+		File.WriteAllText(_path, source);
+
+		Assert.False(AIPresetStore.TryLoad(_path, out var errors));
+
+		Assert.Contains(errors, static error => error.Contains(L.Prefix("AIPresetBaseUrlInvalid")));
+		Assert.Equal("prod", AIPresetStore.DefaultPreset?.Name);
+		Assert.Equal(source, File.ReadAllText(_path));
+	}
+
+	[Theory]
+	[InlineData(AIPresetProvider.Gemini)]
+	[InlineData(AIPresetProvider.Vertex)]
+	public void Apply_GoogleUnofficialEndpoint_LeavesFileAndSnapshotUnchanged(AIPresetProvider provider) {
+		File.WriteAllText(_path, JsonSerializer.Serialize(new AIPresetDocument { Presets = [GooglePreset(provider, "")] }, JsonHelper.Options));
+		Assert.True(AIPresetStore.TryLoad(_path, out _));
+		var original = File.ReadAllText(_path);
+		var version = AIPresetStore.Snapshot.Version;
+
+		Assert.False(AIPresetStore.Apply("google", new AIPresetPatch { BaseUrl = Patch<string>.SetTo("https://untrusted.example.com") }, null, out var result));
+
+		Assert.Contains(L.Prefix("AIPresetBaseUrlInvalid"), result.Error);
+		Assert.Equal(version, AIPresetStore.Snapshot.Version);
+		Assert.Equal("", AIPresetStore.Find("google")?.BaseUrl);
+		Assert.Equal(original, File.ReadAllText(_path));
+	}
+
+	private static AIPreset GooglePreset(AIPresetProvider provider, string baseUrl) {
+		return new AIPreset { Name = "google", Provider = provider, ApiKey = "fake-key", BaseUrl = baseUrl, Project = "project", Location = "us-central1", Model = "model" };
 	}
 
 	private AIPresetDocument JsonHelperRoundTrip() {

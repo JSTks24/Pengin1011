@@ -19,6 +19,10 @@ public static class Exports {
 	[Pengin1011.Core.ModuleBridgeExport]
 	public static void Fire() { }
 	[Pengin1011.Core.ModuleBridgeExport]
+	public static int SpanLength(System.ReadOnlySpan<int> values) => values.Length;
+	[Pengin1011.Core.ModuleBridgeExport]
+	public static void FillSpan(System.Span<int> values) => values[0] = 11;
+	[Pengin1011.Core.ModuleBridgeExport]
 	public static int Fail() => throw new System.InvalidOperationException("failed");
 	[Pengin1011.Core.ModuleBridgeExport]
 	public static System.Threading.Tasks.Task<int> Slow() => Completion.Task;
@@ -51,6 +55,12 @@ public static class Exports {
 public static class Consumer {
 	public static int Value() => Pengin1011.Core.ModuleBridge.GeneratedDonor.Value();
 	public static void Fire() => Pengin1011.Core.ModuleBridge.GeneratedDonor.Fire();
+	public static int SpanLength() => Pengin1011.Core.ModuleBridge.GeneratedDonor.SpanLength(new int[] { 1, 2, 3 });
+	public static int FillSpan() {
+		var values = new int[1];
+		Pengin1011.Core.ModuleBridge.GeneratedDonor.FillSpan(values);
+		return values[0];
+	}
 	public static int Fail() => Pengin1011.Core.ModuleBridge.GeneratedDonor.Fail();
 	public static System.Threading.Tasks.Task<int> Slow() => Pengin1011.Core.ModuleBridge.GeneratedDonor.Slow();
 	public static System.Threading.Tasks.Task<int> FailedTask() => Pengin1011.Core.ModuleBridge.GeneratedDonor.FailedTask();
@@ -101,6 +111,8 @@ public static class Consumer {
 		try {
 			Assert.Equal(3, Invoke<int>(consumer, "Value"));
 			consumer.GetMethod("Fire")!.Invoke(null, null);
+			Assert.Equal(3, Invoke<int>(consumer, "SpanLength"));
+			Assert.Equal(11, Invoke<int>(consumer, "FillSpan"));
 			Assert.Equal(5, await Invoke<ValueTask<int>>(consumer, "Later"));
 			Assert.IsType<InvalidOperationException>(Assert.Throws<TargetInvocationException>(() => Invoke<int>(consumer, "Fail")).InnerException);
 			await Assert.ThrowsAsync<InvalidOperationException>(() => Invoke<Task<int>>(consumer, "FailedTask"));
@@ -182,6 +194,7 @@ public static class Consumer {
 	[Fact]
 	public async Task GeneratedPendingCall_BlocksStopUntilItsTaskFinishes() {
 		var (run, consumer, completion) = Register();
+		var stopTimeout = ModuleHost.StopTimeout;
 		ModuleHost.StopTimeout = TimeSpan.FromMilliseconds(300);
 		try {
 			var pending = Invoke<Task<int>>(consumer, "Slow");
@@ -197,7 +210,7 @@ public static class Consumer {
 			Assert.Equal(0, ModuleBridgeDispatcher.ActiveCallsOf(run));
 		} finally {
 			completion.TrySetResult(0);
-			ModuleHost.StopTimeout = TimeSpan.FromSeconds(10);
+			ModuleHost.StopTimeout = stopTimeout;
 			ModuleBridgeDispatcher.ForgetAll();
 		}
 	}

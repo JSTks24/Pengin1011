@@ -10,7 +10,9 @@ using Pengin1011.Services.Discord;
 namespace Pengin1011.Tests;
 
 [Collection("BaseDirSerial")]
-public sealed class InteractionHostTests {
+public sealed class InteractionHostTests : IDisposable {
+	private readonly TimeSpan _stopTimeout = ModuleHost.StopTimeout;
+
 	private static void PrepareHost() {
 		ModuleHostTests.ResetModules();
 		HostExit.ResetForTest();
@@ -65,6 +67,10 @@ public sealed class InteractionHostTests {
 		DiscordGateway.ResetClientOverridesForTest();
 		InteractionHost.ResetForTest();
 		ModuleHostTests.ResetModules();
+	}
+
+	public void Dispose() {
+		ModuleHost.StopTimeout = _stopTimeout;
 	}
 
 	private static async Task AwaitSyncTaskAsync() {

@@ -16,6 +16,7 @@ public static class CliDispatcher {
 			case "help":
 				return new CliResult(Loc.Get("CliHelp"), false);
 			case "status":
+				if (HostMaintenance.DataAccessPaused) return new CliResult(Loc.Get("MaintenanceBusy"), false);
 				return new CliResult(StatusText(), false);
 			case "modules":
 				return new CliResult(ModulesText(), false);
@@ -80,7 +81,7 @@ public static class CliDispatcher {
 			presets.Count,
 			defaultName,
 			ModuleHost.Modules.Count,
-			Databases.GetStatus().Count,
+			Databases.DatabaseIds().Count,
 			summary);
 	}
 

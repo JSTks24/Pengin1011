@@ -133,4 +133,54 @@ public sealed class LoggerTests {
 		}
 		Assert.Contains("[FakeSource] 控制台提示", writer.ToString());
 	}
+
+	[Fact]
+	public void ConsoleWriteFailure_DoesNotPreventFileOrSubscriberDelivery() {
+		var path = TempLog("error.log");
+		Logger.SetLogPathForTest(path);
+		var original = Console.Error;
+		using var writer = new FailingWriter();
+		Console.SetError(writer);
+		try {
+			var received = new List<LogEntry>();
+			using var failed = Logger.Subscribe(_ => throw new InvalidOperationException("订阅失败"));
+			using var subscription = Logger.Subscribe(received.Add);
+
+			Logger.Error(typeof(FakeSource), "保留日志");
+
+			Assert.Contains("保留日志", File.ReadAllText(path));
+			Assert.Contains("console unavailable", File.ReadAllText(path));
+			Assert.Equal("保留日志", Assert.Single(received).Message);
+		} finally {
+			Console.SetError(original);
+			Cleanup(path);
+		}
+	}
+
+	[Fact]
+	public void ConsoleAndFileWriteFailure_DoesNotEscapeToCaller() {
+		var directory = Path.Combine(Path.GetTempPath(), $"qq1011_{Guid.NewGuid():N}");
+		Directory.CreateDirectory(directory);
+		Logger.SetLogPathForTest(directory);
+		var original = Console.Error;
+		using var writer = new FailingWriter();
+		Console.SetError(writer);
+		try {
+			var received = new List<LogEntry>();
+			using var subscription = Logger.Subscribe(received.Add);
+
+			Logger.Error(typeof(FakeSource), "写入失败");
+
+			Assert.Single(received);
+		} finally {
+			Console.SetError(original);
+			Logger.SetLogPathForTest(null);
+			Directory.Delete(directory);
+		}
+	}
+
+	private sealed class FailingWriter : TextWriter {
+		public override Encoding Encoding => Encoding.UTF8;
+		public override void WriteLine(string? value) => throw new IOException("console unavailable");
+	}
 }

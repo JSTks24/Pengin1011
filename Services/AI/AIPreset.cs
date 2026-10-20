@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Pengin1011.Core;
 
 namespace Pengin1011.Services.AI;
@@ -21,6 +22,7 @@ public sealed class AIPreset {
 	public float? TopP { get; init; }
 	public int? MaxOutputTokens { get; init; }
 
+	[JsonIgnore]
 	public AIConnectionKey Connection => new(this);
 }
 

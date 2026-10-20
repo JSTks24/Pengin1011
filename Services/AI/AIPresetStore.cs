@@ -229,10 +229,12 @@ public static class AIPresetStore {
 			case AIPresetProvider.Gemini:
 				if (preset.ApiKey.Trim().Length == 0) problems.Add(Loc.Get("AIPresetApiKeyRequired"));
 				if (preset.Model.Trim().Length == 0) problems.Add(Loc.Get("AIPresetModelRequired"));
+				if (!GoogleAIEndpoint.TryResolve(preset, out _)) problems.Add(Loc.Format("AIPresetBaseUrlInvalid", preset.BaseUrl));
 				break;
 			case AIPresetProvider.Vertex:
 				if (preset.Project.Trim().Length == 0 || preset.Location.Trim().Length == 0) problems.Add(Loc.Get("AIPresetVertexFieldsRequired"));
 				if (preset.Model.Trim().Length == 0) problems.Add(Loc.Get("AIPresetModelRequired"));
+				if (!GoogleAIEndpoint.TryResolve(preset, out _)) problems.Add(Loc.Format("AIPresetBaseUrlInvalid", preset.BaseUrl));
 				break;
 			default:
 				problems.Add(Loc.Format("AIPresetProviderInvalid", preset.Provider));

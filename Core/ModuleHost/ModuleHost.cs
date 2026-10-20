@@ -71,6 +71,11 @@ public static class ModuleHost {
 
 	internal static LoadedModule LoadOne(string name, string file) {
 		var assembly = LoadAssembly(file, name);
+		var fileName = Path.GetFileNameWithoutExtension(file);
+		var assemblyName = assembly.GetName().Name;
+		if (!string.Equals(fileName, assemblyName, StringComparison.OrdinalIgnoreCase)) {
+			throw new InvalidOperationException(Loc.Format("ModuleAssemblyNameMismatch", fileName, assemblyName));
+		}
 		if (assembly != typeof(ModuleHost).Assembly) {
 			if (!ModuleHostContract.TryRead(assembly, out var contractVersion, out var contractFailure)) {
 				throw new InvalidOperationException(Loc.Format("HostContractMissing", name, contractFailure ?? "missing"));

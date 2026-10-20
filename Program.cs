@@ -17,14 +17,19 @@ internal static class Program {
 		}
 		using var cancellation = new CancellationTokenSource();
 		var exit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-		ConsoleCancelEventHandler cancel = (_, eventArgs) => {
-			eventArgs.Cancel = true;
-			cancellation.Cancel();
+		var shutdownCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+		void RequestStop() {
+			try {
+				cancellation.Cancel();
+			} catch (Exception e) {
+				Logger.Error(typeof(Program), e, Loc.Get("CancelActiveWorkFailed"));
+			}
 			exit.TrySetResult();
-		};
-		Console.CancelKeyPress += cancel;
+		}
+		using var signals = new ShutdownSignals(RequestStop, shutdownCompleted.Task);
 		var started = false;
 		try {
+			await using var handoff = await RestartHandoff.ConnectAsync(RequestStop, cancellation.Token);
 			try {
 				var configValid = AppConfig.TryLoad(null, out _);
 				if (!AppConfig.PathConfigurationValid && dataDirectory == null) throw new InvalidDataException(Loc.Get("ConfigPathsUnavailable"));
@@ -43,18 +48,19 @@ internal static class Program {
 			} catch (Exception e) {
 				Logger.Error(typeof(Program), e, Loc.Get("StartupFailed"));
 			}
+			if (handoff != null && !await handoff.CompleteStartupAsync(started, cancellation.Token)) return 1;
 			if (!started) {
 				await HostExit.StopAsync();
 				Logger.Info(typeof(Program), Loc.Get("MaintenanceConsole"));
 			}
 			CliDispatcher.StartedAt = DateTimeOffset.Now;
-			var input = CliLoop.RunAsync(() => exit.TrySetResult(), cancellation.Token, () => false);
+			var input = CliLoop.RunAsync(RequestStop, cancellation.Token, () => false);
 			while (!exit.Task.IsCompleted) {
 				var request = HostMaintenance.Pending;
 				if (!started || !input.IsCompleted) await Task.WhenAny(exit.Task, request, input);
 				else await Task.WhenAny(exit.Task, request);
 				if (request.IsCompletedSuccessfully) {
-					if (await HostMaintenance.ExecutePendingAsync(HostExit.StopAsync, Restart)) return 0;
+					if (await HostMaintenance.ExecutePendingWithRestartAsync(HostExit.StopAsync, () => RestartHandoff.RunAsync(RestartStartInfo(), cancellation.Token))) return 0;
 					started = false;
 					Logger.Info(typeof(Program), Loc.Get("MaintenanceConsole"));
 				} else if (!started && input.IsCompleted) {
@@ -63,10 +69,16 @@ internal static class Program {
 			}
 			var report = await HostExit.StopAsync();
 			return HostExit.CodeFor(started, report);
+		} catch (Exception e) {
+			Logger.Error(typeof(Program), e, Loc.Get("StartupFailed"));
+			return 1;
 		} finally {
-			Console.CancelKeyPress -= cancel;
-			cancellation.Cancel();
-			await HostExit.StopAsync();
+			RequestStop();
+			try {
+				await HostExit.StopAsync();
+			} finally {
+				shutdownCompleted.TrySetResult();
+			}
 		}
 	}
 
@@ -116,16 +128,4 @@ internal static class Program {
 		return info;
 	}
 
-	private static bool Restart() {
-		var info = RestartStartInfo();
-		Databases.ReleaseOwnership();
-		try {
-			using var process = Process.Start(info);
-			if (process != null) return true;
-		} catch (Exception e) {
-			Logger.Error(typeof(Program), e, Loc.Get("RestartFailed"));
-		}
-		Databases.AcquireOwnership();
-		return false;
-	}
 }

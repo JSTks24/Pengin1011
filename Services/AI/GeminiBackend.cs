@@ -20,11 +20,17 @@ public sealed class GeminiBackend : IAIBackend, IDisposable {
 	}
 
 	private static Client BuildClient(AIPreset preset, ClientOptions? clientOptions) {
-		HttpOptions? http = null;
-		if (preset.BaseUrl.Length > 0) http = new HttpOptions { BaseUrl = preset.BaseUrl };
+		if (!GoogleAIEndpoint.TryResolve(preset, out var baseUrl)) throw new ArgumentException(Loc.Format("AIPresetBaseUrlInvalid", preset.BaseUrl), nameof(preset));
+		var http = new HttpOptions { BaseUrl = baseUrl };
+		clientOptions ??= new ClientOptions();
+		clientOptions.HttpClientFactory ??= CreateHttpClient;
 		return preset.Provider == AIPresetProvider.Vertex
 			? new Client(enterprise: true, project: preset.Project, location: preset.Location, httpOptions: http, clientOptions: clientOptions)
 			: new Client(enterprise: false, vertexAI: false, apiKey: preset.ApiKey, httpOptions: http, clientOptions: clientOptions);
+	}
+
+	internal static HttpClient CreateHttpClient() {
+		return new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
 	}
 
 	public void Dispose() {

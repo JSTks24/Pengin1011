@@ -10,6 +10,8 @@ public class FakeMessageChannel : IMessageChannel {
 	public List<int> FailOnCall { get; } = [];
 	public List<FakeSent> Sent { get; } = [];
 	public List<FakeUserMessage> Messages { get; } = [];
+	public List<RequestOptions?> HistoryRequests { get; } = [];
+	public Func<RequestOptions?, IAsyncEnumerable<IReadOnlyCollection<IMessage>>>? ReadHistory { get; set; }
 
 	public string Name => "fake-channel";
 	public ChannelType ChannelType => ChannelType.Text;
@@ -55,10 +57,14 @@ public class FakeMessageChannel : IMessageChannel {
 	}
 
 	public IAsyncEnumerable<IReadOnlyCollection<IMessage>> GetMessagesAsync(int limit = 100, CacheMode mode = CacheMode.AllowDownload, RequestOptions? options = null) {
+		HistoryRequests.Add(options);
+		if (ReadHistory != null) return ReadHistory(options);
 		throw new NotSupportedException();
 	}
 
 	public IAsyncEnumerable<IReadOnlyCollection<IMessage>> GetMessagesAsync(ulong fromMessageId, Direction dir, int limit = 100, CacheMode mode = CacheMode.AllowDownload, RequestOptions? options = null) {
+		HistoryRequests.Add(options);
+		if (ReadHistory != null) return ReadHistory(options);
 		throw new NotSupportedException();
 	}
 
@@ -118,9 +124,12 @@ public sealed class FakeUserMessage : IUserMessage {
 	public bool Deleted { get; private set; }
 	public AllowedMentions? LastAllowedMentions { get; private set; }
 	public Exception? DeleteException { get; set; }
+	public IReadOnlyCollection<IMessageComponent> Components { get; set; } = [];
+	public RequestOptions? LastModifyOptions { get; private set; }
 	public DateTimeOffset CreatedAt => DateTimeOffset.UnixEpoch;
 
 	public Task ModifyAsync(Action<MessageProperties> func, RequestOptions? options = null) {
+		LastModifyOptions = options;
 		if (options?.CancelToken.IsCancellationRequested == true) throw new OperationCanceledException(options.CancelToken);
 		Edits++;
 		var properties = new MessageProperties();
@@ -149,7 +158,6 @@ public sealed class FakeUserMessage : IUserMessage {
 	public MessageApplication Application => throw new NotSupportedException();
 	public MessageReference Reference => throw new NotSupportedException();
 	public IReadOnlyDictionary<IEmote, ReactionMetadata> Reactions => throw new NotSupportedException();
-	public IReadOnlyCollection<IMessageComponent> Components => throw new NotSupportedException();
 	public IReadOnlyCollection<IStickerItem> Stickers => throw new NotSupportedException();
 	public MessageFlags? Flags => null;
 	public IMessageInteraction Interaction => throw new NotSupportedException();

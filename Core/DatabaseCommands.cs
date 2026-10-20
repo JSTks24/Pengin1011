@@ -7,7 +7,21 @@ internal sealed record DatabaseCommand(string Name, string? Database, string? Va
 public static class DatabaseCommands {
 	public static async Task<string> ExecuteAsync(IReadOnlyList<string> arguments, bool allowFileImport = true) {
 		if (!TryParse(arguments, allowFileImport, out var command)) return Loc.Get("DbInternalUsage");
-		var id = command!.Database;
+		if (HostMaintenance.DataAccessPaused && command!.Name != "version") return Loc.Get("MaintenanceBusy");
+		if (command!.Name is "status" or "backups" || command.Name == "verify" && command.Value != null) {
+			await Databases.BackupGate.WaitAsync();
+			try {
+				return await ExecuteCoreAsync(command);
+			} finally {
+				Databases.BackupGate.Release();
+			}
+		}
+		return await ExecuteCoreAsync(command);
+	}
+
+	private static async Task<string> ExecuteCoreAsync(DatabaseCommand command) {
+		var id = command.Database;
+		if (HostMaintenance.DataAccessPaused && command.Name != "version") return Loc.Get("MaintenanceBusy");
 		if (HostMaintenance.Busy && command.Name is not ("version" or "status" or "backups")) return Loc.Get("MaintenanceBusy");
 		if (command.Name != "version" && !Databases.DataDirectoryConfigured) return Loc.Get("ConfigPathsUnavailable");
 		switch (command.Name) {

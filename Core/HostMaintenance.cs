@@ -14,6 +14,7 @@ internal static class HostMaintenance {
 	}
 
 	internal static bool MaintenanceOnly { get; set; }
+	internal static volatile bool DataAccessPaused;
 	internal static Task<DatabaseCommand> Pending {
 		get {
 			lock (_gate) return _request.Task;
@@ -21,8 +22,12 @@ internal static class HostMaintenance {
 	}
 
 	internal static async Task<string> RequestAsync(DatabaseCommand command) {
+		if (DataAccessPaused) return Loc.Get("MaintenanceBusy");
+		if (HostExit.ResourcesUnsettled) return Loc.Get("MaintenanceUnavailable");
 		await Databases.BackupGate.WaitAsync();
 		try {
+			if (DataAccessPaused) return Loc.Get("MaintenanceBusy");
+			if (HostExit.ResourcesUnsettled) return Loc.Get("MaintenanceUnavailable");
 			lock (_gate) {
 				if (_busy) return Loc.Get("MaintenanceBusy");
 			}
@@ -48,9 +53,14 @@ internal static class HostMaintenance {
 		}
 	}
 
-	internal static async Task<bool> ExecutePendingAsync(Func<Task<ExitCoordinator.ExitReport>> stop, Func<bool> restart) {
-		DatabaseCommand command;
-		lock (_gate) command = _request.Task.GetAwaiter().GetResult();
+	internal static Task<bool> ExecutePendingAsync(Func<Task<ExitCoordinator.ExitReport>> stop, Func<bool> restart) {
+		return ExecutePendingWithRestartAsync(stop, () => Task.FromResult(restart()));
+	}
+
+	internal static async Task<bool> ExecutePendingWithRestartAsync(Func<Task<ExitCoordinator.ExitReport>> stop, Func<Task<bool>> restart) {
+		Task<DatabaseCommand> request;
+		lock (_gate) request = _request.Task;
+		var command = await request;
 		try {
 			MaintenanceOnly = true;
 			var stopped = await stop();
@@ -81,8 +91,8 @@ internal static class HostMaintenance {
 				return false;
 			}
 			Logger.Info(typeof(HostMaintenance), Loc.Get("Restarting"));
-			if (restart()) return true;
-			Logger.Error(typeof(HostMaintenance), Loc.Get("RestartFailed"));
+			if (await restart()) return true;
+			Logger.Error(typeof(HostMaintenance), Loc.Get("MaintenanceCompletedRestartFailed"));
 			return false;
 		} catch (Exception e) {
 			Logger.Error(typeof(HostMaintenance), e, Loc.Get("MaintenanceUnavailable"));
@@ -100,6 +110,7 @@ internal static class HostMaintenance {
 			_busy = false;
 			_request = NewRequest();
 			MaintenanceOnly = false;
+			DataAccessPaused = false;
 		}
 	}
 

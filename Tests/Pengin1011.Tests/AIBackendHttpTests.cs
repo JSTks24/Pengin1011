@@ -107,6 +107,7 @@ public sealed class AIBackendHttpTests {
 		Assert.Equal(3, result.Usage.InputTokens);
 		Assert.Equal(4, result.Usage.OutputTokens);
 		var sent = Assert.Single(handler.Requests);
+		Assert.Equal("generativelanguage.googleapis.com", sent.RequestUri!.Host);
 		Assert.Contains("gemini-2.0-flash:generateContent", sent.RequestUri!.ToString());
 		Assert.Equal("g-key", Assert.Single(sent.Headers.GetValues("x-goog-api-key")));
 		var body = JsonDocument.Parse(Assert.Single(handler.Bodies)).RootElement;
@@ -118,15 +119,15 @@ public sealed class AIBackendHttpTests {
 	}
 
 	[Fact]
-	public async Task GeminiBackend_Preset_BaseUrlOverride() {
+	public async Task GeminiBackend_Preset_OfficialBaseUrl() {
 		var handler = new RecordingHandler(GeminiResponseJson);
-		var preset = new AIPreset { Name = "g", Provider = AIPresetProvider.Gemini, ApiKey = "g-key", BaseUrl = "https://gemini.example.com", Model = "m" };
+		var preset = new AIPreset { Name = "g", Provider = AIPresetProvider.Gemini, ApiKey = "g-key", BaseUrl = "https://generativelanguage.googleapis.com:443/", Model = "m" };
 		var backend = new GeminiBackend(preset, new ClientOptions { HttpClientFactory = () => new HttpClient(handler) });
 
 		await backend.CompleteAsync(MakeRequest("m"), CancellationToken.None);
 
 		var sent = Assert.Single(handler.Requests);
-		Assert.Equal("gemini.example.com", sent.RequestUri!.Host);
+		Assert.Equal("generativelanguage.googleapis.com", sent.RequestUri!.Host);
 	}
 
 	[Fact]

@@ -219,6 +219,10 @@ public static class DatabaseBackupStore {
 		}
 	}
 
+	internal static bool HasTrackedSchema(string databasePath, IReadOnlyList<string> history) {
+		return history.Count > 0 || !DatabasePrepareEngine.HasUserTables(databasePath);
+	}
+
 	public static IReadOnlyList<string> ReadHistory(string databasePath) {
 		var history = new List<string>();
 		try {

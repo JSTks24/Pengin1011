@@ -161,7 +161,9 @@ public static class Messages {
 		IUser? user = client.GetUser(userId);
 		if (user == null) {
 			try {
-				user = await client.GetUserAsync(userId);
+				user = await client.GetUserAsync(userId, options: MakeOptions(ct));
+			} catch (OperationCanceledException) {
+				throw;
 			} catch (Exception e) {
 				Logger.Error(typeof(Messages), e, Loc.Format("UserResolveRestFailed", userId));
 				user = null;

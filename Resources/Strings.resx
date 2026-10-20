@@ -994,4 +994,16 @@ Restore, recovery, live verification and unlock restart the process after succes
 	<data name="DataDirectoryResolved" xml:space="preserve">
 		<value>Data directory: {0} (PID {1})</value>
 	</data>
+	<data name="ModuleAssemblyNameMismatch" xml:space="preserve">
+		<value>Module file '{0}' does not match assembly name '{1}'.</value>
+	</data>
+	<data name="LogConsoleWriteFailed" xml:space="preserve">
+		<value>Console log write failed: {0}</value>
+	</data>
+	<data name="AttachmentSizeExceeded" xml:space="preserve">
+		<value>Attachment exceeds the size limit of {0} bytes.</value>
+	</data>
+	<data name="MaintenanceCompletedRestartFailed" xml:space="preserve">
+		<value>Database maintenance completed, but the replacement host failed to start. Check the local diagnostics before retrying.</value>
+	</data>
 </root>

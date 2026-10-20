@@ -4,6 +4,12 @@ public static class HostExit {
 	private static readonly object _gate = new();
 	private static Task<ExitCoordinator.ExitReport>? _task;
 
+	internal static bool ResourcesUnsettled {
+		get {
+			lock (_gate) return _task is { IsCompletedSuccessfully: true } && !_task.Result.ResourcesSettled;
+		}
+	}
+
 	public static bool Requested {
 		get {
 			lock (_gate) {

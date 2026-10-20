@@ -994,4 +994,16 @@ db import-backup &lt;数据库&gt; "文件" --confirm
 	<data name="DataDirectoryResolved" xml:space="preserve">
 		<value>数据目录：{0} (PID {1})</value>
 	</data>
+	<data name="ModuleAssemblyNameMismatch" xml:space="preserve">
+		<value>模块文件“{0}”与程序集名称“{1}”不一致。</value>
+	</data>
+	<data name="LogConsoleWriteFailed" xml:space="preserve">
+		<value>控制台日志写入失败：{0}</value>
+	</data>
+	<data name="AttachmentSizeExceeded" xml:space="preserve">
+		<value>附件超过大小上限：{0} 字节。</value>
+	</data>
+	<data name="MaintenanceCompletedRestartFailed" xml:space="preserve">
+		<value>数据库维护已完成，但新宿主启动失败。请检查本地诊断后再重试。</value>
+	</data>
 </root>

@@ -136,7 +136,7 @@ internal sealed class ModuleBuildFixture : IDisposable {
 		startInfo.Environment["DOTNET_CLI_HOME"] = Path.Combine(Root, ".dotnet-home");
 		startInfo.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
 		startInfo.Environment["DOTNET_NOLOGO"] = "1";
-		startInfo.Environment["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1";
+		startInfo.Environment["DOTNET_ADD_GLOBAL_TOOLS_TO_PATH"] = "false";
 		startInfo.Environment["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0";
 		startInfo.Environment["MSBUILDDISABLENODEREUSE"] = "1";
 		startInfo.Environment["UseSharedCompilation"] = "false";

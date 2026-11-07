@@ -8,24 +8,21 @@ using Pengin1011.Helper;
 
 namespace Pengin1011.Core;
 
-public sealed record SnapshotMetadata {
+internal sealed record SnapshotMetadata {
 	public required string DatabaseId { get; init; }
 	public required string Category { get; init; }
 	public required string BackupId { get; init; }
 	public required DateTimeOffset CreatedUtc { get; init; }
-	public required string OperationId { get; init; }
 	public required IReadOnlyList<string> History { get; init; }
 	public required long SizeBytes { get; init; }
 	public required string Sha256 { get; init; }
 	public string? ApplicationVersion { get; init; }
-	public string? ApplicationCommit { get; init; }
 	public string? UpgradeTarget { get; init; }
 }
 
-public static class DatabaseBackupStore {
+internal static class DatabaseBackupStore {
 	public const string RollingCategory = "rolling";
 	public const string PreMigrationCategory = "pre-migration";
-	public const string LegacyCategory = "legacy";
 	public const int RollingKeepCount = 5;
 	public const string SnapshotFileName = "snapshot.db";
 	public const string MetadataFileName = "metadata.json";
@@ -83,7 +80,6 @@ public static class DatabaseBackupStore {
 				Category = category,
 				BackupId = id,
 				CreatedUtc = DateTimeOffset.UtcNow,
-				OperationId = Guid.NewGuid().ToString("N"),
 				History = history,
 				SizeBytes = size,
 				Sha256 = hash,
@@ -173,24 +169,13 @@ public static class DatabaseBackupStore {
 		return list;
 	}
 
-	public static IReadOnlyList<string> ListLegacy(string dataDirectory, string databaseId) {
-		var root = Path.Combine(dataDirectory, "backup");
-		if (!DatabaseIdentity.IsSafeIdentifier(databaseId) || !Directory.Exists(root)) return [];
-		return [.. Directory.EnumerateFiles(root, databaseId + "-*.db", SearchOption.TopDirectoryOnly).Select(Path.GetFileName).Where(name => name != null).Select(name => name!)];
-	}
-
 	public static bool TryPruneRolling(string dataDirectory, string databaseId, out string? failure) {
-		return TryPruneRolling(dataDirectory, databaseId, null, out failure);
-	}
-
-	internal static bool TryPruneRolling(string dataDirectory, string databaseId, string? protectedBackupId, out string? failure) {
 		failure = null;
 		try {
 			var completed = ListCompleted(dataDirectory, databaseId, RollingCategory);
 			if (completed.Count <= RollingKeepCount) return true;
 			var root = CategoryRoot(dataDirectory, databaseId, RollingCategory);
 			foreach (var stale in completed.Take(completed.Count - RollingKeepCount)) {
-				if (stale.BackupId == protectedBackupId) continue;
 				try {
 					Directory.Delete(Path.Combine(root, stale.BackupId), true);
 				} catch (Exception e) {

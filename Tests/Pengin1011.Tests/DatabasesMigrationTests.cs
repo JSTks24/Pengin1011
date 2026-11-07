@@ -26,7 +26,7 @@ public sealed class DatabasesMigrationTests {
 	[Fact]
 	public async Task D01_ContextWithoutMigrations_IsRejectedByPrepare() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 
@@ -34,7 +34,7 @@ public sealed class DatabasesMigrationTests {
 			Assert.Equal(DatabaseState.Failed, Databases.StateOf<BareDbContext>());
 			Assert.Throws<InvalidOperationException>(() => Databases.Open<BareDbContext>());
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -42,7 +42,7 @@ public sealed class DatabasesMigrationTests {
 	[Fact]
 	public async Task D03_PreparedDatabase_KeepsRowsAndReachesTheToolGeneratedHistory() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			await Databases.PrepareAsync<FakeDbContext>();
@@ -61,7 +61,7 @@ public sealed class DatabasesMigrationTests {
 			Assert.NotNull(history);
 			Assert.EndsWith("_AddNameIndex", history);
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -69,7 +69,7 @@ public sealed class DatabasesMigrationTests {
 	[Fact]
 	public async Task D05_RepeatedPrepareAfterPrepared_DoesNotMigrateAgain() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			await Databases.PrepareAsync<FakeDbContext>();
@@ -84,7 +84,7 @@ public sealed class DatabasesMigrationTests {
 			Assert.Equal(historyBefore, DatabaseBackupStore.ReadHistory(path));
 			Assert.Equal(lockTableBefore, HasMigrationLockTable(path));
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -92,7 +92,7 @@ public sealed class DatabasesMigrationTests {
 	[Fact]
 	public async Task D05_PreparedDatabase_OpensIndependentContexts() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			await Databases.PrepareAsync<FakeDbContext>();
@@ -104,7 +104,7 @@ public sealed class DatabasesMigrationTests {
 			Assert.NotSame(first, second);
 			Assert.NotSame(second, third);
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -112,7 +112,7 @@ public sealed class DatabasesMigrationTests {
 	[Fact]
 	public async Task D16_PrepareFailure_LeavesFailedAndOpenDoesNotRetryMigration() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			var path = Path.Combine(DataDir(baseDir), "Fake.db");
@@ -124,7 +124,7 @@ public sealed class DatabasesMigrationTests {
 			Assert.Equal(DatabaseState.Failed, Databases.StateOf<FakeDbContext>());
 			Assert.Throws<InvalidOperationException>(() => Databases.Open<FakeDbContext>());
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -132,7 +132,7 @@ public sealed class DatabasesMigrationTests {
 	[Fact]
 	public async Task D07_DatabaseWithTablesButNoHistory_IsNotTreatedAsFresh() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			var dbPath = Path.Combine(DataDir(baseDir), "Fake.db");
@@ -148,7 +148,7 @@ public sealed class DatabasesMigrationTests {
 			var names = await check.Database.SqlQueryRaw<string>("SELECT \"Name\" AS \"Value\" FROM \"Items\"").ToListAsync();
 			Assert.Empty(names);
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -156,7 +156,7 @@ public sealed class DatabasesMigrationTests {
 	[Fact]
 	public async Task D07_UnknownMigrationInHistory_IsRejectedWithoutDown() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			var dbPath = Path.Combine(DataDir(baseDir), "Fake.db");
@@ -173,7 +173,7 @@ public sealed class DatabasesMigrationTests {
 			var history = await check.Database.SqlQueryRaw<string>("SELECT \"MigrationId\" AS \"Value\" FROM \"__EFMigrationsHistory\"").ToListAsync();
 			Assert.Equal(["99990101000000_Future"], history);
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -181,34 +181,36 @@ public sealed class DatabasesMigrationTests {
 	[Fact]
 	public async Task D06_ConcurrentPrepare_WaitsForTheSameSharedTask() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			var tasks = Enumerable.Range(0, 8).Select(_ => Databases.PrepareAsync<FakeDbContext>()).ToArray();
 			await Task.WhenAll(tasks);
 			Assert.Equal(DatabaseState.Prepared, Databases.StateOf<FakeDbContext>());
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
 
 	[Fact]
-	public async Task D06_OneWaiterCancelled_DoesNotBreakTheSharedPreparation() {
+	public async Task D06_CancelledOwnerEndsPreparationAndDoesNotRetryWithinTheProcess() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			using var cts = new CancellationTokenSource();
-			var cancelled = Databases.PrepareAsync<FakeDbContext>(cts.Token);
 			cts.Cancel();
-			await Assert.ThrowsAnyAsync<OperationCanceledException>(() => cancelled);
-
+			await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Databases.PrepareAsync<FakeDbContext>(cts.Token));
+			await Assert.ThrowsAsync<InvalidOperationException>(() => Databases.PrepareAsync<FakeDbContext>());
+			Assert.Equal(DatabaseState.Failed, Databases.StateOf<FakeDbContext>());
+			Assert.False(File.Exists(Path.Combine(DataDir(baseDir), "Fake.db")));
+			Assert.False(DatabaseMaintenance.Exists(DataDir(baseDir), "Fake"));
+			DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 			await Databases.PrepareAsync<FakeDbContext>();
-
 			Assert.Equal(DatabaseState.Prepared, Databases.StateOf<FakeDbContext>());
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}

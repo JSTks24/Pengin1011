@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Pengin1011.Core.Logging;
 
@@ -8,15 +9,17 @@ internal sealed class DatabaseService {
 	private readonly object _gate = new();
 	private readonly SemaphoreSlim _maintenanceGate = new(1, 1);
 	private readonly Dictionary<string, DatabaseEntry> _entries = new(StringComparer.OrdinalIgnoreCase);
+	private readonly Dictionary<Type, DatabaseEntry> _contexts = [];
 	private CancellationTokenSource _lifetime = new();
 	private DataDirectoryOwnership? _ownership;
 
 	internal sealed class DatabaseEntry {
 		public required string Id { get; init; }
 		public required Type ContextType { get; init; }
+		public required Assembly Owner { get; init; }
+		public required Func<string, DbContext> Create { get; init; }
 		public DatabaseState State { get; set; }
 		public Task<DatabasePrepareResult>? PrepareTask { get; set; }
-		public string? Failure { get; set; }
 	}
 
 	public string DataDirectory { get; private set; } = DataDirectoryResolver.Default;
@@ -51,16 +54,64 @@ internal sealed class DatabaseService {
 		await Task.WhenAll(tasks).ConfigureAwait(false);
 	}
 
-	public DatabaseState StateOf<TContext>() where TContext : DbContext, new() {
-		return DatabaseIdentity.TryDerive(typeof(TContext), out var id, out _) ? StateOf(id) : DatabaseState.Failed;
+	internal bool Register(Assembly owner, IReadOnlyList<DatabaseDefinition> definitions) {
+		lock (_gate) {
+			if (definitions.Count == 0 || definitions.All(definition => _entries.TryGetValue(definition.Id, out var existing) && existing.Owner == owner && existing.ContextType == definition.ContextType)) return false;
+			var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			var contexts = new HashSet<Type>();
+			foreach (var definition in definitions) {
+				if (!ids.Add(definition.Id) || !contexts.Add(definition.ContextType) || _entries.ContainsKey(definition.Id)
+					|| _contexts.ContainsKey(definition.ContextType)) {
+					throw new InvalidOperationException(Loc.Format("DatabaseRegistrationConflict", definition.Id));
+				}
+			}
+			foreach (var definition in definitions) {
+				_entries.Add(definition.Id, new DatabaseEntry {
+					Id = definition.Id, ContextType = definition.ContextType, Owner = owner, Create = definition.Create,
+					State = DatabaseState.Unprepared
+				});
+				_contexts.Add(definition.ContextType, _entries[definition.Id]);
+			}
+			return true;
+		}
+	}
+
+	internal void Unregister(Assembly owner) {
+		lock (_gate) {
+			var entries = _entries.Values.Where(entry => entry.Owner == owner).ToArray();
+			if (entries.Any(entry => entry.PrepareTask is { IsCompleted: false })) throw new InvalidOperationException(Loc.Get("DatabaseWorkPending"));
+			foreach (var entry in entries) {
+				_entries.Remove(entry.Id);
+				_contexts.Remove(entry.ContextType);
+			}
+		}
+	}
+
+	internal DatabaseEntry EntryOf(Type contextType) {
+		lock (_gate) return _contexts.TryGetValue(contextType, out var entry) ? entry : throw new InvalidOperationException(Loc.Format("DatabaseNotRegistered", contextType.Name));
+	}
+
+	internal DatabaseState StateOf<TContext>() where TContext : DbContext {
+		lock (_gate) return _contexts.TryGetValue(typeof(TContext), out var entry) ? entry.State : DatabaseState.Unprepared;
 	}
 
 	internal DatabaseState StateOf(string id) {
 		lock (_gate) return _entries.TryGetValue(id, out var entry) ? entry.State : DatabaseState.Unprepared;
 	}
 
-	public void EnsureOwnership(string id, Type contextType) {
-		lock (_gate) GetEntry(id, contextType);
+	internal IReadOnlyList<string> Ids() {
+		lock (_gate) return _entries.Keys.ToArray();
+	}
+
+	internal async Task PrepareModuleAsync(Assembly owner, CancellationToken ct) {
+		DatabaseEntry[] entries;
+		lock (_gate) entries = _entries.Values.Where(entry => entry.Owner == owner).OrderBy(entry => entry.Id, StringComparer.Ordinal).ToArray();
+		foreach (var entry in entries) {
+			ct.ThrowIfCancellationRequested();
+			var result = await PrepareAsync(entry, ct).ConfigureAwait(false);
+			ct.ThrowIfCancellationRequested();
+			if (!result.Success) throw new InvalidOperationException(result.Failure);
+		}
 	}
 
 	public void Configure(string dataDirectory) {
@@ -75,80 +126,44 @@ internal sealed class DatabaseService {
 
 	internal string PathOf(string id) => Path.Combine(DataDirectory, DatabaseIdentity.FileName(id));
 
-	public string ConnectionStringFor(Type contextType, bool creating) {
-		if (!DatabaseIdentity.TryDerive(contextType, out var id, out var failure)) {
-			throw new ArgumentException(Loc.Get(failure ?? "DatabaseNameInvalid"), nameof(contextType));
-		}
-		EnsureOwnership(id, contextType);
-		return creating ? SqliteConnectionPolicy.ForCreatingDatabase(PathOf(id)) : SqliteConnectionPolicy.ForExistingDatabase(PathOf(id));
+	internal string ConnectionStringFor(DatabaseEntry entry, bool creating) {
+		return creating ? SqliteConnectionPolicy.ForCreatingDatabase(PathOf(entry.Id)) : SqliteConnectionPolicy.ForExistingDatabase(PathOf(entry.Id));
 	}
 
-	public async Task<DatabasePrepareResult> PrepareAsync<TContext>(CancellationToken ct) where TContext : DbContext, new() {
-		if (!DatabaseIdentity.TryDerive(typeof(TContext), out var id, out var failure)) {
-			return new DatabasePrepareResult(false, DatabaseState.Failed, Loc.Get(failure ?? "DatabaseNameInvalid"));
-		}
-		Task<DatabasePrepareResult> task;
+	internal Task<DatabasePrepareResult> PrepareAsync<TContext>(CancellationToken ct) where TContext : DbContext {
+		return PrepareAsync(EntryOf(typeof(TContext)), ct);
+	}
+
+	private Task<DatabasePrepareResult> PrepareAsync(DatabaseEntry entry, CancellationToken ct) {
 		lock (_gate) {
-			var entry = GetEntry(id, typeof(TContext));
-			if (entry.PrepareTask is { IsCompleted: false }) {
-				task = entry.PrepareTask;
-			} else {
-				try {
-					if (MaintenanceJournal.ListUnfinishedRestores(DataDirectory, id).Count > 0 || MaintenanceJournal.ReadMigrationIntent(DataDirectory, id) != null) {
-						entry.State = DatabaseState.MaintenanceRequired;
-						entry.Failure = Loc.Format("DatabaseMaintenanceRequired", id);
-						return new DatabasePrepareResult(false, entry.State, entry.Failure);
-					}
-				} catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException) {
-					entry.State = DatabaseState.MaintenanceRequired;
-					entry.Failure = e.Message;
-					return new DatabasePrepareResult(false, entry.State, entry.Failure);
-				}
-				if (entry.State == DatabaseState.Prepared) {
-					if (File.Exists(PathOf(id))) return new DatabasePrepareResult(true, entry.State, null);
-					entry.State = DatabaseState.Failed;
-					entry.Failure = Loc.Format("DatabasePreparedFileMissing", id);
-				}
-				if (entry.State == DatabaseState.Failed) return new DatabasePrepareResult(false, entry.State, entry.Failure);
-				if (_lifetime.IsCancellationRequested) return new DatabasePrepareResult(false, DatabaseState.Failed, Loc.Get("DatabaseWorkPending"));
-				entry.State = DatabaseState.Preparing;
-				entry.PrepareTask = Task.Run(() => PrepareCoreAsync(entry));
-				task = entry.PrepareTask;
+			if (entry.PrepareTask != null) return entry.PrepareTask;
+			if (_lifetime.IsCancellationRequested) {
+				entry.State = DatabaseState.Failed;
+				return entry.PrepareTask = Task.FromResult(new DatabasePrepareResult(false, entry.State, Loc.Get("DatabaseWorkPending")));
 			}
+			entry.State = DatabaseState.Preparing;
+			return entry.PrepareTask = Task.Run(() => PrepareCoreAsync(entry, ct));
 		}
-		return await task.WaitAsync(ct).ConfigureAwait(false);
 	}
 
-	private async Task<DatabasePrepareResult> PrepareCoreAsync(DatabaseEntry entry) {
+	private async Task<DatabasePrepareResult> PrepareCoreAsync(DatabaseEntry entry, CancellationToken ct) {
 		DatabasePrepareResult result;
-		using var budget = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+		using var budget = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token, ct);
 		budget.CancelAfter(PrepareBudget);
 		try {
+			budget.Token.ThrowIfCancellationRequested();
 			AcquireOwnership();
-			result = await DatabasePrepareEngine.RunAsync(this, entry.Id, entry.ContextType, budget.Token).ConfigureAwait(false);
+			result = DatabaseMaintenance.Exists(DataDirectory, entry.Id)
+				? new DatabasePrepareResult(false, DatabaseState.MaintenanceRequired, Loc.Format("DatabaseMaintenanceRequired", entry.Id))
+				: await DatabasePrepareEngine.RunAsync(this, entry, budget.Token).ConfigureAwait(false);
 		} catch (Exception e) {
 			Logger.Error(typeof(DatabaseService), e, Loc.Format("DatabasePrepareFailed", entry.Id));
 			result = new DatabasePrepareResult(false, DatabaseState.Failed, e.Message);
 		}
 		lock (_gate) {
 			entry.State = result.State;
-			entry.Failure = result.Failure;
 		}
 		return result;
-	}
-
-	private DatabaseEntry GetEntry(string id, Type contextType) {
-		if (_entries.TryGetValue(id, out var entry)) {
-			if (entry.ContextType != contextType) {
-				var message = Loc.Format("DbFileConflict", DatabaseIdentity.FileName(id), entry.ContextType.Name, contextType.Name);
-				Logger.Error(typeof(DatabaseService), message);
-				throw new InvalidOperationException(message);
-			}
-			return entry;
-		}
-		entry = new DatabaseEntry { Id = id, ContextType = contextType, State = DatabaseState.Unprepared };
-		_entries.Add(id, entry);
-		return entry;
 	}
 
 	internal void ResetForTest(string? directory = null) {
@@ -156,14 +171,11 @@ internal sealed class DatabaseService {
 		ReleaseOwnership();
 		lock (_gate) {
 			_entries.Clear();
+			_contexts.Clear();
 			_lifetime.Dispose();
 			_lifetime = new CancellationTokenSource();
 			DataDirectory = directory ?? DataDirectoryResolver.Default;
 			DataDirectoryConfigured = directory != null;
 		}
-	}
-
-	internal void ResetPrepareState() {
-		lock (_gate) _entries.Clear();
 	}
 }

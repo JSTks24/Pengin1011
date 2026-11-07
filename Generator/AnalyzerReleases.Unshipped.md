@@ -12,3 +12,8 @@ PBG105 | ModuleBridge | Error | Duplicate bridge manifest for one module
 PBG106 | ModuleBridge | Error | Duplicate export name inside a bridge manifest
 PAP001 | AIPreset | Error | AI preset name must be a string literal or const
 PAP002 | AIPreset | Error | AI preset entry point must not be referenced as a method group
+
+PDB001 | Database | Error | Invalid database context declaration
+PDB002 | Database | Error | Invalid stable database identifier
+PDB003 | Database | Error | Duplicate database identifier
+PDB004 | Database | Error | Generated database member collision

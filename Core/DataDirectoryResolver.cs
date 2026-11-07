@@ -1,8 +1,8 @@
 namespace Pengin1011.Core;
 
-public sealed record DatabasePathOptions(string? CommandLine, string? Configured, bool CreateIfMissing);
+internal sealed record DatabasePathOptions(string? CommandLine, string? Configured, bool CreateIfMissing);
 
-public static class DataDirectoryResolver {
+internal static class DataDirectoryResolver {
 	public static string Default => Path.Combine(AppContext.BaseDirectory, "data");
 
 	public static DataDirectorySource Resolve(DatabasePathOptions options, out string directory, out string? failure) {
@@ -30,7 +30,7 @@ public static class DataDirectoryResolver {
 	}
 }
 
-public enum DataDirectorySource {
+internal enum DataDirectorySource {
 	CommandLine,
 	Configuration,
 	Default

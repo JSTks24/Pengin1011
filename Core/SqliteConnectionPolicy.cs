@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Pengin1011.Core;
 
-public static class SqliteConnectionPolicy {
+internal static class SqliteConnectionPolicy {
 	public const int DefaultCommandTimeoutSeconds = 30;
 	internal static readonly DbConnectionInterceptor Interceptor = new ConnectionPolicyInterceptor();
 

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="Declaration" xml:space="preserve"><value>Database context {0} must be a public, nonabstract, nongeneric, top-level partial class deriving directly from DbContext.</value></data>
+  <data name="Identifier" xml:space="preserve"><value>Database identifier {0} is invalid; use a stable file-safe name without spaces, dots or connection-string delimiters.</value></data>
+  <data name="Duplicate" xml:space="preserve"><value>Database identifier {0} is declared more than once in this assembly.</value></data>
+  <data name="Collision" xml:space="preserve"><value>Database context {0} conflicts with generated members: remove manual constructors, OnConfiguring or the generated factory/provider name.</value></data>
+</root>

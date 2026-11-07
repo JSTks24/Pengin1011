@@ -17,10 +17,6 @@ public sealed class ShutdownDbContext : DbContext {
 	public ShutdownDbContext(DbContextOptions<ShutdownDbContext> options) : base(options) {
 	}
 
-	protected override void OnConfiguring(DbContextOptionsBuilder options) {
-		if (options.IsConfigured) return;
-		Databases.Configure(GetType(), options);
-	}
 
 	public DbSet<ShutdownItem> Items => Set<ShutdownItem>();
 }

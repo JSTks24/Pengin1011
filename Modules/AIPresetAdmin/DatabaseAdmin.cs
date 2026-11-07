@@ -18,32 +18,12 @@ public sealed class DatabaseAdmin : InteractionModuleBase<SocketInteractionConte
 	[SlashCommand("backup", "立即备份数据库")]
 	public Task Backup() => ReplyAsync(["db", "backup"]);
 
-	[SlashCommand("verify", "校验数据库或备份")]
-	public Task Verify(string database, string? backup = null, bool confirm = false) {
-		return ReplyAsync(backup != null ? ["db", "verify", database, backup]
-			: confirm ? ["db", "verify", database, "--confirm", "--accept-interrupted"] : ["db", "verify", database]);
-	}
-
-	[SlashCommand("restore", "从备份恢复，完成后重启")]
-	public Task Restore(string database, string backup, bool confirm = false) {
-		return ReplyAsync(confirm ? ["db", "restore", database, backup, "--confirm"] : ["db", "restore", database, backup]);
-	}
-
-	[SlashCommand("recover", "完成或回滚中断的恢复，完成后重启")]
-	public Task Recover(string database, string operation, bool rollback = false, bool confirm = false) {
-		var arguments = new List<string> { "db", "recover", database, operation, rollback ? "--rollback" : "--complete" };
-		if (confirm) arguments.Add("--confirm");
-		return ReplyAsync(arguments);
-	}
-
-	[SlashCommand("unlock", "清除已停止数据库的迁移残留锁")]
-	public Task Unlock(string database, bool confirm = false) {
-		return ReplyAsync(confirm ? ["db", "unlock", database, "--confirm"] : ["db", "unlock", database]);
-	}
+	[SlashCommand("verify", "校验指定备份")]
+	public Task Verify(string database, string backup) => ReplyAsync(["db", "verify", database, backup]);
 
 	private async Task ReplyAsync(IReadOnlyList<string> arguments) {
 		await DeferAsync(ephemeral: true);
-		var output = await DatabaseCommands.ExecuteAsync(arguments, allowFileImport: false);
+		var output = await DatabaseCommands.ExecuteAsync(arguments);
 		foreach (var chunk in MessageSplitter.Split(output)) {
 			await FollowupAsync(chunk, ephemeral: true, allowedMentions: Discord.AllowedMentions.None);
 		}

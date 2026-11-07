@@ -26,14 +26,14 @@ public sealed class DatabasesTests {
 	[Fact]
 	public async Task Open_CreatesModuleDbUnderData() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			await Databases.PrepareAsync<FakeDbContext>();
 			using var db = Databases.Open<FakeDbContext>();
 			Assert.True(File.Exists(Path.Combine(DataDir(baseDir), "Fake.db")));
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -41,7 +41,7 @@ public sealed class DatabasesTests {
 	[Fact]
 	public async Task DataPersists_AcrossReopen() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			await Databases.PrepareAsync<FakeDbContext>();
@@ -55,7 +55,7 @@ public sealed class DatabasesTests {
 				Assert.Equal("保留我", row.Name);
 			}
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -63,7 +63,7 @@ public sealed class DatabasesTests {
 	[Fact]
 	public async Task DifferentContexts_GetSeparateFiles() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			await Databases.PrepareAsync<FakeDbContext>();
@@ -81,7 +81,7 @@ public sealed class DatabasesTests {
 			await using var check = Databases.Open<FakeDbContext>();
 			Assert.Equal("Fake库数据", (await check.Items.SingleAsync()).Name);
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -89,16 +89,18 @@ public sealed class DatabasesTests {
 	[Fact]
 	public async Task ConflictingModuleName_Throws() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			await Databases.PrepareAsync<ClashDbContext>();
 			await using var first = Databases.Open<ClashDbContext>();
 
-			await Assert.ThrowsAsync<InvalidOperationException>(() => Databases.PrepareAsync<ClashContext>());
+			var registrar = new DatabaseRegistrar();
+			registrar.Add<ClashContext>("Clash", options => new ClashContext(options));
+			Assert.Throws<InvalidOperationException>(() => Databases.RegisterForTest(registrar));
 			Assert.Throws<InvalidOperationException>(() => Databases.Open<ClashContext>());
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -106,7 +108,7 @@ public sealed class DatabasesTests {
 	[Fact]
 	public async Task GetStatus_ReportsMigrationSizeAndBackup() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			await Databases.PrepareAsync<FakeDbContext>();
@@ -120,7 +122,7 @@ public sealed class DatabasesTests {
 			Assert.NotNull(status.CurrentHistory);
 			Assert.NotNull(status.LastCompletedBackup);
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -128,7 +130,7 @@ public sealed class DatabasesTests {
 	[Fact]
 	public async Task Init_RegistersOrphanDbForBackup() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			var dataDir = DataDir(baseDir);
 			Directory.CreateDirectory(dataDir);
@@ -143,7 +145,7 @@ public sealed class DatabasesTests {
 			Assert.Single(backups);
 			Assert.True(Directory.Exists(Path.Combine(dataDir, "backup", "Legacy")));
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}

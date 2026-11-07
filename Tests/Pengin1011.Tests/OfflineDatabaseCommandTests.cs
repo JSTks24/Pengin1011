@@ -192,15 +192,13 @@ public sealed class OfflineDatabaseCommandTests {
 	[InlineData("db recover Absent missing-operation --rollback")]
 	[InlineData("db import-backup Absent \"missing backup.db\"")]
 	[InlineData("db verify Absent")]
-	public async Task MutatingInternalCommands_RequireExplicitConfirmation(string command) {
+	public async Task RemovedInternalCommands_ShowOfflineInstructions(string command) {
 		using var runtime = new IsolatedHost();
 
 		var result = await runtime.RunAsync(command + "\nexit\n");
 
 		Assert.Equal(1, result.ExitCode);
-		Assert.Contains(Text("DbCommandConfirmationRequired"), result.Output);
-		Assert.DoesNotContain(Text("MaintenanceAccepted"), result.Output);
-		Assert.DoesNotContain(Text("Restarting"), result.Output);
+		Assert.Contains(Text("DbInternalUsage"), result.Output);
 		Assert.False(Directory.Exists(Path.Combine(runtime.DefaultDataDirectory, "backup")));
 	}
 
@@ -216,53 +214,66 @@ public sealed class OfflineDatabaseCommandTests {
 
 		Assert.Equal(1, result.ExitCode);
 		Assert.Contains(Text("DbInternalUsage"), result.Output);
-		Assert.DoesNotContain(Text("Restarting"), result.Output);
 	}
 
 	[Fact]
-	public async Task RemovedStartupDbSubcommand_IsRejectedBeforeConfigurationIsRead() {
+	public async Task InvalidOfflineCommand_IsRejectedBeforeConfigurationIsRead() {
 		using var runtime = new IsolatedHost(writeConfig: false);
 
 		var result = await runtime.RunAsync("", ["db", "version"]);
 
 		Assert.Equal(2, result.ExitCode);
-		Assert.Contains(Text("StartupArgumentsInvalid"), result.Output);
+		Assert.Contains(Text("DbOfflineUsage"), result.Output);
 		Assert.DoesNotContain(Text("MaintenanceConsole"), result.Output);
 		Assert.False(File.Exists(runtime.ConfigPath));
 		Assert.False(Directory.Exists(runtime.DefaultDataDirectory));
 	}
 
 	[Fact]
-	public async Task ImportBackup_UsesDatabaseAndQuotedSourceArgumentsAndListsRealImportedData() {
-		using var runtime = new IsolatedHost();
-		var legacyPath = Path.Combine(runtime.RootDirectory, "legacy source with spaces.db");
-		SeedDatabase(legacyPath, "imported-target");
-		using (var source = SqliteConnectionPolicy.OpenExisting(legacyPath)) {
-			using var history = source.CreateCommand();
-			history.CommandText = "CREATE TABLE __EFMigrationsHistory (MigrationId TEXT NOT NULL PRIMARY KEY, ProductVersion TEXT NOT NULL); INSERT INTO __EFMigrationsHistory VALUES ('20261019000000_CreateProbeItems', '10.0.12')";
-			history.ExecuteNonQuery();
+	public async Task OfflineRestoreRunsWithoutConfigurationModulesOrFinalBackupAndReleasesOwnership() {
+		using var runtime = new IsolatedHost(writeConfig: false);
+		var data = Path.Combine(runtime.RootDirectory, "offline data");
+		Directory.CreateDirectory(data);
+		await TestChildProcess.RunArgumentsAsync("db-seed", data);
+		var backup = File.ReadAllText(Path.Combine(data, "backup-id.txt"));
+		var before = DatabaseBackupStore.ListCompleted(data, "Fake", DatabaseBackupStore.RollingCategory).Count;
+		var result = await runtime.RunAsync("", ["db", "restore", "Fake", backup, "--data-dir", data, "--confirm"]);
+		Assert.True(result.ExitCode == 0, result.Output);
+		Assert.Contains(Text("RestoreOfflineCompleted"), result.Output);
+		Assert.False(File.Exists(runtime.ConfigPath));
+		Assert.False(Directory.Exists(runtime.DefaultDataDirectory));
+		Assert.DoesNotContain(Text("MaintenanceConsole"), result.Output);
+		Assert.Equal(before, DatabaseBackupStore.ListCompleted(data, "Fake", DatabaseBackupStore.RollingCategory).Count);
+		Assert.True(DataDirectoryOwnership.TryAcquire(data, out var owner, out var failure), failure);
+		owner!.Dispose();
+		await TestChildProcess.RunArgumentsAsync("db-read", data, "backup-target");
+	}
+
+	[Fact]
+	public async Task OfflineRestoreRefusesAnotherOwnerAndMissingConfirmation() {
+		using var runtime = new IsolatedHost(writeConfig: false);
+		var data = Path.Combine(runtime.RootDirectory, "locked data");
+		Directory.CreateDirectory(data);
+		Assert.True(DataDirectoryOwnership.TryAcquire(data, out var owner, out _));
+		using (owner) {
+			var blocked = await runtime.RunAsync("", ["db", "restore", "Fake", "missing", "--data-dir", data, "--confirm"]);
+			Assert.Equal(1, blocked.ExitCode);
 		}
+		var unconfirmed = await runtime.RunAsync("", ["db", "restore", "Fake", "missing", "--data-dir", data]);
+		Assert.Equal(2, unconfirmed.ExitCode);
+		Assert.False(File.Exists(runtime.ConfigPath));
+		Assert.False(Directory.Exists(Path.Combine(data, "backup")));
+	}
 
-		var result = await runtime.RunAsync($"db import-backup Target \"{legacyPath}\" --confirm\ndb backups Target\nexit\n");
-
-		Assert.Equal(1, result.ExitCode);
-		var imported = Assert.Single(DatabaseBackupStore.ListCompleted(runtime.DefaultDataDirectory, "Target", DatabaseBackupStore.RollingCategory));
-		Assert.Equal(["20261019000000_CreateProbeItems"], imported.History);
-		Assert.Contains(imported.BackupId, result.Output);
-		Assert.Contains(DatabaseBackupStore.RollingCategory, result.Output);
-		Assert.Contains(Prefix("DbCommandCompleted"), result.Output);
-		Assert.DoesNotContain(Text("DbInternalUsage"), result.Output);
-		Assert.False(File.Exists(Path.Combine(runtime.DefaultDataDirectory, "Target.db")));
-		Assert.True(DatabaseBackupStore.TryVerify(runtime.DefaultDataDirectory, "Target", DatabaseBackupStore.RollingCategory, imported.BackupId, out _, out var failure), failure);
-		using var connection = new SqliteConnection(new SqliteConnectionStringBuilder {
-			DataSource = imported.SnapshotPath,
-			Mode = SqliteOpenMode.ReadOnly,
-			Pooling = false,
-		}.ToString());
-		connection.Open();
-		using var query = connection.CreateCommand();
-		query.CommandText = "SELECT Name FROM ProbeItems";
-		Assert.Equal("imported-target", query.ExecuteScalar());
+	[Theory]
+	[InlineData("")]
+	[InlineData(" ")]
+	public async Task OfflineRestoreRejectsBlankExplicitDirectory(string directory) {
+		using var runtime = new IsolatedHost(writeConfig: false);
+		var result = await runtime.RunAsync("", ["db", "restore", "Fake", "backup", "--data-dir", directory, "--confirm"]);
+		Assert.Equal(2, result.ExitCode);
+		Assert.False(Directory.Exists(runtime.DefaultDataDirectory));
+		Assert.False(File.Exists(runtime.ConfigPath));
 	}
 
 	private static string Text(string key) {

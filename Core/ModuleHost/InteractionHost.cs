@@ -52,7 +52,11 @@ public static class InteractionHost {
 	internal static bool TryBeginModuleInitialization(LoadedModule run) {
 		lock (_exitSync) {
 			if (_exiting) return false;
-			return run.TryBeginInit(() => run.Runtime.InitializeAsync(run.Lifecycle.Token)) != null;
+			return run.TryBeginInit(async () => {
+				await Databases.PrepareModuleAsync(run.Assembly, run.Lifecycle.Token);
+				run.Lifecycle.Token.ThrowIfCancellationRequested();
+				await run.Runtime.InitializeAsync(run.Lifecycle.Token);
+			}) != null;
 		}
 	}
 

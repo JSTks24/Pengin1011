@@ -22,7 +22,7 @@ public sealed class GatewayShutdownTests {
 		var logoutFinished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 		Task<ExitCoordinator.ExitReport>? exit = null;
 		Reset();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		Logger.SetLogPathForTest(logPath);
 		ExitCoordinator.GatewayStopBudget = TimeSpan.FromMilliseconds(50);
 		try {
@@ -70,7 +70,7 @@ public sealed class GatewayShutdownTests {
 			}
 			await Databases.ShutdownAsync();
 			Logger.SetLogPathForTest(null);
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Reset();
 			SqliteConnection.ClearAllPools();
 			Directory.Delete(baseDir, true);
@@ -84,7 +84,7 @@ public sealed class GatewayShutdownTests {
 		var logoutFinished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 		Task<ExitCoordinator.ExitReport>? exit = null;
 		Reset();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		ExitCoordinator.GatewayStopBudget = TimeSpan.FromMilliseconds(50);
 		try {
 			Databases.Init();
@@ -112,7 +112,7 @@ public sealed class GatewayShutdownTests {
 				await logoutFinished.Task.WaitAsync(TimeSpan.FromSeconds(3));
 			}
 			await Databases.ShutdownAsync();
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Reset();
 			Directory.Delete(baseDir, true);
 		}

@@ -97,7 +97,7 @@ public sealed class ShutdownTests : IDisposable {
 
 	private static void ResetDataDirectory() {
 		Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
-		Databases.SetDataDirectoryForTest(null);
+		DatabaseTestSetup.SetDirectory(null);
 	}
 
 	private static async Task<InteractionService> BootAsync() {
@@ -189,7 +189,7 @@ public sealed class ShutdownTests : IDisposable {
 	[Fact]
 	public async Task BackupNow_WaitsForPreviousRound() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			await Databases.PrepareAsync<ShutdownDbContext>();
@@ -206,7 +206,7 @@ public sealed class ShutdownTests : IDisposable {
 			var result = await task;
 			Assert.True(result.Success, $"failures: {string.Join(";", result.Failures.Select(f => f.File))}");
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -214,7 +214,7 @@ public sealed class ShutdownTests : IDisposable {
 	[Fact]
 	public async Task ShutdownAsync_FinalBackupContainsLastWrite_Idempotent() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			await Databases.PrepareAsync<ShutdownDbContext>();
@@ -240,7 +240,7 @@ public sealed class ShutdownTests : IDisposable {
 			var second = await Databases.ShutdownAsync();
 			Assert.Same(first, second);
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -248,7 +248,7 @@ public sealed class ShutdownTests : IDisposable {
 	[Fact]
 	public async Task BackupNow_BrokenDbFile_ReportsFailure() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			var dataDir = Path.Combine(baseDir, "data");
@@ -260,7 +260,7 @@ public sealed class ShutdownTests : IDisposable {
 			Assert.False(result.Success);
 			Assert.Contains(result.Failures, failure => failure.File == "Broken.db");
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -317,7 +317,7 @@ public sealed class ShutdownTests : IDisposable {
 	[Fact]
 	public async Task S03_LastWriteDuringCleanup_EntersFinalBackup() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		ResetGlobalState();
 		DiscordGateway.Init(new DiscordSocketClient());
 		try {
@@ -349,7 +349,7 @@ public sealed class ShutdownTests : IDisposable {
 
 			await ModuleHost.StopAsync(run);
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 			await TeardownAsync();
 		}
@@ -376,7 +376,7 @@ public sealed class ShutdownTests : IDisposable {
 	[Fact]
 	public async Task S05_BothDrainsFail_ReportedIncomplete_IndependentStepsStillRun() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			await Databases.PrepareAsync<ShutdownDbContext>();
@@ -395,7 +395,7 @@ public sealed class ShutdownTests : IDisposable {
 			var backupDir = Path.Combine(baseDir, "data", "backup");
 			Assert.True(Directory.Exists(backupDir), "独立收尾（数据库终备份）仍应执行");
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 			await TeardownAsync();
 		}
@@ -404,7 +404,7 @@ public sealed class ShutdownTests : IDisposable {
 	[Fact]
 	public async Task S06_ExitWithoutReload_SingleCleanupNoNewInitAndNoLateDispatch() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		await BootAsync();
 		try {
 			var run = ModuleHost.Modules.Single(module => module.Name == "FakeModule");
@@ -433,7 +433,7 @@ public sealed class ShutdownTests : IDisposable {
 	[Fact]
 	public async Task S07_RealGatewayStopFailure_ReportedAndLaterStepsStillRun() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		Databases.Init();
 		var logPath = Path.Combine(Path.GetTempPath(), $"qq1011_s07_{Guid.NewGuid():N}.log");
 		Logger.SetLogPathForTest(logPath);
@@ -458,7 +458,7 @@ public sealed class ShutdownTests : IDisposable {
 			Assert.Contains("客户端停止失败", log);
 		} finally {
 			Logger.SetLogPathForTest(null);
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 			try { File.Delete(logPath); } catch (IOException) { }
 			await TeardownAsync();
@@ -468,7 +468,7 @@ public sealed class ShutdownTests : IDisposable {
 	[Fact]
 	public async Task S09_UnstartedHost_RunAsyncSafeWithoutNullReference() {
 		ResetGlobalState();
-		Databases.SetDataDirectoryForTest(null);
+		DatabaseTestSetup.SetDirectory(null);
 		DiscordGateway.DetachForTest();
 		try {
 			var coordinator = new ExitCoordinator();
@@ -582,7 +582,7 @@ public sealed class ShutdownTests : IDisposable {
 	[Fact]
 	public async Task EXIT_04_NormalCompletion_ServiceReleasedOnceAndFinalBackupVerifiable() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		Databases.Init();
 		await BootAsync();
 		var retiredBefore = InteractionHost.RetiredServiceCountForTest;
@@ -610,7 +610,7 @@ public sealed class ShutdownTests : IDisposable {
 				Assert.Contains("EXIT-04 最后一笔写入", names);
 			}
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 			await TeardownAsync();
 		}
@@ -645,7 +645,7 @@ public sealed class ShutdownTests : IDisposable {
 	[Fact]
 	public async Task EXIT_06_ConcurrentProductionEntry_SingleCoordinatorTaskAndSingleBackup() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		Databases.Init();
 		await BootAsync();
 		var run = ModuleHost.Modules.Single(module => module.Name == "FakeModule");
@@ -677,7 +677,7 @@ public sealed class ShutdownTests : IDisposable {
 			Assert.Equal(1, ModuleProbe.RuntimeStaticInt(run, "StopCount"));
 			Assert.Single(Databases.ListBackups("Shutdown", DatabaseBackupStore.RollingCategory));
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 			await TeardownAsync();
 		}
@@ -911,7 +911,7 @@ public sealed class ShutdownTests : IDisposable {
 	[Fact]
 	public async Task GW_04_GatewayFailure_IndependentStepsStillRun_FailureNotOverwritten() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		Databases.Init();
 		await BootAsync();
 		await Databases.PrepareAsync<ShutdownDbContext>();
@@ -932,7 +932,7 @@ public sealed class ShutdownTests : IDisposable {
 			Assert.Same(report, again);
 			Assert.False(again.Success);
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 			await TeardownAsync();
 		}

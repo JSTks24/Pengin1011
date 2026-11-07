@@ -32,7 +32,7 @@
     <Error Condition="'$(Module)' == ''" Text="用法：dotnet build -t:NewModule -p:Module=&lt;模块名&gt;" />
     <Error Condition="Exists('$(MSBuildProjectDirectory)/Modules/$(Module)')" Text="模块目录已存在：Modules/$(Module)" />
     <MakeDir Directories="$(MSBuildProjectDirectory)/Modules/$(Module)" />
-    <Exec Command="dotnet run --project tools/Scaffolder -c Release -- $(Module) $(MSBuildProjectDirectory)/BuildTemplates $(MSBuildProjectDirectory)/Modules/$(Module)" />
+    <Exec Command="dotnet run --project tools/Scaffolder -c Release -- $(Module) $(MSBuildProjectDirectory)/BuildTemplates $(MSBuildProjectDirectory)/Modules/$(Module) $(WithDatabase)" />
     <Exec Command="dotnet sln Pengin1011.sln add Modules/$(Module)/$(Module).csproj" />
     <Message Importance="high" Text="模块骨架已生成：Modules/$(Module)/（已加入 Pengin1011.sln）" />
     <Message Importance="high" Text="下一步：dotnet build -t:AddModuleMigration -p:Module=$(Module) -p:MigrationName=Init（有数据库需求时）" />
@@ -52,22 +52,13 @@
   </Target>
 
   <Target Name="AddModuleMigration">
+    <PropertyGroup>
+      <_MigrationContextArgument Condition="'$(Context)' != ''">--context $(Context)</_MigrationContextArgument>
+    </PropertyGroup>
     <Error Condition="'$(Module)' == '' Or '$(MigrationName)' == ''" Text="用法：dotnet build -t:AddModuleMigration -p:Module=&lt;模块名&gt; -p:MigrationName=&lt;迁移名&gt;" />
     <Error Condition="!Exists('$(MSBuildProjectDirectory)/Modules/$(Module)/$(Module).csproj')" Text="模块项目不存在：Modules/$(Module)/$(Module).csproj" />
     <Exec Command="dotnet restore Modules/$(Module)/$(Module).csproj" />
-    <Exec Command="dotnet ef migrations add $(MigrationName) --project Modules/$(Module)/$(Module).csproj --startup-project Modules/$(Module)/$(Module).csproj --context $(Module)DbContext --output-dir Migrations" />
-  </Target>
-
-  <Target Name="AddAllModuleMigrations">
-    <Error Condition="'$(MigrationName)' == ''" Text="用法：dotnet build -t:AddAllModuleMigrations -p:MigrationName=&lt;迁移名&gt;" />
-    <ItemGroup>
-      <_ModuleProjectFile Include="Modules/*/*.csproj" />
-    </ItemGroup>
-    <ItemGroup>
-      <_ModuleDbContextFile Include="Modules/*/*DbContext.cs" />
-    </ItemGroup>
-    <Exec Command="dotnet restore %(_ModuleProjectFile.FullPath)" Condition="'@(_ModuleProjectFile)' != ''" />
-    <Exec Command="dotnet ef migrations add $(MigrationName) --project Modules/$([System.String]::Copy('%(_ModuleDbContextFile.Filename)').Replace('DbContext',''))/$([System.String]::Copy('%(_ModuleDbContextFile.Filename)').Replace('DbContext','')).csproj --startup-project Modules/$([System.String]::Copy('%(_ModuleDbContextFile.Filename)').Replace('DbContext',''))/$([System.String]::Copy('%(_ModuleDbContextFile.Filename)').Replace('DbContext','')).csproj --context %(_ModuleDbContextFile.Filename) --output-dir Migrations" />
+    <Exec Command="dotnet ef migrations add $(MigrationName) --project Modules/$(Module)/$(Module).csproj --startup-project Modules/$(Module)/$(Module).csproj $(_MigrationContextArgument) --output-dir Migrations" />
   </Target>
 
   <Target Name="PublishAll">

@@ -20,10 +20,6 @@ public sealed class FakeDbContext : DbContext {
 	public FakeDbContext(DbContextOptions<FakeDbContext> options) : base(options) {
 	}
 
-	protected override void OnConfiguring(DbContextOptionsBuilder options) {
-		if (options.IsConfigured) return;
-		Databases.Configure(GetType(), options);
-	}
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder) {
 		modelBuilder.Entity<FakeItem>().HasIndex(item => item.Name);
@@ -50,10 +46,6 @@ public sealed class OtherDbContext : DbContext {
 	public OtherDbContext(DbContextOptions<OtherDbContext> options) : base(options) {
 	}
 
-	protected override void OnConfiguring(DbContextOptionsBuilder options) {
-		if (options.IsConfigured) return;
-		Databases.Configure(GetType(), options);
-	}
 
 	public DbSet<OtherItem> Things => Set<OtherItem>();
 }
@@ -72,10 +64,6 @@ public sealed class BareDbContext : DbContext {
 	public BareDbContext(DbContextOptions<BareDbContext> options) : base(options) {
 	}
 
-	protected override void OnConfiguring(DbContextOptionsBuilder options) {
-		if (options.IsConfigured) return;
-		Databases.Configure(GetType(), options);
-	}
 }
 
 public sealed class ClashItem {
@@ -89,10 +77,6 @@ public sealed class ClashDbContext : DbContext {
 	public ClashDbContext(DbContextOptions<ClashDbContext> options) : base(options) {
 	}
 
-	protected override void OnConfiguring(DbContextOptionsBuilder options) {
-		if (options.IsConfigured) return;
-		Databases.Configure(GetType(), options);
-	}
 
 	public DbSet<ClashItem> Clashes => Set<ClashItem>();
 }
@@ -111,10 +95,6 @@ public sealed class ClashContext : DbContext {
 	public ClashContext(DbContextOptions<ClashContext> options) : base(options) {
 	}
 
-	protected override void OnConfiguring(DbContextOptionsBuilder options) {
-		if (options.IsConfigured) return;
-		Databases.Configure(GetType(), options);
-	}
 }
 
 public sealed class RawSqlContext : DbContext {

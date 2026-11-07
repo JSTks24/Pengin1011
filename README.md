@@ -57,24 +57,25 @@ db status
 db backups <database>
 db backup
 db version
-db restore <database> <backup-id> --confirm
-db recover <database> <operation-id> --complete --confirm
+db verify <database> <backup-id>
 exit
 ```
 
-Startup db subcommands are no longer supported. The existing AIPresetAdmin module provides /preset and /db; importing a local legacy backup is available only in the terminal. The [module guide](DevModule.md#6-database-preparation-and-maintenance) lists verification, rollback, unlock and import syntax.
+The AIPresetAdmin module provides /preset and /db status, backups, backup and verify. Restore is an offline operation. Stop the bot, then run:
 
-The host keeps exclusive ownership of the data directory. Database filenames derive from DbContext class names by removing a trailing DbContext or Context, rather than directly from module names; different context types resolving to the same name are rejected. State-changing maintenance waits for business and resources to stop safely, then retains that ownership while changing data.
+```bash
+dotnet Pengin1011.dll db restore <database> <backup-id> --data-dir "D:/Pengin1011/data" --confirm
+```
 
-After successful restore, recovery, live verification or unlock, the host uses a handoff restart; database completion and restart failure are reported separately. See the [handoff contract](../../Document/Pengin1011/架构设计.md#73-内部终端与-discord).
+The command owns the directory exclusively, validates the backup, preserves the original files and restores the snapshot. It exits without starting business services, backup timers or a replacement process. Start the bot manually after success. A pending marker blocks use of an interrupted database; repeat offline restore after fixing the failure. See the [database guide](DevModule.md#6-database-preparation-and-maintenance).
 
-The first Ctrl+C and SIGTERM request normal shutdown; a second Ctrl+C permits immediate termination. Internal handoff restart targets standalone Windows/Linux processes. systemd/container restart policies need separate deployment integration.
+SQLite databases retain EF migrations, verified snapshots and 30-minute/manual/normal-exit backups. Database filenames use explicit ModuleDatabase identifiers. The source generator provides typed wiring; the host prepares databases before module business initialization. There is no online restore, staged recovery, unlock or legacy import protocol.
 
-SQLite databases use EF migrations and verified snapshots. Interrupted restores block database use until recovery proves the target or original files. Local logs retain full details; configured Discord log channels receive fixed summaries without message or exception contents.
+The first Ctrl+C and SIGTERM request normal shutdown; a second Ctrl+C permits immediate termination. Local logs retain full details; configured Discord log channels receive fixed summaries without message or exception contents.
 
 ## Develop and test
 
-Modules use explicit Runtime initialization/cleanup, generated bridge proxies for cross-module calls, and per-assembly localization resources. Rebuild module DLLs when upgrading the host; incompatible contract versions are rejected during loading.
+Modules use explicit Runtime initialization/cleanup, generated bridge proxies for cross-module calls, and per-assembly localization resources. The host contract is version 5. Rebuild module DLLs when upgrading the host; incompatible contract versions are rejected during loading.
 
 Keep the DLL basename equal to its assembly name. Bridge manifests use `pengin1011.modulebridge.manifest/3`; normal dependency builds refresh them, while explicitly skipping dependency builds can use stale artifacts. The [seven scaffold templates](DevModule.md#1-scaffold-build-and-update) are the maintained complete example. Behavior tests remain flat under Tests/Pengin1011.Tests.
 

@@ -108,7 +108,6 @@ public sealed class FakeModuleRuntime : IModuleRuntime {
 		InitCount++;
 		Events.Add("init-entered");
 		try {
-			await Databases.PrepareAsync<FakeModuleDbContext>(ct);
 			(InitEntered ??= NewGate()).TrySetResult();
 			if (EnableBackgroundWork) {
 				var run = ModuleRegistry.RunOf(GetType().Assembly);

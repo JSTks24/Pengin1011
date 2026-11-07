@@ -7,16 +7,16 @@ This guide covers module implementation and operations. The [project rules](../.
 Run from the project root:
 
 ```bash
-dotnet build Pengin1011.csproj -t:NewModule -p:Module=MyBot
+dotnet build Pengin1011.csproj -t:NewModule -p:Module=MyBot -p:WithDatabase=true
 dotnet tool restore
 dotnet build Pengin1011.csproj -t:AddModuleMigration -p:Module=MyBot -p:MigrationName=Init
 dotnet build Pengin1011.csproj -t:BuildModule -p:Module=MyBot
 dotnet run --project Pengin1011.csproj
 ```
 
-Generate migrations only when the module uses a database. Rebuild after generating them so Migration, Designer and ModelSnapshot are included in the module DLL. The EF command-line tool generates schema change source files; production startup applies them through `Databases.PrepareAsync`.
+Generate migrations only when the module uses a database. Rebuild after generating them so Migration, Designer and ModelSnapshot are included in the module DLL. The EF command-line tool generates schema change source files; the host applies them before entering the module Runtime. The source generator does not create historical migrations or access databases at compile time.
 
-The scaffold creates a csproj, command class, Runtime, config loader, DbContext and localization resources under `Modules/<Name>/`, and adds the project to the solution. Package references are inherited from the host; the scaffold's explicit EF Sqlite/Design references support database runtime and migration generation. Do not add other packages without approval.
+The scaffold creates a csproj, command class, Runtime, config loader and localization resources under `Modules/<Name>/`, and adds the project to the solution. Add `-p:WithDatabase=true` to include a declared DbContext. Package references are inherited from the host; the scaffold's explicit EF Sqlite/Design references support database runtime and migration generation. Do not add other packages without approval.
 
 The maintained scaffold consists of seven files. `NewModule` substitutes `__MODULE__` and writes these templates into the new module; use these sources as the complete example:
 
@@ -26,13 +26,13 @@ The maintained scaffold consists of seven files. `NewModule` substitutes `__MODU
 | [ModuleClass.tpl](BuildTemplates/ModuleClass.tpl) | Command class with module availability |
 | [ModuleRuntime.tpl](BuildTemplates/ModuleRuntime.tpl) | Runtime initialization and cleanup |
 | [ModuleConfig.tpl](BuildTemplates/ModuleConfig.tpl) | Config template, loader and options |
-| [ModuleDbContext.tpl](BuildTemplates/ModuleDbContext.tpl) | DbContext and design-time factory |
+| [ModuleDbContext.tpl](BuildTemplates/ModuleDbContext.tpl) | Optional declared DbContext; the generator provides its design-time factory |
 | [ModuleStrings.tpl](BuildTemplates/ModuleStrings.tpl) | Neutral localization resources |
 | [ModuleStringsZhCn.tpl](BuildTemplates/ModuleStringsZhCn.tpl) | zh-CN localization resources |
 
 Keep the host project reference and the generator analyzer reference. `EmitCompilerGeneratedFiles` must remain enabled so bridge manifests reach dependent modules through `obj/`. Only add `BridgeDependency` when the module consumes another module's bridge.
 
-Modules load from the executable directory's `module/` once per process. The DLL basename must match its assembly name, ignoring case; a renamed DLL is rejected before Runtime construction or bridge registration. A new DLL takes effect after a full restart: stop the old process, replace the artifact, then start again. `sync` only registers the current command tree; `reload` returns a restart notice. The host contract is version 4; rebuild modules when upgrading the host because the removed APIs are not binary compatible.
+Modules load from the executable directory's `module/` once per process. The DLL basename must match its assembly name, ignoring case; a renamed DLL is rejected before Runtime construction or bridge registration. A new DLL takes effect after a full restart: stop the old process, replace the artifact, then start again. `sync` only registers the current command tree; `reload` returns a restart notice. The host contract is version 5; rebuild modules when upgrading the host because the removed APIs are not binary compatible.
 
 ## 2. Runtime and command ownership
 
@@ -156,50 +156,60 @@ Permission checks are thread-aware: sending in a thread uses SendMessagesInThrea
 
 ## 6. Database preparation and maintenance
 
-The database path is `<resolved data directory>/<DatabaseId>.db`. DatabaseId comes from the DbContext class name, removing a trailing `DbContext`, or otherwise `Context`; `MyBotDbContext` therefore uses `MyBot.db`. It does not come from the module DLL name. Distinct context types resolving to the same ID are rejected instead of sharing a file. Resolution is `--data-dir > config.json Databases.DataDirectory > <program directory>/data`; relative paths use the program directory. Environment variables are not an input. The default directory may be created on first start; explicit missing paths require `--create-data-dir`.
-
-The Runtime prepares its context before starting business work:
+Declare a database with a stable identifier and a short context:
 
 ```csharp
-await Databases.PrepareAsync<MyBotDbContext>(ct);
-using var db = Databases.Open<MyBotDbContext>();
+[ModuleDatabase("MyBot")]
+public partial class MyBotDbContext : DbContext {
+	public DbSet<Item> Items => Set<Item>();
+}
 ```
 
-Open creates a fresh context and never migrates. Prepare validates migrations, snapshot/model agreement, history and unfinished maintenance; it refuses untracked business tables and residual EF locks. Concurrent callers share preparation while retaining independent cancellation of their waits. The operation has its own budget and responds to shutdown.
+The identifier determines `<data directory>/MyBot.db`; renaming the context does not rename the database. Identifiers are case-insensitively unique and cannot contain spaces, dots, path characters or connection-string delimiters. Contexts must be public, top-level, nonabstract, nongeneric partial classes directly deriving from DbContext. Keep entities, DbSet properties and OnModelCreating in source; constructors, OnConfiguring and the generated `<Context>DesignFactory` name belong to the generated wiring. No hand-written registration or Prepare call is required.
 
-Use the generated DbContext and design-time factory. Its normal OnConfiguring calls `Databases.Configure(GetType(), options)` only when options are not already configured. Generate and build migration source before deployment.
+The existing generator emits the options constructor, typed factory, design-time factory and assembly entry. The host loads that entry once, registers the database batch and prepares all databases before calling the module Runtime. A failed database prevents that module's business initialization; modules without database declarations skip preparation. Cross-module conflicts reject registration without retaining part of the failing batch.
 
-The host owns one operating-system directory lock through business, stopping and maintenance. A second host cannot write the same directory. Do not run external database writers, including `dotnet ef database update`, against the host's live data.
+Each database has one preparation task per process. The first call binds it to the module cancellation token, host shutdown and a 30-second budget. Later calls reuse the same task or result; failure is not retried until a new process starts. Normal shutdown requests cancellation and waits for the actual database work to end before module cleanup or directory-lock release. A slow operation that does not immediately observe cancellation must still finish. Cancellation before schema changes leaves no marker; cancellation after marker publication retains it. A successfully completed and verified upgrade stays completed when shutdown arrives later. The host checks cancellation again before entering Runtime.
 
-Snapshots live under `backup/<DatabaseId>/rolling/<backupId>/` and `pre-migration/<backupId>/`, each with snapshot.db and metadata.json. Incomplete .partial directories are not recovery points. Rolling retains the latest five completed snapshots plus the target of a pending restore, temporarily allowing six. Protection ends with the request; the next ordinary backup resumes normal retention. Pre-migration snapshots are not automatically pruned. Prepare creates an upgrade snapshot only when needed, not an extra rolling snapshot on every restart.
+Business operations use `using var db = Databases.Open<MyBotDbContext>();`. Each call creates an independent context; it never migrates. All runtime connections use the host's SQLite options. The generated design-time factory uses a separate `<identifier>-design.db` connection and does not load bot configuration.
 
-Use the host's internal terminal after opening the program:
+After changing entities or mappings, run `dotnet build Pengin1011.csproj -t:AddModuleMigration -p:Module=MyBot -p:MigrationName=AddFeature`, inspect the generated migration, then rebuild and deploy. A single context is selected by EF; for multiple contexts add `-p:Context=MyBotDbContext`. Migration, Designer and ModelSnapshot must be included in the module DLL. Missing migrations do not prevent compilation, but preparation rejects them. The host checks model drift, history, integrity and foreign keys, and creates a verified pre-migration snapshot before upgrading an existing database.
+
+Data resolution remains `--data-dir > config.json Databases.DataDirectory > <program directory>/data`. The host owns an operating-system directory lock through business and shutdown. Do not use external database writers against a running host. Upgrades and backups share one gate.
+
+Snapshots remain in `backup/<identifier>/rolling/<backup>/` and `pre-migration/<backup>/`, containing snapshot.db and metadata.json. Rolling retains five completed snapshots; pre-migration snapshots are retained. Periodic backups run every 30 minutes, with manual and normal-exit backups as well. Ordinary restarts do not create an additional rolling snapshot. Partial output is not a recovery point.
+
+Status combines registered module databases with `.db` and `.pending` identifiers discovered at startup, deduplicates them without case sensitivity and sorts them. This includes declarations that have not created a file and databases whose preparation failed. Status queries never create databases. Backups skip declarations that have never created a file or marker, but retain discovered databases and report failure if a prepared database loses its file. Pending databases remain blocked from ordinary backup and checkpoint operations.
+
+Modules retain Open, status queries and the controlled backup API; management modules may call DatabaseCommands.ExecuteAsync. Initialization, path configuration, shutdown, offline restore and low-level storage helpers are host-internal. The declaration attributes, generated provider contract and registrar remain public for generated code in module assemblies. Backup metadata contains no ApplicationCommit or backup OperationId; extra fields in older JSON are ignored by deserialization. The operation identifier for preserved restore files remains in use.
+
+The terminal supports:
 
 ```text
+db version
 db status [database]
 db backups <database>
 db backup
-db version
-db verify <database> <backup-id>
-db verify <database> --confirm --accept-interrupted
-db restore <database> <backup-id> --confirm
-db recover <database> <operation-id> --complete --confirm
-db recover <database> <operation-id> --rollback --confirm
-db unlock <database> --confirm
-db import-backup <database> "legacy file.db" --confirm
+db verify <database> <backup>
 ```
 
-Startup accepts only the data-directory options; `dotnet Pengin1011.dll db ...` is no longer supported. The existing AIPresetAdmin module also exposes /db status, backups, backup, verify, restore, recover and unlock. Local file import is terminal-only. Both /db and /preset use the admin policy in §2.
+The AIPresetAdmin module exposes /db status, backups, backup and verify, using the existing admin policy and private responses. Restore, recover, unlock, interrupted-migration acceptance and legacy import are unavailable in the live terminal and Discord.
 
-A state-changing maintenance request first returns an accepted response, then the main flow stops business. It proceeds only when the exit report confirms resources settled, keeping the same directory lock. Requests are rejected if an existing exit report already confirms resources did not settle. Import shares the maintenance semaphore; import and restore-target prechecks reject business tables with no migration history but allow an empty database. Import success does not prove compatibility with every version of a module's DbContext.
+Stop the bot, then run this separate process:
 
-Successful restore/recover/live verify/unlock transfers directory ownership to a child; the old process exits after the child confirms business startup, and the child then reads terminal input. Failed startup leaves the old maintenance terminal available, but data access resumes only after the child exits and ownership is reacquired. If data commands keep returning MaintenanceBusy after a failed handoff, follow the [handoff contract and paused-access recovery steps](../../Document/Pengin1011/架构设计.md#73-内部终端与-discord).
+```text
+dotnet Pengin1011.dll db restore MyBot <backup-id> --data-dir "D:/Pengin1011/data" --confirm
+```
 
-Restore records use FormatVersion 2 and one authoritative State. Before cutover, the host preserves the original database and sidecar existence/hashes in quarantine and stages a verified target. complete must produce the selected snapshot's data; rollback must prove and restore the original files. Corrupt or unsupported old unfinished records block startup; never delete or edit their JSON merely to make a test or startup pass. Backup, checkpoint, live verify and unlock do not open an unfinished restore site; use recover first.
+The offline command requires an existing explicit directory, takes exclusive ownership and does not load configuration, start modules/Discord/AI, start timers or launch another process. It returns 0 after successful restore, 1 for operational failure and 2 for invalid arguments. Start the bot manually afterwards. Stop any external supervisor from restarting the bot during maintenance.
 
-If a restore record is already Completed but clearing its migration intent fails, follow the [restore-record procedure](../../Document/Pengin1011/架构设计.md#74-恢复记录) before retrying `db recover <database> <restore-operation-id> --complete --confirm` for that same restore operation.
+Restore validates the source, stages and verifies a copy, and preserves the current main file and -wal/-shm/-journal files under `backup/<identifier>/restore/<operation>/original/`. Only after preservation succeeds does it write `<identifier>.pending`, remove old sidecars and replace the main file. It verifies target data before clearing the marker. Preserved originals are not automatically pruned or rolled back.
 
-The maintenance terminal remains available when business configuration fails. Missing Discord/AI credentials do not prevent maintenance of a resolved directory. If the config cannot be parsed, fix it before data operations; db version still works. Maintenance-only shutdown has a nonzero startup outcome even when an individual terminal command succeeded.
+Migration also writes the same per-database marker before changing the schema. Marker presence blocks business access, ordinary backups and checkpoints for that database. On failure or interruption, retain the marker and preserved files, fix the reported cause, then repeat the complete offline restore from a verified snapshot. There are no recover stages or automatic restarts. Never clear a marker solely to force startup.
+
+For a first-ever database migration failure with no backup, stop all owners and preserve any files for inspection. Only after confirming the database contains no data to retain, manually remove that database's `.db`, `-wal`, `-shm`, `-journal` and `.pending` files. Fix the migration and start again. The program never performs this destructive reset automatically.
+
+The diagnostic terminal remains available after business startup failure. Without a parseable configuration, db version still works; use an explicit data directory for other inspection. Diagnostic-only normal startup retains its nonzero outcome independently of individual command results.
 
 ## 7. Logging and module configuration
 
@@ -279,6 +289,6 @@ config.json holds the Discord token, admin role IDs, data-directory setting and 
 
 Normal console commands include help, status, modules, sync, preset list/show/add/set/remove, db, reload and exit. quit is an alias for exit; reload only displays a notice that a full restart is required. The first Ctrl+C and SIGTERM use the shutdown coordinator; a second Ctrl+C permits immediate termination. Windows console-close cleanup is bounded best effort within the operating system's deadline. Preset and sync actions are unavailable in maintenance-only mode. See the [deployment boundaries](../../Document/Pengin1011/架构设计.md#8-文档与部署边界) for standalone and managed deployments.
 
-Use the linked BuildTemplates as the maintained complete module example instead of copying a second implementation into this guide. Add behavior tests in the confirmed flat Tests/Pengin1011.Tests directory. Template/migration/publish and crash tests use temporary directories; restart tests use distinct processes. Run focused tests first, then Debug and Release full builds and test runs, using the [project's common commands](../../Document/Pengin1011/AGENTS.md#常用命令).
+Use the linked BuildTemplates as the maintained complete module example instead of copying a second implementation into this guide. Add behavior tests in the confirmed flat Tests/Pengin1011.Tests directory. Template/migration/publish and crash tests use temporary directories; ownership and interrupted-restore tests use distinct processes. Run focused tests first, then the Release solution build and full test run, using the [project's common commands](../../Document/Pengin1011/AGENTS.md#常用命令).
 
 Record actual results and explicitly identify platforms or external services that were not exercised.

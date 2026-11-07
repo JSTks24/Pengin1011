@@ -63,15 +63,13 @@ internal static class TestChildProcess {
 	public static async Task<int> Main(string[] args) {
 		if (args.Length == 0) return 2;
 		return args[0] switch {
-			"maintenance-admission-probe" when args.Length == 2 => await HostMaintenanceAdmissionTests.RunProbeAsync(args[1]),
-			"restart-probe" when args.Length == 3 => await RestartHandoffTests.RunProbeAsync(args[1], args[2]),
+			"db-offline" => await Pengin1011.Program.Main(args[1..]),
 			"signal-probe" when args.Length == 2 => await ShutdownSignalsTests.RunProbeAsync(args[1]),
 			"module-name-reject" when args.Length == 3 => RejectModuleName(args[1], args[2]),
 			"startup-persist-write" or "startup-persist-verify" when args.Length == 2 => await StartupPersistProbeAsync(args[1], args[0] == "startup-persist-verify"),
 			"db-seed" when args.Length == 2 => await SeedDatabaseAsync(args[1]),
 			"db-interrupt" when args.Length == 5 => await InterruptDatabaseAsync(args[1], args[2], args[3], args[4]),
 			"db-expect-blocked" when args.Length == 2 => await ExpectBlockedDatabaseAsync(args[1]),
-			"db-recover" when args.Length == 4 => RecoverDatabase(args[1], args[2], args[3]),
 			"db-read" when args.Length == 3 => await ReadDatabaseAsync(args[1], args[2]),
 			"module-contract-reject" when args.Length == 2 => RejectLegacyContract(args[1]),
 			_ => 2
@@ -131,7 +129,7 @@ internal static class TestChildProcess {
 	}
 
 	private static void InitializeDatabase(string directory) {
-		Databases.ConfigureDataDirectory(directory);
+		DatabaseTestSetup.SetDirectory(directory);
 		Databases.Init();
 	}
 
@@ -157,14 +155,15 @@ internal static class TestChildProcess {
 	}
 
 	private static async Task<int> InterruptDatabaseAsync(string directory, string backupId, string stage, string signal) {
-		InitializeDatabase(directory);
+		if (!DataDirectoryOwnership.TryAcquire(directory, out var ownership, out _)) return 4;
+		using var owner = ownership;
 		DatabaseRestoreEngine.BoundaryForTest = boundary => {
 			if (boundary != stage) return;
 			File.WriteAllText(signal, boundary);
 			using var blocked = new ManualResetEventSlim();
 			blocked.Wait();
 		};
-		var restored = await Databases.RestoreAsync("Fake", backupId);
+		var restored = await DatabaseRestoreEngine.RestoreAsync(directory, "Fake", backupId, CancellationToken.None);
 		Logger.Error(typeof(TestChildProcess), $"Restore unexpectedly passed interruption boundary {stage}: {restored.Outcome}");
 		return 3;
 	}
@@ -179,17 +178,6 @@ internal static class TestChildProcess {
 			Logger.Info(typeof(TestChildProcess), $"Interrupted restore blocked database preparation: {e.Message}");
 			return Databases.StateOf<FakeDbContext>() == DatabaseState.MaintenanceRequired ? 0 : 4;
 		}
-	}
-
-	private static int RecoverDatabase(string directory, string operationId, string mode) {
-		InitializeDatabase(directory);
-		var result = mode == "--complete" ? Databases.CompleteRestore("Fake", operationId) : Databases.RollbackRestore("Fake", operationId);
-		if (!result.Success) {
-			Logger.Error(typeof(TestChildProcess), $"Recovery failed: {result.Reason}");
-			return 3;
-		}
-		Databases.ReleaseOwnership();
-		return 0;
 	}
 
 	private static async Task<int> ReadDatabaseAsync(string directory, string expected) {
@@ -219,7 +207,7 @@ internal static class TestChildProcess {
 	}
 
 	private static async Task<int> RunStartupPersistProbeAsync(string baseDir, bool verify, CancellationToken ct) {
-		Databases.SetDataDirectoryForTest(Path.Combine(baseDir, "data"));
+		DatabaseTestSetup.SetDirectory(Path.Combine(baseDir, "data"));
 		if (!AppConfig.TryLoad(Path.Combine(baseDir, "config.json"), out var errors)) {
 			Logger.Error(typeof(TestChildProcess), $"Child process config load failed: {string.Join("; ", errors)}");
 			return 2;

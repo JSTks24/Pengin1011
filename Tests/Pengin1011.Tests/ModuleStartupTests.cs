@@ -97,6 +97,98 @@ public sealed class ModuleStartupTests {
 	}
 
 	[Fact]
+	public async Task RuntimeInitializationWaitsForDatabasePreparationToFinish() {
+		ModuleHostTests.ResetModules();
+		InteractionHost.ResetForTest();
+		DiscordGateway.Init(new DiscordSocketClient());
+		var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+		var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+		DatabasePrepareEngine.IntentWrittenForTest = async ct => {
+			entered.TrySetResult();
+			await release.Task.WaitAsync(ct);
+		};
+		ModuleHost.LoadAll();
+		try {
+			await InteractionHost.PublishInitialAsync();
+			await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+			var run = ModuleHost.Modules.Single(module => module.Name == "FakeModule");
+			Assert.Equal(0, ModuleProbe.RuntimeStaticInt(run, "InitCount"));
+			Assert.False(run.InitTask!.IsCompleted);
+			release.TrySetResult();
+			await AwaitInitAsync(run);
+			await WaitStateSettledAsync(run, ModuleState.Ready);
+			Assert.Equal(1, ModuleProbe.RuntimeStaticInt(run, "InitCount"));
+		} finally {
+			release.TrySetResult();
+			DatabasePrepareEngine.IntentWrittenForTest = null;
+			await TeardownAsync();
+		}
+	}
+
+	[Fact]
+	public async Task StoppingDuringMigrationWaitsForDatabaseWorkBeforeRuntimeCleanup() {
+		ModuleHostTests.ResetModules();
+		InteractionHost.ResetForTest();
+		DiscordGateway.Init(new DiscordSocketClient());
+		var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+		var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+		var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+		DatabasePrepareEngine.IntentWrittenForTest = async ct => {
+			using var registration = ct.Register(() => cancelled.TrySetResult());
+			entered.TrySetResult();
+			await release.Task;
+			ct.ThrowIfCancellationRequested();
+		};
+		ModuleHost.LoadAll();
+		try {
+			await InteractionHost.PublishInitialAsync();
+			await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+			var run = ModuleHost.Modules.Single(module => module.Name == "FakeModule");
+			var stop = ModuleHost.StopAsync(run);
+			await cancelled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+			Assert.False(run.InitTask!.IsCompleted);
+			Assert.False(stop.IsCompleted);
+			Assert.Equal(0, ModuleProbe.RuntimeStaticInt(run, "InitCount"));
+			Assert.Equal(0, ModuleProbe.RuntimeStaticInt(run, "StopCount"));
+			Assert.Throws<InvalidOperationException>(Databases.ReleaseOwnership);
+			Assert.False(DataDirectoryOwnership.TryAcquire(Databases.DataDirectory, out var competing, out _));
+			competing?.Dispose();
+			release.TrySetResult();
+			Assert.True((await stop.WaitAsync(TimeSpan.FromSeconds(5))).Clean);
+			Assert.Equal(0, ModuleProbe.RuntimeStaticInt(run, "InitCount"));
+			Assert.Equal(1, ModuleProbe.RuntimeStaticInt(run, "StopCount"));
+			Assert.True(DatabaseMaintenance.Exists(Databases.DataDirectory, "FakeModule"));
+		} finally {
+			release.TrySetResult();
+			DatabasePrepareEngine.IntentWrittenForTest = null;
+			await TeardownAsync();
+		}
+	}
+
+	[Fact]
+	public async Task DatabaseFailurePreventsRuntimeEntryWhileModulesWithoutDatabasesStart() {
+		ModuleHostTests.ResetModules();
+		Directory.CreateDirectory(Databases.DataDirectory);
+		DatabaseMaintenance.Write(Databases.DataDirectory, "FakeModule", "migration interrupted");
+		InteractionHost.ResetForTest();
+		DiscordGateway.Init(new DiscordSocketClient());
+		ModuleHost.LoadAll();
+		try {
+			await InteractionHost.PublishInitialAsync();
+			var databaseModule = ModuleHost.Modules.Single(run => run.Name == "FakeModule");
+			await AwaitInitAsync(databaseModule);
+			await WaitStateSettledAsync(databaseModule, ModuleState.Disabled);
+			Assert.Equal(0, ModuleProbe.RuntimeStaticInt(databaseModule, "InitCount"));
+			var other = ModuleHost.Modules.Single(run => run.Name == "FakeSecond");
+			await AwaitInitAsync(other);
+			await WaitStateSettledAsync(other, ModuleState.Ready);
+			Assert.Equal(1, ModuleProbe.RuntimeStaticInt(other, "InitCount"));
+		} finally {
+			await TeardownAsync();
+		}
+	}
+
+	[Fact]
 	public async Task S01_Startup_EachRuntimeInitializedExactlyOnce() {
 		await BootAsync();
 		try {
@@ -154,6 +246,7 @@ public sealed class ModuleStartupTests {
 			Assert.Equal(retiredBefore, InteractionHost.RetiredServiceCountForTest);
 			Assert.Equal(3, InteractionHost.Current.Modules.Count);
 			foreach (var run in ModuleHost.Modules) {
+				await AwaitInitAsync(run);
 				Assert.Equal(1, ModuleProbe.RuntimeStaticInt(run, "InitCount"));
 			}
 		} finally {

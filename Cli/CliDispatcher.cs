@@ -6,6 +6,8 @@ using Pengin1011.Services.Discord;
 namespace Pengin1011;
 
 public static class CliDispatcher {
+	internal static bool MaintenanceOnly { get; set; }
+
 	public static DateTimeOffset StartedAt { get; internal set; } = DateTimeOffset.Now;
 
 	public static async Task<CliResult> ExecuteAsync(string line) {
@@ -16,7 +18,6 @@ public static class CliDispatcher {
 			case "help":
 				return new CliResult(Loc.Get("CliHelp"), false);
 			case "status":
-				if (HostMaintenance.DataAccessPaused) return new CliResult(Loc.Get("MaintenanceBusy"), false);
 				return new CliResult(StatusText(), false);
 			case "modules":
 				return new CliResult(ModulesText(), false);
@@ -25,10 +26,10 @@ public static class CliDispatcher {
 			case "db":
 				return new CliResult(await DatabaseCommands.ExecuteAsync(parts), false);
 			case "preset":
-				if (HostMaintenance.MaintenanceOnly) return new CliResult(Loc.Get("MaintenanceConsole"), false);
+				if (MaintenanceOnly) return new CliResult(Loc.Get("MaintenanceConsole"), false);
 				return new CliResult(Preset(parts), false);
 			case "sync": {
-					if (HostMaintenance.MaintenanceOnly) return new CliResult(Loc.Get("MaintenanceConsole"), false);
+					if (MaintenanceOnly) return new CliResult(Loc.Get("MaintenanceConsole"), false);
 					var error = await InteractionHost.SyncAsync(InteractionHost.ShutdownToken);
 					return new CliResult(error == null ? Loc.Get("CommandTreeSynced") : Loc.Format("CommandTreeSyncFailed", error), false);
 				}

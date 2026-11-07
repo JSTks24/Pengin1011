@@ -100,7 +100,7 @@ public sealed class DatabaseOwnershipTests {
 		var baseDir = TempBase();
 		try {
 			var dataDirectory = Path.Combine(baseDir, "data");
-			Databases.SetDataDirectoryForTest(dataDirectory);
+			DatabaseTestSetup.SetDirectory(dataDirectory);
 			Databases.Init();
 			await Databases.PrepareAsync<FakeDbContext>();
 			await using (var db = Databases.Open<FakeDbContext>()) {
@@ -113,10 +113,10 @@ public sealed class DatabaseOwnershipTests {
 			Assert.False(DataDirectoryOwnership.TryAcquire(dataDirectory, out _, out var failure));
 			Assert.NotNull(failure);
 
-			var result = await Databases.RestoreAsync("Fake", backupId);
+			var result = await DatabaseRestoreEngine.RestoreAsync(Databases.DataDirectory, "Fake", backupId, CancellationToken.None);
 			Assert.Equal(RestoreOutcome.Completed, result.Outcome);
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -126,7 +126,7 @@ public sealed class DatabaseOwnershipTests {
 		var baseDir = TempBase();
 		try {
 			var external = Path.Combine(baseDir, "external-data");
-			Databases.SetDataDirectoryForTest(external);
+			DatabaseTestSetup.SetDirectory(external);
 			Databases.Init();
 			await Databases.PrepareAsync<FakeDbContext>();
 			await using (var db = Databases.Open<FakeDbContext>()) {
@@ -135,7 +135,7 @@ public sealed class DatabaseOwnershipTests {
 			}
 			SqliteConnection.ClearAllPools();
 
-			Databases.SetDataDirectoryForTest(external);
+			DatabaseTestSetup.SetDirectory(external);
 			Databases.Init();
 			await Databases.PrepareAsync<FakeDbContext>();
 			await using (var db = Databases.Open<FakeDbContext>()) {
@@ -143,7 +143,7 @@ public sealed class DatabaseOwnershipTests {
 				Assert.Equal(["共享外置数据"], names);
 			}
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -152,7 +152,7 @@ public sealed class DatabaseOwnershipTests {
 	public async Task D31_ShutdownWithoutPreparation_DoesNotCreateDatabases() {
 		var baseDir = TempBase();
 		try {
-			Databases.SetDataDirectoryForTest(Path.Combine(baseDir, "data"));
+			DatabaseTestSetup.SetDirectory(Path.Combine(baseDir, "data"));
 			Databases.Init();
 
 			var result = await Databases.ShutdownAsync();
@@ -161,7 +161,7 @@ public sealed class DatabaseOwnershipTests {
 			Assert.True(result.Success);
 			Assert.False(File.Exists(Path.Combine(baseDir, "data", "Fake.db")));
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -170,7 +170,7 @@ public sealed class DatabaseOwnershipTests {
 	public async Task D31_ShutdownIsIdempotentAndSharesTheSameResult() {
 		var baseDir = TempBase();
 		try {
-			Databases.SetDataDirectoryForTest(Path.Combine(baseDir, "data"));
+			DatabaseTestSetup.SetDirectory(Path.Combine(baseDir, "data"));
 			Databases.Init();
 			await Databases.PrepareAsync<FakeDbContext>();
 			await using (var db = Databases.Open<FakeDbContext>()) {
@@ -186,7 +186,7 @@ public sealed class DatabaseOwnershipTests {
 			Assert.Same(first, second);
 			Assert.Equal(before + 1, Databases.ListBackups("Fake", DatabaseBackupStore.RollingCategory).Count);
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}

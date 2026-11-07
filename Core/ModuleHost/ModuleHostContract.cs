@@ -12,7 +12,7 @@ public sealed class ModuleHostContractAttribute : Attribute {
 }
 
 public static class ModuleHostContract {
-	public const int Current = 4;
+	public const int Current = 5;
 
 	public static bool TryRead(System.Reflection.Assembly assembly, out int version, out string? failure) {
 		failure = null;

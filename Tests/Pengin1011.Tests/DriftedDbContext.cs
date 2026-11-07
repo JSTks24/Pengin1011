@@ -20,10 +20,6 @@ public sealed class DriftedDbContext : DbContext {
 	public DriftedDbContext(DbContextOptions<DriftedDbContext> options) : base(options) {
 	}
 
-	protected override void OnConfiguring(DbContextOptionsBuilder options) {
-		if (options.IsConfigured) return;
-		Databases.Configure(GetType(), options);
-	}
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder) {
 		base.OnModelCreating(modelBuilder);

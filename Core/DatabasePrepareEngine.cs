@@ -9,7 +9,8 @@ namespace Pengin1011.Core;
 
 internal static class DatabasePrepareEngine {
 	internal static Func<CancellationToken, Task>? IntentWrittenForTest;
-	public static async Task<DatabasePrepareResult> RunAsync(DatabaseService service, string id, Type contextType, CancellationToken ct) {
+	public static async Task<DatabasePrepareResult> RunAsync(DatabaseService service, DatabaseService.DatabaseEntry entry, CancellationToken ct) {
+		var id = entry.Id;
 		var path = service.PathOf(id);
 		var directory = service.DataDirectory;
 		Directory.CreateDirectory(directory);
@@ -18,16 +19,18 @@ internal static class DatabasePrepareEngine {
 
 		await service.MaintenanceGate.WaitAsync(ct).ConfigureAwait(false);
 		try {
-			return await RunUnderMaintenanceAsync(service, id, contextType, path, directory, existed, ct).ConfigureAwait(false);
+			return await RunUnderMaintenanceAsync(service, entry, path, directory, existed, ct).ConfigureAwait(false);
 		} finally {
 			service.MaintenanceGate.Release();
 		}
 	}
 
-	private static async Task<DatabasePrepareResult> RunUnderMaintenanceAsync(DatabaseService service, string id, Type contextType, string path, string directory, bool existed, CancellationToken ct) {
-		var factory = DatabaseContextFactory.For(contextType);
+	private static async Task<DatabasePrepareResult> RunUnderMaintenanceAsync(DatabaseService service, DatabaseService.DatabaseEntry entry, string path, string directory, bool existed, CancellationToken ct) {
+		var id = entry.Id;
+		var contextType = entry.ContextType;
+		var factory = entry.Create;
 		try {
-			using var probe = factory(service.ConnectionStringFor(contextType, creating: !existed));
+			using var probe = factory(service.ConnectionStringFor(entry, creating: !existed));
 			var migrations = probe.Database.GetMigrations().ToList();
 			if (migrations.Count == 0) {
 				var message = Loc.Format("DbMigrationContractViolated", contextType.Name, Loc.Get("MigrationContractText"));
@@ -66,25 +69,18 @@ internal static class DatabasePrepareEngine {
 
 			var pending = migrations.Except(history, StringComparer.Ordinal).ToList();
 			if (pending.Count > 0) {
+				ct.ThrowIfCancellationRequested();
 				string? snapshotId = null;
 				if (existed && !DatabaseBackupStore.TryCreate(directory, id, DatabaseBackupStore.PreMigrationCategory, path, pending, out snapshotId, out var snapshotFailure)) {
 					var message = Loc.Format("PreMigrationSnapshotFailed", id, snapshotFailure);
 					Logger.Error(typeof(DatabasePrepareEngine), message);
 					return new DatabasePrepareResult(false, DatabaseState.Failed, message);
 				}
-				var record = new MaintenanceJournal.MigrationIntent {
-					Database = id,
-					OperationId = MaintenanceJournal.CreateOperationId(),
-					State = nameof(MaintenanceOperationState.Migrating),
-					PreviousHistory = history,
-					TargetHistory = migrations,
-					SnapshotId = snapshotId,
-					FreshDatabase = !existed,
-					UpdatedUtc = DateTimeOffset.UtcNow,
-				};
-				MaintenanceJournal.WriteMigrationIntent(directory, id, record);
+				ct.ThrowIfCancellationRequested();
+				DatabaseMaintenance.Write(directory, id, "migration " + (snapshotId ?? "new"));
 				if (IntentWrittenForTest != null) await IntentWrittenForTest(ct);
-				using var migrating = factory(service.ConnectionStringFor(contextType, creating: !existed));
+				ct.ThrowIfCancellationRequested();
+				using var migrating = factory(service.ConnectionStringFor(entry, creating: !existed));
 				await migrating.Database.MigrateAsync(ct).ConfigureAwait(false);
 			}
 
@@ -113,7 +109,7 @@ internal static class DatabasePrepareEngine {
 				}
 			}
 
-			MaintenanceJournal.ClearMigrationIntent(directory, id);
+			DatabaseMaintenance.Clear(directory, id);
 			return new DatabasePrepareResult(true, DatabaseState.Prepared, null);
 		} catch (Exception e) {
 			Logger.Error(typeof(DatabasePrepareEngine), e, Loc.Format("DatabasePrepareFailed", id));
@@ -155,29 +151,5 @@ internal static class DatabasePrepareEngine {
 			Logger.Error(typeof(DatabasePrepareEngine), e, Loc.Format("DatabasePrepareFailed", Path.GetFileName(path)));
 			throw;
 		}
-	}
-}
-
-internal static class DatabaseContextFactory {
-	public static Func<string, DbContext> For(Type contextType) {
-		var optionsType = typeof(DbContextOptions<>).MakeGenericType(contextType);
-		var constructor = contextType.GetConstructor([optionsType]);
-		return connectionString => {
-			var builderType = typeof(DbContextOptionsBuilder<>).MakeGenericType(contextType);
-			var builder = (DbContextOptionsBuilder)Activator.CreateInstance(builderType)!;
-			UseSqlite(builder, connectionString);
-			var options = builder.Options;
-			if (constructor != null) return (DbContext)constructor.Invoke([options])!;
-			var plain = contextType.GetConstructor(Type.EmptyTypes)
-				?? throw new InvalidOperationException($"Context {contextType.Name} needs a DbContextOptions constructor or a parameterless one");
-			var context = (DbContext)plain.Invoke(null)!;
-			context.Database.SetConnectionString(connectionString);
-			return context;
-		};
-	}
-
-	private static void UseSqlite(DbContextOptionsBuilder builder, string connectionString) {
-		SqliteDbContextOptionsBuilderExtensions.UseSqlite(builder, connectionString);
-		builder.AddInterceptors(SqliteConnectionPolicy.Interceptor);
 	}
 }

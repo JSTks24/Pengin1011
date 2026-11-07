@@ -10,24 +10,7 @@ public sealed class FakeItem {
 	public string Name { get; set; } = "";
 }
 
-public class FakeModuleDbContext : DbContext {
-	public FakeModuleDbContext() {
-	}
-
-	public FakeModuleDbContext(DbContextOptions<FakeModuleDbContext> options) : base(options) {
-	}
-
-	protected override void OnConfiguring(DbContextOptionsBuilder options) {
-		if (options.IsConfigured) return;
-		Databases.Configure(GetType(), options);
-	}
-
+[ModuleDatabase("FakeModule")]
+public partial class FakeModuleDbContext : DbContext {
 	public DbSet<FakeItem> Items => Set<FakeItem>();
-}
-
-public sealed class FakeModuleDbContextFactory : IDesignTimeDbContextFactory<FakeModuleDbContext> {
-	public FakeModuleDbContext CreateDbContext(string[] args) {
-		var options = new DbContextOptionsBuilder<FakeModuleDbContext>().UseSqlite("Data Source=fakemodule-design.db").Options;
-		return new FakeModuleDbContext(options);
-	}
 }

@@ -1,6 +1,7 @@
 var moduleName = args[0];
 var templateDir = args[1];
 var moduleDir = args[2];
+var withDatabase = args.Length > 3 && bool.TryParse(args[3], out var requested) && requested;
 
 (string Template, string Output)[] mappings =
 [
@@ -15,6 +16,7 @@ var moduleDir = args[2];
 
 Directory.CreateDirectory(moduleDir);
 foreach (var (template, output) in mappings) {
+	if (template == "ModuleDbContext" && !withDatabase) continue;
 	var content = File.ReadAllText(Path.Combine(templateDir, $"{template}.tpl"));
 	var target = Path.Combine(moduleDir, output);
 	Directory.CreateDirectory(Path.GetDirectoryName(target)!);

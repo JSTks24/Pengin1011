@@ -26,7 +26,7 @@ public sealed class DatabasesBackupTests {
 	[Fact]
 	public async Task D09_RollingKeepsFiveCompletedSnapshotsAndDropsNothingElse() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			await Databases.PrepareAsync<FakeDbContext>();
@@ -47,7 +47,7 @@ public sealed class DatabasesBackupTests {
 			var count = await snapshot.Database.SqlQueryRaw<long>("SELECT COUNT(*) AS \"Value\" FROM \"Items\"").SingleAsync();
 			Assert.Equal(1L, count);
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -55,7 +55,7 @@ public sealed class DatabasesBackupTests {
 	[Fact]
 	public async Task D10_MetadataAndDigestAreRecordedForEveryCompletedSnapshot() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			await Databases.PrepareAsync<FakeDbContext>();
@@ -71,7 +71,7 @@ public sealed class DatabasesBackupTests {
 			Assert.NotEmpty(info.History);
 			Assert.True(File.Exists(Path.Combine(Path.GetDirectoryName(info.SnapshotPath)!, DatabaseBackupStore.MetadataFileName)));
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -79,7 +79,7 @@ public sealed class DatabasesBackupTests {
 	[Fact]
 	public async Task D10_ListIsMetadataOnly_AndVerifyRejectsHashMismatch() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			await Databases.PrepareAsync<FakeDbContext>();
@@ -98,7 +98,7 @@ public sealed class DatabasesBackupTests {
 			Assert.Single(Databases.ListBackups("Fake", DatabaseBackupStore.RollingCategory));
 			Assert.False(DatabaseBackupStore.TryVerify(DataDir(baseDir), "Fake", info.Category, info.BackupId, out _, out _));
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -106,7 +106,7 @@ public sealed class DatabasesBackupTests {
 	[Fact]
 	public async Task D10_PartialDirectory_IsNeverListedAsCompleted() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			await Databases.PrepareAsync<FakeDbContext>();
@@ -115,7 +115,7 @@ public sealed class DatabasesBackupTests {
 
 			Assert.Empty(Databases.ListBackups("Fake", DatabaseBackupStore.RollingCategory));
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -123,7 +123,7 @@ public sealed class DatabasesBackupTests {
 	[Fact]
 	public async Task D08_PreMigrationSnapshot_LivesInItsOwnCategory() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			await Databases.PrepareAsync<FakeDbContext>();
@@ -142,7 +142,7 @@ public sealed class DatabasesBackupTests {
 			await Databases.BackupNowAsync();
 			Assert.Single(Databases.ListBackups("Fake", DatabaseBackupStore.PreMigrationCategory));
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -150,7 +150,7 @@ public sealed class DatabasesBackupTests {
 	[Fact]
 	public async Task Shutdown_CheckpointsAndBackups() {
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			Databases.Init();
 			await Databases.PrepareAsync<FakeDbContext>();
@@ -168,7 +168,7 @@ public sealed class DatabasesBackupTests {
 			var count = await check.Database.SqlQueryRaw<long>("SELECT COUNT(*) AS \"Value\" FROM \"Items\"").SingleAsync();
 			Assert.Equal(1L, count);
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}

@@ -13,7 +13,7 @@ public sealed class ModuleScaffoldTests {
 		var moduleDirectory = Path.Combine(fixture.Root, "Modules", moduleName);
 		Assert.False(Directory.Exists(Path.Combine(fixture.Root, "bin")));
 		Assert.False(Directory.Exists(Path.Combine(fixture.Root, "obj")));
-		var scaffold = fixture.RunDotnet(fixture.Root, "build", "Pengin1011.csproj", "-c", "Release", "-t:NewModule", $"-p:Module={moduleName}");
+		var scaffold = fixture.RunDotnet(fixture.Root, "build", "Pengin1011.csproj", "-c", "Release", "-t:NewModule", $"-p:Module={moduleName}", "-p:WithDatabase=true");
 		Assert.True(scaffold.ExitCode == 0, scaffold.Output);
 
 		foreach (var expected in new[] { $"{moduleName}.csproj", $"{moduleName}.cs", $"{moduleName}Runtime.cs", $"{moduleName}Config.cs", $"{moduleName}DbContext.cs", "Localization/Strings.resx", "Localization/zh-CN/Strings.resx" }) {
@@ -21,7 +21,7 @@ public sealed class ModuleScaffoldTests {
 		}
 		Assert.Contains($"Modules\\{moduleName}\\{moduleName}.csproj", File.ReadAllText(Path.Combine(fixture.Root, "Pengin1011.sln")));
 		var contextPath = Path.Combine(moduleDirectory, $"{moduleName}DbContext.cs");
-		var context = File.ReadAllText(contextPath).Replace($"public class {moduleName}DbContext : DbContext {{", $"public class {moduleName}DbContext : DbContext {{\n\tpublic DbSet<ProbeRecord> Records => Set<ProbeRecord>();");
+		var context = File.ReadAllText(contextPath).Replace($"public partial class {moduleName}DbContext : DbContext {{", $"public partial class {moduleName}DbContext : DbContext {{\n\tpublic DbSet<ProbeRecord> Records => Set<ProbeRecord>();");
 		File.WriteAllText(contextPath, context + "\npublic sealed class ProbeRecord {\n\tpublic int Id { get; set; }\n\tpublic string Value { get; set; } = \"\";\n}\n");
 		var project = Path.Combine(moduleDirectory, $"{moduleName}.csproj");
 		var build = fixture.RunDotnet(fixture.Root, "build", project, "-c", "Release");
@@ -31,7 +31,7 @@ public sealed class ModuleScaffoldTests {
 		Assert.True(File.Exists(efTool), $"EF 迁移验收要求全局工具：{efTool}");
 		var migration = fixture.Run(efTool, moduleDirectory, [
 			"migrations", "add", "Init", "--configuration", "Release", "--no-build",
-			"--project", project, "--startup-project", project, "--context", $"{moduleName}DbContext", "--output-dir", "Migrations",
+			"--project", project, "--startup-project", project, "--output-dir", "Migrations",
 		]);
 		Assert.True(migration.ExitCode == 0, migration.Output);
 		var migrations = Directory.GetFiles(Path.Combine(moduleDirectory, "Migrations"), "*.cs");
@@ -57,6 +57,37 @@ public sealed class ModuleScaffoldTests {
 			Assert.EndsWith("_Init", Assert.IsType<string>(history.ExecuteScalar()));
 		}
 
+		using (var connection = new SqliteConnection($"Data Source={database};Pooling=False")) {
+			connection.Open();
+			using var insert = connection.CreateCommand();
+			insert.CommandText = "INSERT INTO Records (Value) VALUES ('preserved-v1')";
+			insert.ExecuteNonQuery();
+		}
+		File.WriteAllText(contextPath, File.ReadAllText(contextPath).Replace("public int Id { get; set; }", "public int Id { get; set; }\n\tpublic string? Note { get; set; }"));
+		var v2Build = fixture.RunDotnet(fixture.Root, "build", project, "-c", "Release");
+		Assert.True(v2Build.ExitCode == 0, v2Build.Output);
+		var v2Migration = fixture.Run(efTool, moduleDirectory, [
+			"migrations", "add", "AddNote", "--configuration", "Release", "--no-build",
+			"--project", project, "--startup-project", project, "--context", $"{moduleName}DbContext", "--output-dir", "Migrations",
+		]);
+		Assert.True(v2Migration.ExitCode == 0, v2Migration.Output);
+		var v2Rebuild = fixture.RunDotnet(fixture.Root, "build", project, "-c", "Release");
+		Assert.True(v2Rebuild.ExitCode == 0, v2Rebuild.Output);
+		var v2Update = fixture.Run(efTool, moduleDirectory, [
+			"database", "update", "--configuration", "Release", "--no-build",
+			"--project", project, "--startup-project", project, "--connection", $"Data Source={database}",
+		]);
+		Assert.True(v2Update.ExitCode == 0, v2Update.Output);
+		using (var connection = new SqliteConnection($"Data Source={database};Pooling=False")) {
+			connection.Open();
+			using var row = connection.CreateCommand();
+			row.CommandText = "SELECT Value FROM Records WHERE Note IS NULL";
+			Assert.Equal("preserved-v1", row.ExecuteScalar());
+			using var history = connection.CreateCommand();
+			history.CommandText = "SELECT COUNT(*) FROM __EFMigrationsHistory";
+			Assert.Equal(2L, history.ExecuteScalar());
+		}
+
 		var fakeModuleDirectory = Path.Combine(fixture.Root, "bin", "Release", "net10.0", "module");
 		var fakeBuild = fixture.RunDotnet(fixture.Root, "build", "Tests/FakeModule/FakeModule.csproj", "-c", "Release", $"-p:ModuleOutputDir={fakeModuleDirectory}");
 		Assert.True(fakeBuild.ExitCode == 0, fakeBuild.Output);
@@ -79,15 +110,17 @@ public sealed class ModuleScaffoldTests {
 	}
 
 	[Fact]
-	public void B05_TemplateUsesThePrepareContractNotTheRemovedAutoMigratingOpen() {
-		var runtime = File.ReadAllText(Path.Combine(ModuleBuildFixture.RepositoryRoot, "BuildTemplates", "ModuleRuntime.tpl"));
-		Assert.Contains("Databases.PrepareAsync<", runtime);
-		Assert.DoesNotContain("Databases.Open<", runtime);
-		var context = File.ReadAllText(Path.Combine(ModuleBuildFixture.RepositoryRoot, "BuildTemplates", "ModuleDbContext.tpl"));
-		Assert.Contains("DbContextOptions<", context);
-		Assert.Contains("IDesignTimeDbContextFactory", context);
-		Assert.Contains("options.IsConfigured", context);
+	public void ScaffoldWithoutDatabaseHasNoContextAndBuilds() {
+		using var fixture = new ModuleBuildFixture();
+		var result = fixture.RunDotnet(fixture.Root, "build", "Pengin1011.csproj", "-t:NewModule", "-p:Module=NoDatabase");
+		Assert.True(result.ExitCode == 0, result.Output);
+		Assert.False(File.Exists(Path.Combine(fixture.Root, "Modules", "NoDatabase", "NoDatabaseDbContext.cs")));
+		var runtime = File.ReadAllText(Path.Combine(fixture.Root, "Modules", "NoDatabase", "NoDatabaseRuntime.cs"));
+		Assert.DoesNotContain("Databases.", runtime);
+		var build = fixture.RunDotnet(fixture.Root, "build", "Modules/NoDatabase/NoDatabase.csproj", "-c", "Release");
+		Assert.True(build.ExitCode == 0, build.Output);
 	}
+
 }
 
 internal sealed class ModuleBuildFixture : IDisposable {

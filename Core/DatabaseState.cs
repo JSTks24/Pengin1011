@@ -9,26 +9,6 @@ public enum DatabaseState {
 	MaintenanceRequired,
 }
 
-public enum MaintenanceOperationState {
-	Migrating,
-	Completed,
-}
-
-public sealed record MaintenanceOperationRecord {
-	public required string OperationId { get; init; }
-	public required string Database { get; init; }
-	public required string Category { get; init; }
-	public required string State { get; init; }
-	public required DateTimeOffset StartedUtc { get; init; }
-	public string? CompletedUtc { get; init; }
-	public string? PreviousHistory { get; init; }
-	public string? TargetHistory { get; init; }
-	public string? SnapshotId { get; init; }
-	public bool FreshDatabase { get; init; }
-	public string? SourceBackupId { get; init; }
-	public string? Reason { get; init; }
-}
-
 public sealed record DatabaseBackupInfo(
 	string BackupId,
 	string Category,
@@ -48,18 +28,16 @@ public sealed record DatabaseStatus(
 	DatabaseBackupInfo? LastCompletedBackup,
 	DateTimeOffset? LastBackupAttemptUtc,
 	bool? LastBackupAttemptSucceeded,
-	MaintenanceOperationRecord? PendingMaintenance,
+	bool PendingMaintenance,
 	int CompletedBackupCount,
 	IReadOnlyList<string> Notes);
 
-public sealed record DatabasePrepareResult(bool Success, DatabaseState State, string? Failure);
+internal sealed record DatabasePrepareResult(bool Success, DatabaseState State, string? Failure);
 
-public enum RestoreOutcome {
+internal enum RestoreOutcome {
 	Completed,
 	Rejected,
 	Failed,
 }
 
-public sealed record RestoreResult(RestoreOutcome Outcome, string? OperationId, string? Reason);
-
-public sealed record MaintenanceResult(bool Success, string? Reason, string? OperationId = null);
+internal sealed record RestoreResult(RestoreOutcome Outcome, string? OperationId, string? Reason);

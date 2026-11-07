@@ -97,6 +97,7 @@ public static class ModuleHost {
 			registration.Track(() => AIPresetUsageRegistry.Rollback(usages));
 			AIPresetUsageRegistry.Commit(usages);
 		}
+		if (Databases.RegisterModule(assembly)) registration.Track(() => Databases.UnregisterModule(assembly));
 		ModuleBridgeDispatcher.RegisterModule(assembly, run);
 		registration.Track(() => ModuleBridgeDispatcher.RemoveModule(run.Name));
 		registration.Commit();
@@ -144,6 +145,7 @@ public static class ModuleHost {
 
 	internal static void ResetForTest() {
 		lock (_gate) {
+			foreach (var run in _loaded) Databases.UnregisterModule(run.Assembly);
 			_loaded.Clear();
 			_scanned = false;
 		}

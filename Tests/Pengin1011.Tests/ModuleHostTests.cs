@@ -34,7 +34,7 @@ public sealed class ModuleHostTests {
 
 	internal static void ResetModules() {
 		var useSharedDirectory = !Databases.DataDirectoryConfigured || DataDirectoryResolver.IsSameDirectory(Databases.DataDirectory, _databaseDirectory);
-		Databases.SetDataDirectoryForTest(useSharedDirectory ? _databaseDirectory : Databases.DataDirectory);
+		DatabaseTestSetup.SetDirectory(useSharedDirectory ? _databaseDirectory : Databases.DataDirectory);
 		if (useSharedDirectory) {
 			Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
 			if (Directory.Exists(_databaseDirectory)) Directory.Delete(_databaseDirectory, true);
@@ -88,13 +88,13 @@ public sealed class ModuleHostTests {
 	public async Task StopThenReopenDbContext_SameProcessKeepsData() {
 		ResetModules();
 		var baseDir = TempBase();
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		try {
 			ModuleHost.LoadAll();
 			var assembly = ModuleHost.Modules.Single(module => module.Name == "FakeModule").Assembly;
 			var contextType = assembly.GetType("Pengin1011.Modules.FakeModule.FakeModuleDbContext")!;
 			var itemType = assembly.GetType("Pengin1011.Modules.FakeModule.FakeItem")!;
-			await InvokePrepareAsync(contextType);
+			await Databases.PrepareModuleAsync(assembly, CancellationToken.None);
 			var open = typeof(Databases).GetMethod("Open")!.MakeGenericMethod(contextType);
 			await using (var db = (DbContext)open.Invoke(null, null)!) {
 				var item = Activator.CreateInstance(itemType)!;
@@ -116,7 +116,7 @@ public sealed class ModuleHostTests {
 				await ModuleHost.StopAsync(run);
 			}
 			ResetModules();
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -209,12 +209,6 @@ public sealed class ModuleHostTests {
 			File.Delete(copied);
 			ResetModules();
 		}
-	}
-
-	internal static async Task InvokePrepareAsync(Type contextType) {
-		var prepare = typeof(Databases).GetMethod("PrepareAsync")!.MakeGenericMethod(contextType);
-		var task = (Task)prepare.Invoke(null, [CancellationToken.None])!;
-		await task;
 	}
 
 	internal static async Task WaitStateAsync(LoadedModule run, ModuleState expected, int timeoutMs = 5000) {

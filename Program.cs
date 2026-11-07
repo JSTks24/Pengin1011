@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Discord;
 using Pengin1011.Core;
 using Pengin1011.Core.Logging;
@@ -10,7 +9,8 @@ namespace Pengin1011;
 internal static class Program {
 	public static async Task<int> Main(string[] args) {
 		Console.OutputEncoding = System.Text.Encoding.UTF8;
-		HostMaintenance.MaintenanceOnly = true;
+		if (args.FirstOrDefault() == "db") return await DatabaseCommands.RunOfflineAsync(args);
+		CliDispatcher.MaintenanceOnly = true;
 		if (!TryParseArguments(args, out var dataDirectory, out var createDirectory)) {
 			Logger.Error(typeof(Program), Loc.Get("StartupArgumentsInvalid"));
 			return 2;
@@ -29,7 +29,6 @@ internal static class Program {
 		using var signals = new ShutdownSignals(RequestStop, shutdownCompleted.Task);
 		var started = false;
 		try {
-			await using var handoff = await RestartHandoff.ConnectAsync(RequestStop, cancellation.Token);
 			try {
 				var configValid = AppConfig.TryLoad(null, out _);
 				if (!AppConfig.PathConfigurationValid && dataDirectory == null) throw new InvalidDataException(Loc.Get("ConfigPathsUnavailable"));
@@ -42,31 +41,20 @@ internal static class Program {
 				if (configValid && AIPresetStore.TryLoad(null, out _)) {
 					await StartBusinessAsync(cancellation.Token);
 					started = true;
-					HostMaintenance.MaintenanceOnly = false;
+					CliDispatcher.MaintenanceOnly = false;
 					Logger.Info(typeof(Program), Loc.Get("StartedHint"));
 				}
 			} catch (Exception e) {
 				Logger.Error(typeof(Program), e, Loc.Get("StartupFailed"));
 			}
-			if (handoff != null && !await handoff.CompleteStartupAsync(started, cancellation.Token)) return 1;
 			if (!started) {
 				await HostExit.StopAsync();
 				Logger.Info(typeof(Program), Loc.Get("MaintenanceConsole"));
 			}
 			CliDispatcher.StartedAt = DateTimeOffset.Now;
 			var input = CliLoop.RunAsync(RequestStop, cancellation.Token, () => false);
-			while (!exit.Task.IsCompleted) {
-				var request = HostMaintenance.Pending;
-				if (!started || !input.IsCompleted) await Task.WhenAny(exit.Task, request, input);
-				else await Task.WhenAny(exit.Task, request);
-				if (request.IsCompletedSuccessfully) {
-					if (await HostMaintenance.ExecutePendingWithRestartAsync(HostExit.StopAsync, () => RestartHandoff.RunAsync(RestartStartInfo(), cancellation.Token))) return 0;
-					started = false;
-					Logger.Info(typeof(Program), Loc.Get("MaintenanceConsole"));
-				} else if (!started && input.IsCompleted) {
-					break;
-				}
-			}
+			if (!started) await Task.WhenAny(exit.Task, input);
+			else await exit.Task;
 			var report = await HostExit.StopAsync();
 			return HostExit.CodeFor(started, report);
 		} catch (Exception e) {
@@ -112,20 +100,6 @@ internal static class Program {
 			}
 		}
 		return true;
-	}
-
-	internal static ProcessStartInfo RestartStartInfo() {
-		var executable = Environment.ProcessPath ?? throw new InvalidOperationException(Loc.Get("RestartFailed"));
-		var info = new ProcessStartInfo(executable) {
-			UseShellExecute = false,
-			WorkingDirectory = AppContext.BaseDirectory
-		};
-		if (string.Equals(Path.GetFileNameWithoutExtension(executable), "dotnet", StringComparison.OrdinalIgnoreCase)) {
-			info.ArgumentList.Add(typeof(Program).Assembly.Location);
-		}
-		info.ArgumentList.Add("--data-dir");
-		info.ArgumentList.Add(Databases.DataDirectory);
-		return info;
 	}
 
 }

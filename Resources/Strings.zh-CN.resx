@@ -145,7 +145,7 @@ AI 预设：{3} 个（默认：{4}）
 		<value>未配置</value>
 	</data>
 	<data name="MigrationContractText" xml:space="preserve">
-		<value>凡有持久化需求的模块一律使用 EF Core Migration</value>
+		<value>请生成包含 Migration、Designer、ModelSnapshot 的迁移并重新构建模块，由宿主初始化已声明的数据库。</value>
 	</data>
 	<data name="DbFileConflict" xml:space="preserve">
 		<value>库文件冲突：{0} 已被 {1} 占用，{2} 无法使用同一文件</value>
@@ -756,17 +756,8 @@ AI 预设：{3} 个（默认：{4}）
 	<data name="DatabaseNameInvalid" xml:space="preserve">
 		<value>DbContext 名称无法转换为合法的数据库文件名</value>
 	</data>
-	<data name="DatabaseNameReserved" xml:space="preserve">
-		<value>数据库名与系统保留设备名冲突</value>
-	</data>
 	<data name="DatabasePrepareRequired" xml:space="preserve">
-		<value>数据库 {0} 尚未准备；请在 Open 前调用 Databases.PrepareAsync</value>
-	</data>
-	<data name="DatabasePrepareCancelled" xml:space="preserve">
-		<value>等待数据库 {0} 准备被取消；共享准备工作仍在继续</value>
-	</data>
-	<data name="DatabasePreparedFileMissing" xml:space="preserve">
-		<value>数据库 {0} 已准备但其文件已消失；外部删除或替换不会自愈</value>
+		<value>数据库 {0} 尚未就绪或存在未完成操作；宿主会在模块启动前初始化已声明的数据库。</value>
 	</data>
 	<data name="DatabasePrepareFailed" xml:space="preserve">
 		<value>准备数据库 {0} 失败</value>
@@ -787,7 +778,7 @@ AI 预设：{3} 个（默认：{4}）
 		<value>数据库 {0} 含业务表却没有迁移历史；不按全新数据库处理</value>
 	</data>
 	<data name="DatabaseResidualMigrationLock" xml:space="preserve">
-		<value>数据库 {0} 仍持有迁移锁行；确认没有外部写入者后，在内部终端使用 db unlock {0} --confirm</value>
+		<value>数据库 {0} 仍有 EF 迁移锁，请停机并使用离线命令恢复已校验的升级前快照。</value>
 	</data>
 	<data name="DatabaseMigrationIncomplete" xml:space="preserve">
 		<value>数据库 {0}：迁移未达到预期历史（{1}）</value>
@@ -849,65 +840,14 @@ AI 预设：{3} 个（默认：{4}）
 	<data name="RestoreBackupInvalid" xml:space="preserve">
 		<value>备份 {0} 不是经验证的完成快照；{1}</value>
 	</data>
-	<data name="RestoreQuarantineMismatch" xml:space="preserve">
-		<value>原现场保全未通过验证；未替换任何文件</value>
-	</data>
 	<data name="RestoreStagingInvalid" xml:space="preserve">
-		<value>staging 库完整性检查失败；切换从未开始</value>
-	</data>
-	<data name="RestoreVerificationIntegrity" xml:space="preserve">
-		<value>恢复出的数据库完整性检查失败</value>
-	</data>
-	<data name="RestoreVerificationForeignKey" xml:space="preserve">
-		<value>恢复出的数据库外键检查失败</value>
+		<value>恢复文件的完整性、外键或迁移历史校验失败。</value>
 	</data>
 	<data name="RestoreFailed" xml:space="preserve">
-		<value>恢复数据库 {0}（操作 {1}）失败；操作记录保留了阶段</value>
-	</data>
-	<data name="RestoreOperationUnknown" xml:space="preserve">
-		<value>维护操作 {0} 不存在</value>
-	</data>
-	<data name="RestoreAlreadyCompleted" xml:space="preserve">
-		<value>维护操作 {0} 已完成，无需回滚</value>
-	</data>
-	<data name="RestoreRollbackFailed" xml:space="preserve">
-		<value>回滚维护操作 {0} 失败</value>
-	</data>
-	<data name="MaintenanceRecordReadFailed" xml:space="preserve">
-		<value>读取维护记录 {0} 失败</value>
-	</data>
-	<data name="MaintenanceRecordDeleteFailed" xml:space="preserve">
-		<value>删除维护记录 {0} 失败</value>
-	</data>
-	<data name="UnlockWithPendingIntent" xml:space="preserve">
-		<value>数据库 {0} 存在未完成的迁移意图；请 verify 或 restore，而不是删除锁</value>
-	</data>
-	<data name="UnlockNothingToDo" xml:space="preserve">
-		<value>未发现 EF 迁移锁行</value>
-	</data>
-	<data name="UnlockFailed" xml:space="preserve">
-		<value>解锁数据库 {0} 失败</value>
-	</data>
-	<data name="VerifyRequiresConfirmation" xml:space="preserve">
-		<value>verify --accept-interrupted 需要显式确认参数</value>
-	</data>
-	<data name="VerifyTargetUnknown" xml:space="preserve">
-		<value>数据库 {0}：无法确认被中断迁移的目标</value>
-	</data>
-	<data name="LegacyBackupMissing" xml:space="preserve">
-		<value>legacy 备份文件 {0} 不存在</value>
-	</data>
-	<data name="LegacyBackupIsLiveDatabase" xml:space="preserve">
-		<value>该 legacy 文件就是在用数据库本身；请改用副本导入</value>
-	</data>
-	<data name="LegacyBackupNotSqlite" xml:space="preserve">
-		<value>{0} 不是可读的 SQLite 数据库，无法导入</value>
+		<value>恢复数据库 {0}（操作 {1}）失败；保留原文件及已有的未完成标记。</value>
 	</data>
 	<data name="DatabaseVersionReport" xml:space="preserve">
 		<value>SQLite {0}；provider {1}；journal_mode={2}；synchronous={3}；foreign_keys={4}</value>
-	</data>
-	<data name="DbCommandConfirmationRequired" xml:space="preserve">
-		<value>该命令会改动磁盘状态；请传 --confirm 继续</value>
 	</data>
 	<data name="DbCommandCompleted" xml:space="preserve">
 		<value>已完成：{0}</value>
@@ -934,10 +874,7 @@ AI 预设：{3} 个（默认：{4}）
 		<value>进程持有所有权时不能更换数据目录。</value>
 	</data>
 	<data name="DatabaseMaintenanceRequired" xml:space="preserve">
-		<value>数据库 {0} 有未完成维护，请先检查维护记录。</value>
-	</data>
-	<data name="RestorePhaseRejected" xml:space="preserve">
-		<value>不能从阶段 {0} 继续恢复。</value>
+		<value>数据库 {0} 存在未完成操作，请停机并使用离线命令恢复已校验的备份。</value>
 	</data>
 	<data name="RestoreTargetMismatch" xml:space="preserve">
 		<value>数据库与所选备份不一致。</value>
@@ -948,36 +885,11 @@ AI 预设：{3} 个（默认：{4}）
 	<data name="AdminPermissionRequired" xml:space="preserve">
 		<value>需要配置的管理身份组或机器人所有者权限。</value>
 	</data>
-	<data name="MaintenanceAccepted" xml:space="preserve">
-		<value>维护请求已受理。将先停止业务再操作文件；恢复成功后自动重启。</value>
-	</data>
-	<data name="MaintenanceBusy" xml:space="preserve">
-		<value>已有维护请求正在执行。</value>
-	</data>
-	<data name="MaintenanceUnavailable" xml:space="preserve">
-		<value>业务工作尚未安全结束，不能执行维护。</value>
-	</data>
 	<data name="MaintenanceConsole" xml:space="preserve">
 		<value>维护终端已可用，可输入 help、db 或 exit。</value>
 	</data>
-	<data name="RestartFailed" xml:space="preserve">
-		<value>重启失败，维护终端保持可用。</value>
-	</data>
-	<data name="Restarting" xml:space="preserve">
-		<value>维护完成，正在重启进程。</value>
-	</data>
 	<data name="DbInternalUsage" xml:space="preserve">
-		<value>db status [数据库]
-db backups &lt;数据库&gt;
-db backup
-db version
-db verify &lt;数据库&gt; &lt;备份&gt;
-db verify &lt;数据库&gt; --confirm --accept-interrupted
-db restore &lt;数据库&gt; &lt;备份&gt; --confirm
-db recover &lt;数据库&gt; &lt;操作&gt; --complete|--rollback --confirm
-db unlock &lt;数据库&gt; --confirm
-db import-backup &lt;数据库&gt; "文件" --confirm
-恢复、恢复收尾、现场校验和解锁成功后重启进程；备份和本地导入不重启。</value>
+		<value>db version | status [库] | backups &lt;库&gt; | backup | verify &lt;库&gt; &lt;备份&gt;。恢复须停机后运行：Pengin1011 db restore &lt;库&gt; &lt;备份&gt; --data-dir &lt;目录&gt; --confirm</value>
 	</data>
 	<data name="LoggerForwarderSummary" xml:space="preserve">
 		<value>详情请查看本地日志。</value>
@@ -986,7 +898,7 @@ db import-backup &lt;数据库&gt; "文件" --confirm
 		<value>日志向频道 {0} 的转发已取消。</value>
 	</data>
 	<data name="StartupArgumentsInvalid" xml:space="preserve">
-		<value>启动选项：--data-dir &lt;路径&gt; [--create-data-dir]。管理命令请在程序内部终端使用。</value>
+		<value>启动选项：--data-dir &lt;路径&gt; [--create-data-dir]。离线恢复：db restore &lt;数据库&gt; &lt;备份&gt; --data-dir &lt;目录&gt; --confirm。</value>
 	</data>
 	<data name="ConfigPathsUnavailable" xml:space="preserve">
 		<value>数据目录配置不可读取，请修正 config/config.json 后重新启动。</value>
@@ -1003,7 +915,10 @@ db import-backup &lt;数据库&gt; "文件" --confirm
 	<data name="AttachmentSizeExceeded" xml:space="preserve">
 		<value>附件超过大小上限：{0} 字节。</value>
 	</data>
-	<data name="MaintenanceCompletedRestartFailed" xml:space="preserve">
-		<value>数据库维护已完成，但新宿主启动失败。请检查本地诊断后再重试。</value>
-	</data>
+  <data name="DatabaseRegistrationConflict" xml:space="preserve"><value>数据库标识已被注册：{0}</value></data>
+  <data name="DatabaseNotRegistered" xml:space="preserve"><value>数据库上下文未注册：{0}</value></data>
+  <data name="RestoreOriginalMismatch" xml:space="preserve"><value>保留的原文件与源文件不一致。</value></data>
+  <data name="DbOfflineUsage" xml:space="preserve"><value>离线恢复：Pengin1011 db restore &lt;库&gt; &lt;备份&gt; --data-dir &lt;目录&gt; --confirm</value></data>
+  <data name="RestoreOfflineCompleted" xml:space="preserve"><value>数据库恢复完成，请手动启动机器人。</value></data>
+  <data name="RestoreOfflineFailed" xml:space="preserve"><value>离线数据库恢复失败。</value></data>
 </root>

@@ -25,7 +25,7 @@ public sealed class DatabaseDriftAndRetentionTests {
 	}
 
 	private static async Task<(string BackupId, string DataDirectory)> SeedAsync(string baseDir) {
-		Databases.SetDataDirectoryForTest(DataDir(baseDir));
+		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		Databases.Init();
 		await Databases.PrepareAsync<FakeDbContext>();
 		await using (var db = Databases.Open<FakeDbContext>()) {
@@ -49,7 +49,7 @@ public sealed class DatabaseDriftAndRetentionTests {
 	public async Task D02_ModelDriftWithNoPendingMigration_IsRejected() {
 		var baseDir = TempBase();
 		try {
-			Databases.SetDataDirectoryForTest(DataDir(baseDir));
+			DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 			Databases.Init();
 
 			// 该 context 的模型始终比自身 ModelSnapshot 多一列，且迁移只有 Init ⇒ 没有 pending migration，
@@ -59,7 +59,7 @@ public sealed class DatabaseDriftAndRetentionTests {
 			Assert.Equal(DatabaseState.Failed, Databases.StateOf<DriftedDbContext>());
 			Assert.False(File.Exists(Path.Combine(DataDir(baseDir), "Drifted.db")));
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -79,7 +79,7 @@ public sealed class DatabaseDriftAndRetentionTests {
 			Assert.Equal(DatabaseBackupStore.RollingKeepCount, rolling.Count);
 			Assert.All(rolling, info => Assert.True(DatabaseBackupStore.TryVerify(DataDir(baseDir), "Fake", info.Category, info.BackupId, out _, out _)));
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}
@@ -109,7 +109,7 @@ public sealed class DatabaseDriftAndRetentionTests {
 			Assert.True(Directory.Exists(categoryRoot));
 			Assert.True(Databases.ListBackups("Fake", DatabaseBackupStore.RollingCategory).Count >= before);
 		} finally {
-			Databases.SetDataDirectoryForTest(null);
+			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
 		}
 	}

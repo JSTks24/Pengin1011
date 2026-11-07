@@ -86,7 +86,7 @@ public sealed class ShutdownSignalsTests {
 		var shutdownCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 		ShutdownSignals? signals = null;
 		try {
-			Databases.ConfigureDataDirectory(directory);
+			DatabaseTestSetup.SetDirectory(directory);
 			Databases.Init();
 			await Databases.PrepareAsync<FakeDbContext>();
 			await using (var database = Databases.Open<FakeDbContext>()) {
@@ -111,8 +111,8 @@ public sealed class ShutdownSignalsTests {
 			signals?.Dispose();
 			HostExit.ResetForTest();
 			ExitCoordinator.ResetForTest();
-			HostMaintenance.ResetForTest();
-			Databases.SetDataDirectoryForTest(null);
+			CliDispatcher.MaintenanceOnly = false;
+			DatabaseTestSetup.SetDirectory(null);
 			SqliteConnection.ClearAllPools();
 		}
 	}

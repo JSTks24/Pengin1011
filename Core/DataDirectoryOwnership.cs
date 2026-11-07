@@ -1,6 +1,6 @@
 namespace Pengin1011.Core;
 
-public sealed class DataDirectoryOwnership : IDisposable {
+internal sealed class DataDirectoryOwnership : IDisposable {
 	public const string LockFileName = ".pengin1011-owner.lock";
 	private readonly FileStream _stream;
 

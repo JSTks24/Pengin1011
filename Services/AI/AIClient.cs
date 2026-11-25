@@ -10,30 +10,10 @@ public enum AIRole {
 	Assistant,
 }
 
-public sealed record AIMessage(AIRole Role, string Text);
-public sealed record AIImage(byte[] Data, string MimeType);
-public sealed record AIUsage(int InputTokens, int OutputTokens);
-public sealed record AIResult(string Text, AIUsage Usage);
-public sealed record AIStreamDelta(string Text, AIUsage? Usage = null);
-
-public sealed class AIRequest {
-	public string System { get; init; } = "";
-	public required IReadOnlyList<AIMessage> Messages { get; init; }
-	public IReadOnlyList<AIImage> Images { get; init; } = [];
-	public string? Model { get; init; }
-	public float? Temperature { get; init; }
-	public float? TopP { get; init; }
-	public int? MaxOutputTokens { get; init; }
-}
-
 public interface IAIBackend {
 	Task<AIResult?> CompleteAsync(AIRequest request, CancellationToken ct);
 	IAsyncEnumerable<AIStreamDelta> StreamAsync(AIRequest request, CancellationToken ct);
 }
-
-public sealed class AIPresetNotFoundException(string message) : KeyNotFoundException(message);
-
-public sealed record AIClientShutdownResult(bool Drained, int ActiveLeases);
 
 internal enum BackendState {
 	Creating,

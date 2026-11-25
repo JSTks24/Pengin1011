@@ -7,7 +7,7 @@ namespace Pengin1011.Tests;
 [Collection("BaseDirSerial")]
 public sealed class AISecretMaskingTests : IDisposable {
 	private const string FakeSecret = "sk-fake-secret-value-0001";
-	private readonly string _directory = Path.Combine(Path.GetTempPath(), $"qq1011_secret_{Guid.NewGuid():N}");
+	private readonly string _directory = Path.Combine(Path.GetTempPath(), $"pengin1011_secret_{Guid.NewGuid():N}");
 	private readonly string _path;
 
 	public AISecretMaskingTests() {
@@ -19,7 +19,7 @@ public sealed class AISecretMaskingTests : IDisposable {
 	public void Dispose() {
 		AIPresetStore.ResetForTest();
 		AIPresetUsageRegistry.ForgetAll();
-		try { Directory.Delete(_directory, true); } catch (IOException) { }
+		if (Directory.Exists(_directory)) Directory.Delete(_directory, true);
 	}
 
 	private void Seed() {

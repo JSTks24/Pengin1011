@@ -27,10 +27,7 @@ public sealed class InteractionHostTests : IDisposable {
 	private static async Task AwaitInitsAsync(LoadedModule? skip = null) {
 		foreach (var run in ModuleHost.Modules) {
 			if (run == skip || run.InitTask == null) continue;
-			try {
-				await run.InitTask.WaitAsync(TimeSpan.FromSeconds(2));
-			} catch (TimeoutException) {
-			}
+			await run.InitTask.WaitAsync(TimeSpan.FromSeconds(5));
 		}
 	}
 
@@ -86,14 +83,6 @@ public sealed class InteractionHostTests : IDisposable {
 			await Task.Delay(25);
 		}
 		Assert.True(condition(), description);
-	}
-
-	private static async Task AwaitFinalStopAsync(LoadedModule run) {
-		var deadline = DateTime.UtcNow.AddSeconds(5);
-		while (run.FinalStopResult == null && DateTime.UtcNow < deadline) {
-			await Task.Delay(25);
-		}
-		Assert.NotNull(run.FinalStopResult);
 	}
 
 	private static (IInteractionContext Context, object Interaction) MakeContext(string commandName) {
@@ -550,7 +539,7 @@ public sealed class InteractionHostTests : IDisposable {
 			Assert.Equal(1, ModuleProbe.RuntimeStaticInt(gated, "StopCount"));
 
 			initGate.SetResult();
-			await AwaitFinalStopAsync(gated);
+			await ModuleHostTests.AwaitFinalStopAsync(gated);
 			Assert.NotEqual(ModuleState.Ready, gated.State);
 			Assert.Equal(1, ModuleProbe.RuntimeStaticInt(gated, "InitCount"));
 		} finally {
@@ -609,7 +598,7 @@ public sealed class InteractionHostTests : IDisposable {
 		ModuleProbe.SetRuntimeStatic(gated, "OnInitFailure", (Func<Exception>)(() => new InvalidOperationException("START-03 初始化失败")));
 		try {
 			await InteractionHost.PublishInitialAsync();
-			await AwaitFinalStopAsync(gated);
+			await ModuleHostTests.AwaitFinalStopAsync(gated);
 			Assert.Equal(ModuleState.Disabled, gated.State);
 			Assert.Equal(1, ModuleProbe.RuntimeStaticInt(gated, "InitCount"));
 			Assert.Equal(1, ModuleProbe.RuntimeStaticInt(gated, "StopCount"));

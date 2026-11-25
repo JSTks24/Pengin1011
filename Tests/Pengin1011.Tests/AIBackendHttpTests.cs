@@ -208,7 +208,7 @@ public sealed class AIBackendHttpTests {
 
 	[Fact]
 	public async Task PresetStoreApply_DisposesEvictedBackend() {
-		var directory = Path.Combine(Path.GetTempPath(), $"qq1011_evict_{Guid.NewGuid():N}");
+		var directory = Path.Combine(Path.GetTempPath(), $"pengin1011_evict_{Guid.NewGuid():N}");
 		Directory.CreateDirectory(directory);
 		var path = Path.Combine(directory, "aipresets.json");
 		System.IO.File.WriteAllText(path, """
@@ -226,7 +226,7 @@ public sealed class AIBackendHttpTests {
 			Assert.True(first.Disposed);
 		} finally {
 			AIPresetStore.ResetForTest();
-			try { Directory.Delete(directory, true); } catch (IOException) { }
+			if (Directory.Exists(directory)) Directory.Delete(directory, true);
 		}
 	}
 

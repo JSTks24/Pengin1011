@@ -25,7 +25,7 @@ public sealed class AIPresetValidatorTests {
 	}
 
 	private static string TempErrorLog() {
-		return Path.Combine(Path.GetTempPath(), $"qq1011_validator_{Guid.NewGuid():N}", "error.log");
+		return Path.Combine(Path.GetTempPath(), $"pengin1011_validator_{Guid.NewGuid():N}", "error.log");
 	}
 
 	[Fact]

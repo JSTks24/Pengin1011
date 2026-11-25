@@ -15,7 +15,7 @@ namespace Pengin1011Generator.ModuleBridge;
 [Generator]
 public sealed class ModuleBridgeGenerator : IIncrementalGenerator {
 	private const string ManifestFormat = "pengin1011.modulebridge.manifest/3";
-	private const int HostContractVersion = 5;
+	private const int HostContractVersion = 6;
 	private const string ExportAttributeMetadataName = "Pengin1011.Core.ModuleBridgeExportAttribute";
 	private const string RuntimeInterfaceMetadataName = "Pengin1011.Core.Modules.IModuleRuntime";
 	private const string ContainerName = "ModuleBridge";

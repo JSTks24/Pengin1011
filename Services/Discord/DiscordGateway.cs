@@ -2,7 +2,6 @@ using System.Runtime.ExceptionServices;
 using Discord;
 using Discord.WebSocket;
 using Pengin1011.Core;
-using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 using Pengin1011.Core.Modules;
 
@@ -31,42 +30,71 @@ public static class DiscordGateway {
 	public static DiscordSocketClient? Client => _client;
 	public static ConnectionState ConnectionState => _client?.ConnectionState ?? ConnectionState.Disconnected;
 	public static IUser? CurrentUser => _client?.CurrentUser;
-	public static WorkTracker? Dispatcher => _dispatcher;
+	internal static WorkTracker? Dispatcher => _dispatcher;
 
 	public static SocketGuild? GetGuild(ulong guildId) {
 		return _client?.GetGuild(guildId);
 	}
 
-	public static IDisposable SubscribeMessage(LoadedModule? owner, Func<SocketMessage, CancellationToken, Task> handler) {
+	public static IDisposable SubscribeMessage(LoadedModule owner, Func<SocketMessage, CancellationToken, Task> handler) {
+		ArgumentNullException.ThrowIfNull(owner);
 		return Subscribe(_messageHandlers, owner, handler);
 	}
 
-	public static IDisposable SubscribeReady(LoadedModule? owner, Func<CancellationToken, Task> handler) {
+	internal static IDisposable SubscribeMessage(Func<SocketMessage, CancellationToken, Task> handler) {
+		return Subscribe(_messageHandlers, null, handler);
+	}
+
+	public static IDisposable SubscribeReady(LoadedModule owner, Func<CancellationToken, Task> handler) {
+		ArgumentNullException.ThrowIfNull(owner);
+		ArgumentNullException.ThrowIfNull(handler);
 		return Subscribe(_readyHandlers, owner, (object? _, CancellationToken ct) => handler(ct));
 	}
 
-	public static IDisposable SubscribeGuildAvailable(LoadedModule? owner, Func<SocketGuild, CancellationToken, Task> handler) {
+	public static IDisposable SubscribeGuildAvailable(LoadedModule owner, Func<SocketGuild, CancellationToken, Task> handler) {
+		ArgumentNullException.ThrowIfNull(owner);
 		return Subscribe(_guildAvailableHandlers, owner, handler);
 	}
 
-	public static IDisposable SubscribeGuildJoined(LoadedModule? owner, Func<SocketGuild, CancellationToken, Task> handler) {
+	public static IDisposable SubscribeGuildJoined(LoadedModule owner, Func<SocketGuild, CancellationToken, Task> handler) {
+		ArgumentNullException.ThrowIfNull(owner);
 		return Subscribe(_guildJoinedHandlers, owner, handler);
 	}
 
-	public static IDisposable SubscribeInteraction(LoadedModule? owner, Func<SocketInteraction, CancellationToken, Task> handler) {
+	public static IDisposable SubscribeInteraction(LoadedModule owner, Func<SocketInteraction, CancellationToken, Task> handler) {
+		ArgumentNullException.ThrowIfNull(owner);
 		return Subscribe(_interactionHandlers, owner, handler);
 	}
 
-	public static IDisposable SubscribeButton(LoadedModule? owner, Func<SocketMessageComponent, CancellationToken, Task> handler) {
+	internal static IDisposable SubscribeInteraction(Func<SocketInteraction, CancellationToken, Task> handler) {
+		return Subscribe(_interactionHandlers, null, handler);
+	}
+
+	public static IDisposable SubscribeButton(LoadedModule owner, Func<SocketMessageComponent, CancellationToken, Task> handler) {
+		ArgumentNullException.ThrowIfNull(owner);
 		return Subscribe(_buttonHandlers, owner, handler);
 	}
 
-	public static IDisposable SubscribeSelectMenu(LoadedModule? owner, Func<SocketMessageComponent, CancellationToken, Task> handler) {
+	internal static IDisposable SubscribeButton(Func<SocketMessageComponent, CancellationToken, Task> handler) {
+		return Subscribe(_buttonHandlers, null, handler);
+	}
+
+	public static IDisposable SubscribeSelectMenu(LoadedModule owner, Func<SocketMessageComponent, CancellationToken, Task> handler) {
+		ArgumentNullException.ThrowIfNull(owner);
 		return Subscribe(_selectMenuHandlers, owner, handler);
 	}
 
-	public static IDisposable SubscribeModal(LoadedModule? owner, Func<SocketModal, CancellationToken, Task> handler) {
+	internal static IDisposable SubscribeSelectMenu(Func<SocketMessageComponent, CancellationToken, Task> handler) {
+		return Subscribe(_selectMenuHandlers, null, handler);
+	}
+
+	public static IDisposable SubscribeModal(LoadedModule owner, Func<SocketModal, CancellationToken, Task> handler) {
+		ArgumentNullException.ThrowIfNull(owner);
 		return Subscribe(_modalHandlers, owner, handler);
+	}
+
+	internal static IDisposable SubscribeModal(Func<SocketModal, CancellationToken, Task> handler) {
+		return Subscribe(_modalHandlers, null, handler);
 	}
 
 	public static void RemoveModuleHandlers(LoadedModule run) {
@@ -351,6 +379,7 @@ public static class DiscordGateway {
 	}
 
 	private static IDisposable Subscribe<T>(List<HandlerEntry<T>> handlers, LoadedModule? owner, Func<T, CancellationToken, Task> handler) {
+		ArgumentNullException.ThrowIfNull(handler);
 		var entry = new HandlerEntry<T>(owner, handler);
 		lock (_wireGate) {
 			handlers.Add(entry);

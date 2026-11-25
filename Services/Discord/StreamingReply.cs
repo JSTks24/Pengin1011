@@ -1,8 +1,6 @@
 using System.Text;
 using Pengin1011.Core;
-using Discord;
 using Discord.Net;
-using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 
 namespace Pengin1011.Services.Discord;
@@ -21,11 +19,6 @@ public enum StreamSyncStatus {
 	Unchanged,
 	Updated,
 	Incomplete,
-}
-
-public sealed class StreamingReplyOptions {
-	public int Limit { get; init; } = MessageSplitter.DefaultLimit;
-	public int EditIntervalMs { get; init; } = 3000;
 }
 
 public sealed class StreamingReply {
@@ -160,48 +153,5 @@ public sealed class StreamingReply {
 			_postContents.RemoveAt(index);
 		}
 		return true;
-	}
-}
-
-public static class ReplySinks {
-	public static IReplySink FromMessage(IMessage source) {
-		return new MessageReplySink(source);
-	}
-}
-
-internal sealed class MessageReplySink : IReplySink {
-	private readonly IMessageChannel? _channel;
-
-	public MessageReplySink(IMessage source) {
-		_channel = source.Channel as IMessageChannel;
-	}
-
-	public async Task<IReplyPost?> ReplyAsync(string content, CancellationToken ct) {
-		var result = await Messages.SendAsync(_channel, content, ct: ct);
-		if (!result.Success) {
-			if (result.Status == MessageSendStatus.Partial) {
-				Logger.Error(typeof(StreamingReply), Loc.Format("StreamPartialDelivery", result.Sent.Count, result.PlannedChunks));
-			}
-			return null;
-		}
-		return new MessageReplyPost(result.First!);
-	}
-}
-
-internal sealed class MessageReplyPost : IReplyPost {
-	private readonly IUserMessage _message;
-
-	public MessageReplyPost(IUserMessage message) {
-		_message = message;
-	}
-
-	public ulong Id => _message.Id;
-
-	public Task<bool> EditAsync(string content, CancellationToken ct) {
-		return Messages.EditAsync(_message, content, ct: ct);
-	}
-
-	public Task<bool> DeleteAsync(CancellationToken ct) {
-		return Messages.DeleteAsync(_message, ct);
 	}
 }

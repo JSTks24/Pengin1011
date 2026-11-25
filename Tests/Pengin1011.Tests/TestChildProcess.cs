@@ -66,12 +66,13 @@ internal static class TestChildProcess {
 			"db-offline" => await Pengin1011.Program.Main(args[1..]),
 			"signal-probe" when args.Length == 2 => await ShutdownSignalsTests.RunProbeAsync(args[1]),
 			"module-name-reject" when args.Length == 3 => RejectModuleName(args[1], args[2]),
+			"module-sdk-load" when args.Length == 2 => await ModuleSdkPackageTests.RunModulesAsync(args[1]),
 			"startup-persist-write" or "startup-persist-verify" when args.Length == 2 => await StartupPersistProbeAsync(args[1], args[0] == "startup-persist-verify"),
 			"db-seed" when args.Length == 2 => await SeedDatabaseAsync(args[1]),
 			"db-interrupt" when args.Length == 5 => await InterruptDatabaseAsync(args[1], args[2], args[3], args[4]),
 			"db-expect-blocked" when args.Length == 2 => await ExpectBlockedDatabaseAsync(args[1]),
 			"db-read" when args.Length == 3 => await ReadDatabaseAsync(args[1], args[2]),
-			"module-contract-reject" when args.Length == 2 => RejectLegacyContract(args[1]),
+			"module-contract-reject" when args.Length == 3 && int.TryParse(args[2], out var version) => RejectLegacyContract(args[1], version),
 			_ => 2
 		};
 	}
@@ -104,13 +105,13 @@ internal static class TestChildProcess {
 		return ModuleHost.Find(name) == null && ModuleRegistry.RunOf(assembly) == null ? 0 : 6;
 	}
 
-	private static int RejectLegacyContract(string path) {
+	private static int RejectLegacyContract(string path, int version) {
 		try {
 			ModuleHost.LoadOne("LegacyContract", path);
 			Logger.Error(typeof(TestChildProcess), "Legacy module unexpectedly passed the host contract check");
 			return 3;
 		} catch (InvalidOperationException e) {
-			var expected = Loc.Format("HostContractMismatch", "LegacyContract", 3, ModuleHostContract.Current);
+			var expected = Loc.Format("HostContractMismatch", "LegacyContract", version, ModuleHostContract.Current);
 			if (e.Message != expected) {
 				Logger.Error(typeof(TestChildProcess), e, "Legacy module was rejected for an unexpected reason");
 				return 4;

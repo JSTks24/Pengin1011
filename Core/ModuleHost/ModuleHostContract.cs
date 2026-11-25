@@ -2,17 +2,8 @@ using System.Reflection;
 
 namespace Pengin1011.Core;
 
-[AttributeUsage(AttributeTargets.Assembly)]
-public sealed class ModuleHostContractAttribute : Attribute {
-	public ModuleHostContractAttribute(int version) {
-		Version = version;
-	}
-
-	public int Version { get; }
-}
-
 public static class ModuleHostContract {
-	public const int Current = 5;
+	public const int Current = 6;
 
 	public static bool TryRead(System.Reflection.Assembly assembly, out int version, out string? failure) {
 		failure = null;

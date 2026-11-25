@@ -1,13 +1,14 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Pengin1011.Core;
+using Pengin1011.Services.Discord;
 
 namespace Pengin1011.Tests;
 
 [Collection("BaseDirSerial")]
 public sealed class DatabasesTests {
 	private static string TempBase() {
-		return Path.Combine(Path.GetTempPath(), $"qq1011_ef_{Guid.NewGuid():N}");
+		return Path.Combine(Path.GetTempPath(), $"pengin1011_ef_{Guid.NewGuid():N}");
 	}
 
 	private static string DataDir(string baseDir) {
@@ -20,6 +21,20 @@ public sealed class DatabasesTests {
 		} catch (IOException) {
 			SqliteConnection.ClearAllPools();
 			Directory.Delete(baseDir, true);
+		}
+	}
+
+	[Fact]
+	public async Task EmptyBackupListProducesOneDiscordReply() {
+		var directory = TempBase();
+		Directory.CreateDirectory(directory);
+		DatabaseTestSetup.SetDirectory(directory);
+		try {
+			var output = await DatabaseCommands.ExecuteAsync(["db", "backups", "Fake"]);
+			Assert.Equal(Loc.Format("DbNoBackups", "Fake"), Assert.Single(MessageSplitter.Split(output)));
+		} finally {
+			DatabaseTestSetup.SetDirectory(null);
+			Cleanup(directory);
 		}
 	}
 
@@ -96,7 +111,7 @@ public sealed class DatabasesTests {
 			await using var first = Databases.Open<ClashDbContext>();
 
 			var registrar = new DatabaseRegistrar();
-			registrar.Add<ClashContext>("Clash", options => new ClashContext(options));
+			registrar.Add<ClashContext>("Clash", (provider, connection) => new ClashContext(DatabaseOptions.Create<ClashContext>(provider, connection, "Clash")));
 			Assert.Throws<InvalidOperationException>(() => Databases.RegisterForTest(registrar));
 			Assert.Throws<InvalidOperationException>(() => Databases.Open<ClashContext>());
 		} finally {

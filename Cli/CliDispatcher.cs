@@ -1,5 +1,5 @@
+using System.Reflection;
 using Pengin1011.Core;
-using Pengin1011.Core.Localization;
 using Pengin1011.Services.AI;
 using Pengin1011.Services.Discord;
 
@@ -24,6 +24,7 @@ public static class CliDispatcher {
 			case "reload":
 				return new CliResult(Loc.Get("ReloadRemoved"), false);
 			case "db":
+				if (!AppConfig.DatabaseConfigurationValid) return new CliResult(Loc.Get("DatabaseConfigurationUnavailable"), false);
 				return new CliResult(await DatabaseCommands.ExecuteAsync(parts), false);
 			case "preset":
 				if (MaintenanceOnly) return new CliResult(Loc.Get("MaintenanceConsole"), false);
@@ -83,7 +84,8 @@ public static class CliDispatcher {
 			defaultName,
 			ModuleHost.Modules.Count,
 			Databases.DatabaseIds().Count,
-			summary);
+			summary,
+			typeof(CliDispatcher).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0]);
 	}
 
 	private static string ModulesText() {
@@ -176,5 +178,3 @@ public static class CliDispatcher {
 		return PresetEdit.TryProvider(text, out provider);
 	}
 }
-
-public sealed record CliResult(string Output, bool ShouldExit);

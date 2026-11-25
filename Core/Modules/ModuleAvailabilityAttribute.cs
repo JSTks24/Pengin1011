@@ -1,6 +1,5 @@
 using Discord;
 using Discord.Interactions;
-using Pengin1011.Core.Localization;
 
 namespace Pengin1011.Core.Modules;
 

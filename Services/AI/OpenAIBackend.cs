@@ -2,7 +2,6 @@ using System.ClientModel;
 using System.Runtime.CompilerServices;
 using OpenAI;
 using OpenAI.Chat;
-using Pengin1011.Core;
 
 namespace Pengin1011.Services.AI;
 
@@ -88,13 +87,5 @@ public sealed class OpenAIBackend : IAIBackend {
 			messages.Add(ChatMessage.CreateUserMessage(parts));
 		}
 		return messages;
-	}
-}
-
-internal sealed class NoRetryPolicy : System.ClientModel.Primitives.ClientRetryPolicy {
-	public static readonly NoRetryPolicy Instance = new();
-
-	protected override bool ShouldRetry(System.ClientModel.Primitives.PipelineMessage message, Exception? exception) {
-		return false;
 	}
 }

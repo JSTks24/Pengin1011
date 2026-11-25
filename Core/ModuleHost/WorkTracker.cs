@@ -1,4 +1,3 @@
-using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 using Pengin1011.Core.Modules;
 
@@ -15,8 +14,6 @@ internal enum WorkAcceptState {
 	Paused,
 	Exiting,
 }
-
-public sealed record TrackedHandler(LoadedModule? Owner, Func<CancellationToken, Task> Handler);
 
 public sealed class WorkTracker : IDisposable {
 	private readonly object _gate = new();
@@ -122,6 +119,7 @@ public sealed class WorkTracker : IDisposable {
 				try {
 					await handler.Handler(token);
 				} catch (OperationCanceledException) when (token.IsCancellationRequested) {
+					continue;
 				} catch (Exception e) {
 					Logger.Error(typeof(WorkTracker), e, Loc.Format("WorkHandlerFaulted", handler.Handler.Method.DeclaringType?.Name, handler.Handler.Method.Name));
 				}
@@ -160,6 +158,7 @@ public sealed class WorkTracker : IDisposable {
 			try {
 				_cts.Cancel();
 			} catch (ObjectDisposedException) {
+				return;
 			}
 		}
 

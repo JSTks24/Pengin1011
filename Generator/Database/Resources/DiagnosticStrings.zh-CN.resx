@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
-  <data name="Declaration" xml:space="preserve"><value>数据库上下文 {0} 必须是直接继承 DbContext 的 public、非抽象、非泛型、顶层 partial 类。</value></data>
+  <data name="Declaration" xml:space="preserve"><value>数据库上下文 {0} 必须是直接继承 DbContext 的 public、非抽象、非 sealed、非泛型、顶层 partial 类。</value></data>
   <data name="Identifier" xml:space="preserve"><value>数据库标识 {0} 无效；请使用稳定的文件名，不包含空格、点或连接字符串分隔符。</value></data>
   <data name="Duplicate" xml:space="preserve"><value>数据库标识 {0} 在当前程序集重复声明。</value></data>
-  <data name="Collision" xml:space="preserve"><value>数据库上下文 {0} 与生成成员冲突：请移除手写构造函数、OnConfiguring 或占用的工厂/provider 名称。</value></data>
+  <data name="Collision" xml:space="preserve"><value>数据库上下文 {0} 与生成成员冲突：请移除手写构造函数、OnConfiguring、sealed OnModelCreating 或占用的工厂/provider 名称。</value></data>
 </root>

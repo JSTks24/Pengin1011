@@ -2,7 +2,6 @@ using System.Net;
 using Pengin1011.Core;
 using Discord;
 using Discord.Net;
-using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 
 namespace Pengin1011.Services.Discord;
@@ -18,18 +17,6 @@ public enum MessageSendStatus {
 	Succeeded,
 	Partial,
 	Failed,
-}
-
-public sealed record MessageSendResult(MessageSendStatus Status, int PlannedChunks, IReadOnlyList<IUserMessage> Sent, IReadOnlyList<int> FailedChunkIndexes) {
-	public static MessageSendResult Empty => new(MessageSendStatus.Failed, 0, [], []);
-
-	public bool Success => Status == MessageSendStatus.Succeeded;
-
-	public IUserMessage? First => Sent.Count > 0 ? Sent[0] : null;
-}
-
-public sealed record BulkSendResult(IMessageChannel Channel, MessageSendResult Result) {
-	public bool Success => Result.Status == MessageSendStatus.Succeeded;
 }
 
 public static class Messages {

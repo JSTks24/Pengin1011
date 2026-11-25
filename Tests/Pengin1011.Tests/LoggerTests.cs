@@ -7,13 +7,14 @@ public sealed class LoggerTests {
 	private sealed class FakeSource;
 
 	private static string TempLog(string fileName) {
-		return Path.Combine(Path.GetTempPath(), $"qq1011_{Guid.NewGuid():N}", "logs", fileName);
+		return Path.Combine(Path.GetTempPath(), $"pengin1011_{Guid.NewGuid():N}", "logs", fileName);
 	}
 
 	private static void Cleanup(string path) {
 		Logger.SetLogPathForTest(null);
 		Logger.SetInfoPathForTest(null);
-		try { Directory.Delete(Path.GetDirectoryName(Path.GetFullPath(path))!, true); } catch (IOException) { }
+		var directory = Directory.GetParent(Path.GetDirectoryName(path)!)!.FullName;
+		if (Directory.Exists(directory)) Directory.Delete(directory, true);
 	}
 
 	[Fact]
@@ -101,7 +102,7 @@ public sealed class LoggerTests {
 	[Fact]
 	public void Info_WritesMessageToInfoFile() {
 		var errorPath = TempLog("error.log");
-		var infoPath = TempLog("info.log");
+		var infoPath = Path.Combine(Path.GetDirectoryName(errorPath)!, "info.log");
 		Logger.SetLogPathForTest(errorPath);
 		Logger.SetInfoPathForTest(infoPath);
 		try {
@@ -159,7 +160,7 @@ public sealed class LoggerTests {
 
 	[Fact]
 	public void ConsoleAndFileWriteFailure_DoesNotEscapeToCaller() {
-		var directory = Path.Combine(Path.GetTempPath(), $"qq1011_{Guid.NewGuid():N}");
+		var directory = Path.Combine(Path.GetTempPath(), $"pengin1011_{Guid.NewGuid():N}");
 		Directory.CreateDirectory(directory);
 		Logger.SetLogPathForTest(directory);
 		var original = Console.Error;

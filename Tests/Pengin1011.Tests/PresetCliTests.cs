@@ -6,7 +6,7 @@ namespace Pengin1011.Tests;
 
 [Collection("BaseDirSerial")]
 public sealed class PresetCliTests : IDisposable {
-	private readonly string _directory = Path.Combine(Path.GetTempPath(), $"qq1011_cli_preset_{Guid.NewGuid():N}");
+	private readonly string _directory = Path.Combine(Path.GetTempPath(), $"pengin1011_cli_preset_{Guid.NewGuid():N}");
 	private readonly string _path;
 
 	public PresetCliTests() {
@@ -18,7 +18,7 @@ public sealed class PresetCliTests : IDisposable {
 	public void Dispose() {
 		AIPresetStore.ResetForTest();
 		AIPresetUsageRegistry.ForgetAll();
-		try { Directory.Delete(_directory, true); } catch (IOException) { }
+		if (Directory.Exists(_directory)) Directory.Delete(_directory, true);
 	}
 
 	private void Seed(params string[] presets) {
@@ -323,7 +323,8 @@ public sealed class PresetCliTests : IDisposable {
 	[Fact]
 	public async Task PresetAdd_SaveFailure_ReportsError() {
 		Seed();
-		using var locked = new FileStream(_path, FileMode.Open, FileAccess.Read, FileShare.None);
+		File.Delete(_path);
+		Directory.CreateDirectory(_path);
 
 		var result = await CliDispatcher.ExecuteAsync("preset add prod openai apikey=k baseurl=https://api.example.com/v1 model=m");
 

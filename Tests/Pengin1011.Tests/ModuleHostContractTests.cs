@@ -71,8 +71,10 @@ public sealed class RenamedProvider : IModuleBridgeProvider {
 		}
 	}
 
-	[Fact]
-	public async Task LegacyContract_IsRejectedBeforeRuntimeConstructionOrBridgeRegistration() {
+	[Theory]
+	[InlineData(3)]
+	[InlineData(5)]
+	public async Task LegacyContract_IsRejectedBeforeRuntimeConstructionOrBridgeRegistration(int version) {
 		var directory = Path.Combine(Path.GetTempPath(), "pengin_contract_" + Guid.NewGuid().ToString("N"));
 		Directory.CreateDirectory(directory);
 		try {
@@ -82,7 +84,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Pengin1011.Core;
 using Pengin1011.Core.Modules;
-[assembly: ModuleHostContract(3)]
+[assembly: ModuleHostContract({{version}})]
 [assembly: ModuleBridgeProvider(typeof(LegacyProvider))]
 public sealed class LegacyRuntime : IModuleRuntime {
 	public LegacyRuntime() {
@@ -109,7 +111,7 @@ public sealed class LegacyProvider : IModuleBridgeProvider {
 				Assert.True(result.Success, string.Join(" | ", result.Diagnostics));
 			}
 
-			await TestChildProcess.RunArgumentsAsync("module-contract-reject", path);
+			await TestChildProcess.RunArgumentsAsync("module-contract-reject", path, version.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
 			Assert.False(File.Exists(marker));
 		} finally {

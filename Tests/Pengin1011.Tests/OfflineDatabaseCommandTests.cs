@@ -11,6 +11,35 @@ namespace Pengin1011.Tests;
 
 [Collection("BaseDirSerial")]
 public sealed class OfflineDatabaseCommandTests {
+	[Theory]
+	[InlineData("{\"MySQL\":{}}")]
+	[InlineData("{\"MySQL\":{},\"PostgreSQL\":{}}")]
+	public async Task InvalidExternalConfigurationDoesNotInitializeSQLite(string databases) {
+		using var runtime = new IsolatedHost();
+		File.WriteAllText(runtime.ConfigPath, "{\"Discord\":{\"Token\":\"\"},\"Databases\":" + databases + "}");
+		var result = await runtime.RunAsync("db status Absent\nexit\n");
+		Assert.Equal(1, result.ExitCode);
+		Assert.Contains(Text("DatabaseConfigurationUnavailable"), result.Output);
+		Assert.False(Directory.Exists(runtime.DefaultDataDirectory));
+	}
+
+	[Theory]
+	[InlineData("MySQL")]
+	[InlineData("PostgreSQL")]
+	public async Task ExternalMaintenanceUsesTheConfiguredBackendWithoutLocalFiles(string provider) {
+		using var runtime = new IsolatedHost();
+		var config = new { Discord = new { Token = "" }, Databases = new Dictionary<string, object> {
+			[provider] = new { Host = "localhost", Database = "missing", Username = "test", Password = "secret-do-not-log" },
+		} };
+		File.WriteAllText(runtime.ConfigPath, JsonSerializer.Serialize(config));
+		var result = await runtime.RunAsync("db status Absent\ndb backup\nexit\n");
+		Assert.Equal(1, result.ExitCode);
+		Assert.Contains(provider, result.Output);
+		Assert.Contains(Text("ExternalDatabaseBackupUnsupported"), result.Output);
+		Assert.DoesNotContain("secret-do-not-log", result.Output);
+		Assert.False(Directory.Exists(runtime.DefaultDataDirectory));
+	}
+
 	[Fact]
 	public async Task D33_InternalVersion_ReportsRuntimePragmasWithoutCredentials() {
 		using var runtime = new IsolatedHost();
@@ -35,6 +64,7 @@ public sealed class OfflineDatabaseCommandTests {
 		Assert.Equal(1, result.ExitCode);
 		Assert.Contains("Absent", result.Output);
 		Assert.Contains(nameof(DatabaseState.NotPresent), result.Output);
+		Assert.Contains(string.Format(CultureInfo.InvariantCulture, Text("DbNoBackups"), "Absent"), result.Output);
 		Assert.DoesNotContain(Text("DbInternalUsage"), result.Output);
 		Assert.False(File.Exists(Path.Combine(runtime.AppDirectory, "config", "aipresets.json")));
 	}
@@ -53,33 +83,50 @@ public sealed class OfflineDatabaseCommandTests {
 		Assert.Contains(Text("MaintenanceConsole"), result.Output);
 	}
 
-	[Fact]
-	public async Task MalformedConfig_ExposesVersionButDoesNotGuessDataDirectory() {
-		using var runtime = new IsolatedHost();
-		File.WriteAllText(runtime.ConfigPath, "{ invalid");
-
-		var result = await runtime.RunAsync("db version\ndb status Absent\nexit\n");
-
-		Assert.Equal(1, result.ExitCode);
-		Assert.Contains("SQLite", result.Output);
-		Assert.Contains(Text("ConfigPathsUnavailable"), result.Output);
-		Assert.False(Directory.Exists(runtime.DefaultDataDirectory));
+	public static IEnumerable<object[]> UnreadableConfigurations() {
+		var configurations = new List<string> { "{ invalid", "null" };
+		foreach (var provider in new[] { "MySQL", "PostgreSQL" }) {
+			var external = "\"" + provider + "\":{\"Host\":\"localhost\",\"Database\":\"test\",\"Username\":\"test\",\"Password\":\"secret;=\\\"private\"";
+			configurations.Add("{\"Databases\":{" + external + ",\"Port\":\"5432\"}}}");
+			configurations.Add("{\"Discord\":{\"Token\":123},\"Databases\":{" + external + "}}}");
+		}
+		foreach (var configuration in configurations) {
+			foreach (var mode in new[] { "default", "existing", "create" }) yield return [configuration, mode];
+		}
 	}
 
-	[Fact]
-	public async Task MalformedConfig_WithExplicitDirectory_AllowsLocalMaintenance() {
+	[Theory]
+	[MemberData(nameof(UnreadableConfigurations))]
+	public async Task UnreadableConfigRejectsAllDatabaseCommandsWithoutTouchingStorage(string configuration, string mode) {
 		using var runtime = new IsolatedHost();
-		File.WriteAllText(runtime.ConfigPath, "{ invalid");
+		File.WriteAllText(runtime.ConfigPath, configuration);
 		var selected = Path.Combine(runtime.RootDirectory, "explicit data");
-		Directory.CreateDirectory(selected);
-
-		var result = await runtime.RunAsync("db status ExplicitProbe\nexit\n", ["--data-dir", selected]);
+		if (mode == "existing") {
+			Directory.CreateDirectory(selected);
+			SeedDatabase(Path.Combine(selected, "Probe.db"), "preserved");
+		}
+		var before = mode == "existing" ? File.ReadAllBytes(Path.Combine(selected, "Probe.db")) : [];
+		string[] arguments = mode switch {
+			"existing" => ["--data-dir", selected],
+			"create" => ["--data-dir", selected, "--create-data-dir"],
+			_ => [],
+		};
+		var result = await runtime.RunAsync("db version\ndb status Probe\ndb backups Probe\ndb backup\ndb verify Probe Missing\nmodules\nexit\n", arguments);
 
 		Assert.Equal(1, result.ExitCode);
-		Assert.Contains(selected, result.Output, StringComparison.OrdinalIgnoreCase);
-		Assert.Contains("ExplicitProbe", result.Output);
-		Assert.DoesNotContain(Text("ConfigPathsUnavailable"), result.Output);
+		Assert.True(result.Output.Split(Text("DatabaseConfigurationUnavailable"), StringSplitOptions.None).Length >= 6, result.Output);
+		Assert.Contains(Text("NoModulesLoaded"), result.Output);
+		Assert.DoesNotContain("SQLite", result.Output);
+		Assert.DoesNotContain(Prefix("DbBackupCompleted"), result.Output);
+		var logs = string.Join("\n", Directory.EnumerateFiles(Path.Combine(runtime.AppDirectory, "runtime", "logs"), "*.log").Select(File.ReadAllText));
+		Assert.DoesNotContain("secret;=\"private", result.Output + logs);
 		Assert.False(Directory.Exists(runtime.DefaultDataDirectory));
+		if (mode == "existing") {
+			Assert.Equal(before, File.ReadAllBytes(Path.Combine(selected, "Probe.db")));
+			Assert.Equal([Path.Combine(selected, "Probe.db")], Directory.GetFileSystemEntries(selected));
+		} else {
+			Assert.False(Directory.Exists(selected));
+		}
 	}
 
 	[Theory]
@@ -229,9 +276,15 @@ public sealed class OfflineDatabaseCommandTests {
 		Assert.False(Directory.Exists(runtime.DefaultDataDirectory));
 	}
 
-	[Fact]
-	public async Task OfflineRestoreRunsWithoutConfigurationModulesOrFinalBackupAndReleasesOwnership() {
+	[Theory]
+	[InlineData(false)]
+	[InlineData(true)]
+	public async Task OfflineRestoreRunsWithoutConfigurationModulesOrFinalBackupAndReleasesOwnership(bool malformedConfig) {
 		using var runtime = new IsolatedHost(writeConfig: false);
+		if (malformedConfig) {
+			Directory.CreateDirectory(Path.GetDirectoryName(runtime.ConfigPath)!);
+			File.WriteAllText(runtime.ConfigPath, "{ invalid");
+		}
 		var data = Path.Combine(runtime.RootDirectory, "offline data");
 		Directory.CreateDirectory(data);
 		await TestChildProcess.RunArgumentsAsync("db-seed", data);
@@ -240,7 +293,7 @@ public sealed class OfflineDatabaseCommandTests {
 		var result = await runtime.RunAsync("", ["db", "restore", "Fake", backup, "--data-dir", data, "--confirm"]);
 		Assert.True(result.ExitCode == 0, result.Output);
 		Assert.Contains(Text("RestoreOfflineCompleted"), result.Output);
-		Assert.False(File.Exists(runtime.ConfigPath));
+		Assert.Equal(malformedConfig, File.Exists(runtime.ConfigPath));
 		Assert.False(Directory.Exists(runtime.DefaultDataDirectory));
 		Assert.DoesNotContain(Text("MaintenanceConsole"), result.Output);
 		Assert.Equal(before, DatabaseBackupStore.ListCompleted(data, "Fake", DatabaseBackupStore.RollingCategory).Count);

@@ -9,7 +9,7 @@ using Pengin1011Generator.Database;
 namespace Pengin1011.Tests;
 
 public sealed class DatabaseGeneratorTests {
-	private static (Compilation Compilation, GeneratorDriverRunResult Result) Generate(string source) {
+	internal static (Compilation Compilation, GeneratorDriverRunResult Result) Generate(string source) {
 		var references = GeneratorTestHost.ReferenceSet().AddRange(Directory.EnumerateFiles(AppContext.BaseDirectory, "Microsoft.EntityFrameworkCore*.dll")
 			.Concat(Directory.EnumerateFiles(AppContext.BaseDirectory, "Microsoft.Extensions*.dll"))
 			.Select(path => MetadataReference.CreateFromFile(path)));
@@ -58,6 +58,8 @@ public sealed class DatabaseGeneratorTests {
 	[Theory]
 	[InlineData("[ModuleDatabase(\"A\")] public class Sample : DbContext {}", "PDB001")]
 	[InlineData("[ModuleDatabase(\"A\")] public abstract partial class Sample : DbContext {}", "PDB001")]
+	[InlineData("[ModuleDatabase(\"A\")] public sealed partial class Sample : DbContext {}", "PDB001")]
+	[InlineData("[ModuleDatabase(\"A\")] public partial class Sample : DbContext {} public class SampleMySQL {}", "PDB004")]
 	[InlineData("[ModuleDatabase(\"../A\")] public partial class Sample : DbContext {}", "PDB002")]
 	[InlineData("[ModuleDatabase(\"CON\")] public partial class Sample : DbContext {}", "PDB002")]
 	[InlineData("[ModuleDatabase(\"A\")] public partial class Sample : DbContext { public Sample() {} }", "PDB004")]
@@ -81,11 +83,11 @@ public sealed class DatabaseGeneratorTests {
 	public void CrossModuleCollisionDoesNotLeaveEarlierEntriesFromTheBatch() {
 		var service = new DatabaseService();
 		var first = new DatabaseRegistrar();
-		first.Add<FakeDbContext>("Shared", options => new FakeDbContext(options));
+		first.Add<FakeDbContext>("Shared", (provider, connection) => new FakeDbContext(DatabaseOptions.Create<FakeDbContext>(provider, connection, "Shared")));
 		service.Register(typeof(FakeDbContext).Assembly, first.Definitions);
 		var second = new DatabaseRegistrar();
-		second.Add<OtherDbContext>("Unused", options => new OtherDbContext(options));
-		second.Add<ClashContext>("shared", options => new ClashContext(options));
+		second.Add<OtherDbContext>("Unused", (provider, connection) => new OtherDbContext(DatabaseOptions.Create<OtherDbContext>(provider, connection, "Unused")));
+		second.Add<ClashContext>("shared", (provider, connection) => new ClashContext(DatabaseOptions.Create<ClashContext>(provider, connection, "shared")));
 		Assert.Throws<InvalidOperationException>(() => service.Register(typeof(Databases).Assembly, second.Definitions));
 		Assert.Throws<InvalidOperationException>(() => service.EntryOf(typeof(OtherDbContext)));
 		Assert.Equal("Shared", service.EntryOf(typeof(FakeDbContext)).Id);

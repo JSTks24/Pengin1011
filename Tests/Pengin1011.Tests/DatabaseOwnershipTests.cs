@@ -7,7 +7,7 @@ namespace Pengin1011.Tests;
 [Collection("BaseDirSerial")]
 public sealed class DatabaseOwnershipTests {
 	private static string TempBase() {
-		return Path.Combine(Path.GetTempPath(), $"qq1011_own_{Guid.NewGuid():N}");
+		return Path.Combine(Path.GetTempPath(), $"pengin1011_own_{Guid.NewGuid():N}");
 	}
 
 	private static void Cleanup(string baseDir) {
@@ -82,14 +82,14 @@ public sealed class DatabaseOwnershipTests {
 	}
 
 	[Fact]
-	public void D20_CanonicalizationIgnoresCaseForTheRoot() {
+	public void D20_CanonicalizationUsesPlatformPathCasing() {
 		var baseDir = TempBase();
 		try {
 			Directory.CreateDirectory(baseDir);
 			var upper = baseDir.ToUpperInvariant();
 			var lower = baseDir.ToLowerInvariant();
 
-			Assert.Equal(DataDirectoryResolver.Canonicalize(upper), DataDirectoryResolver.Canonicalize(lower));
+			Assert.Equal(OperatingSystem.IsWindows(), DataDirectoryResolver.IsSameDirectory(upper, lower));
 		} finally {
 			Cleanup(baseDir);
 		}

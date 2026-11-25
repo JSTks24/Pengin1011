@@ -6,7 +6,7 @@ namespace Pengin1011.Tests;
 
 [Collection("BaseDirSerial")]
 public sealed class AIPresetStoreTests : IDisposable {
-	private readonly string _directory = Path.Combine(Path.GetTempPath(), $"qq1011_presets_{Guid.NewGuid():N}");
+	private readonly string _directory = Path.Combine(Path.GetTempPath(), $"pengin1011_presets_{Guid.NewGuid():N}");
 	private readonly string _path;
 
 	public AIPresetStoreTests() {
@@ -18,7 +18,7 @@ public sealed class AIPresetStoreTests : IDisposable {
 	public void Dispose() {
 		AIPresetStore.ResetForTest();
 		AIPresetUsageRegistry.ForgetAll();
-		try { Directory.Delete(_directory, true); } catch (IOException) { }
+		if (Directory.Exists(_directory)) Directory.Delete(_directory, true);
 	}
 
 	private static AIPreset OpenAi(string name = "prod", string model = "m1") {
@@ -71,6 +71,28 @@ public sealed class AIPresetStoreTests : IDisposable {
 		Assert.Equal(3, AIPresetStore.MaxParallel);
 		Assert.Empty(AIPresetStore.Presets);
 		Assert.Null(AIPresetStore.DefaultPreset);
+	}
+
+	[Fact]
+	public void TryLoad_MissingNamePreservesTheFileAndPublishedSnapshot() {
+		var active = Path.Combine(_directory, "active.json");
+		Assert.True(JsonHelper.Save(active, new AIPresetDocument { Presets = [OpenAi()] }));
+		Assert.True(AIPresetStore.TryLoad(active, out _));
+		var snapshot = AIPresetStore.Snapshot;
+		File.WriteAllText(_path, """
+			{"Presets":[
+				{"Name":"valid","Provider":"Gemini","ApiKey":"k","Model":"m"},
+				{"Provider":"Gemini","ApiKey":"k","Model":"m"}
+			]}
+			""");
+		var original = File.ReadAllBytes(_path);
+
+		Assert.False(AIPresetStore.TryLoad(_path, out var errors));
+		Assert.Contains(L.Get("AIPresetNameRequired"), errors);
+		Assert.Same(snapshot, AIPresetStore.Snapshot);
+		Assert.Equal(active, AIPresetStore.CurrentPath);
+		Assert.True(AIPresetStore.AddPatch(OpenAi("second"), snapshot.Version, out _));
+		Assert.Equal(original, File.ReadAllBytes(_path));
 	}
 
 	[Fact]
@@ -367,7 +389,8 @@ public sealed class AIPresetStoreTests : IDisposable {
 	[Fact]
 	public void Add_SaveFailure_ReportsAndKeepsSnapshot() {
 		Assert.True(AIPresetStore.TryLoad(WriteDocument(), out _));
-		using var locked = new FileStream(_path, FileMode.Open, FileAccess.Read, FileShare.None);
+		File.Delete(_path);
+		Directory.CreateDirectory(_path);
 
 		Assert.False(AIPresetStore.AddPatch(OpenAi("second", "m2"), null, out var result));
 
@@ -378,7 +401,8 @@ public sealed class AIPresetStoreTests : IDisposable {
 	[Fact]
 	public void Remove_SaveFailure_ReportsAndKeepsSnapshot() {
 		Assert.True(AIPresetStore.TryLoad(WriteDocument(), out _));
-		using var locked = new FileStream(_path, FileMode.Open, FileAccess.Read, FileShare.None);
+		File.Delete(_path);
+		Directory.CreateDirectory(_path);
 
 		Assert.False(AIPresetStore.RemovePatch("prod", null, out var result));
 

@@ -7,7 +7,7 @@ namespace Pengin1011.Tests;
 [Collection("BaseDirSerial")]
 public sealed class DatabaseDriftAndRetentionTests {
 	private static string TempBase() {
-		return Path.Combine(Path.GetTempPath(), $"qq1011_drift_{Guid.NewGuid():N}");
+		return Path.Combine(Path.GetTempPath(), $"pengin1011_drift_{Guid.NewGuid():N}");
 	}
 
 	private static string DataDir(string baseDir) {

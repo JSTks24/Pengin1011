@@ -1,30 +1,11 @@
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Text;
 using Pengin1011Generator.AIPreset;
 using Pengin1011Generator.ModuleBridge;
 
 namespace Pengin1011.Tests;
-
-internal sealed record GeneratorOutcome(
-	ImmutableArray<Diagnostic> GeneratorDiagnostics,
-	ImmutableArray<Diagnostic> CompilationDiagnostics,
-	ImmutableArray<(string HintName, string Text)> GeneratedSources,
-	Compilation OutputCompilation) {
-	internal ImmutableArray<Diagnostic> Errors => [.. CompilationDiagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)];
-
-	internal IEnumerable<string> SourceTexts => GeneratedSources.Select(source => source.Text);
-
-	internal string SourceContaining(string fragment) {
-		return GeneratedSources.First(source => source.Text.Contains(fragment, StringComparison.Ordinal)).Text;
-	}
-
-	internal string SourceByHint(string hintName) {
-		return GeneratedSources.First(source => source.HintName == hintName).Text;
-	}
-}
 
 internal static class GeneratorTestHost {
 	private static readonly Lazy<ImmutableArray<MetadataReference>> _references = new(LoadReferences);
@@ -117,13 +98,12 @@ internal static class GeneratorTestHost {
 		var builder = ImmutableArray.CreateBuilder<MetadataReference>();
 		if (Directory.Exists(_targetingPackRoot.Value)) {
 			var refDirectory = Path.Combine(_targetingPackRoot.Value, "Microsoft.NETCore.App.Ref");
-			var version = Directory.Exists(refDirectory)
-				? Directory.GetDirectories(refDirectory).OrderByDescending(ParseVersion).FirstOrDefault()
+			var referenceDirectory = Directory.Exists(refDirectory)
+				? Directory.EnumerateDirectories(refDirectory)
+					.OrderByDescending(ParseVersion)
+					.Select(version => Path.Combine(version, "ref", "net10.0"))
+					.FirstOrDefault(Directory.Exists)
 				: null;
-			var framework = version == null
-				? null
-				: Directory.GetDirectories(version, "ref", SearchOption.TopDirectoryOnly).FirstOrDefault();
-			var referenceDirectory = framework == null ? null : Directory.GetDirectories(framework).OrderBy(name => name, StringComparer.Ordinal).FirstOrDefault();
 			if (referenceDirectory != null) {
 				foreach (var file in Directory.GetFiles(referenceDirectory, "*.dll")) {
 					builder.Add(MetadataReference.CreateFromFile(file));

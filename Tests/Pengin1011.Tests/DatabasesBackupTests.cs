@@ -7,7 +7,7 @@ namespace Pengin1011.Tests;
 [Collection("BaseDirSerial")]
 public sealed class DatabasesBackupTests {
 	private static string TempBase() {
-		return Path.Combine(Path.GetTempPath(), $"qq1011_ef_{Guid.NewGuid():N}");
+		return Path.Combine(Path.GetTempPath(), $"pengin1011_ef_{Guid.NewGuid():N}");
 	}
 
 	private static string DataDir(string baseDir) {

@@ -31,13 +31,16 @@ internal static class Program {
 		try {
 			try {
 				var configValid = AppConfig.TryLoad(null, out _);
-				if (!AppConfig.PathConfigurationValid && dataDirectory == null) throw new InvalidDataException(Loc.Get("ConfigPathsUnavailable"));
-				if (!Databases.TryResolveDataDirectory(new DatabasePathOptions(dataDirectory, AppConfig.Databases.DataDirectory, createDirectory), out var resolved, out var failure)) {
-					throw new DirectoryNotFoundException(Loc.Format("DataDirectoryMissing", failure));
+				if (!AppConfig.DatabaseConfigurationValid) throw new InvalidDataException(Loc.Get("DatabaseConfigurationUnavailable"));
+				Databases.ConfigureProvider(AppConfig.Databases);
+				if (Databases.Provider == DatabaseProvider.SQLite) {
+					if (!Databases.TryResolveDataDirectory(new DatabasePathOptions(dataDirectory, AppConfig.Databases.DataDirectory, createDirectory), out var resolved, out var failure)) {
+						throw new DirectoryNotFoundException(Loc.Format("DataDirectoryMissing", failure));
+					}
+					Databases.ConfigureDataDirectory(resolved);
+					Logger.Info(typeof(Program), Loc.Format("DataDirectoryResolved", resolved, Environment.ProcessId));
 				}
-				Databases.ConfigureDataDirectory(resolved);
 				Databases.Init();
-				Logger.Info(typeof(Program), Loc.Format("DataDirectoryResolved", resolved, Environment.ProcessId));
 				if (configValid && AIPresetStore.TryLoad(null, out _)) {
 					await StartBusinessAsync(cancellation.Token);
 					started = true;
@@ -52,7 +55,7 @@ internal static class Program {
 				Logger.Info(typeof(Program), Loc.Get("MaintenanceConsole"));
 			}
 			CliDispatcher.StartedAt = DateTimeOffset.Now;
-			var input = CliLoop.RunAsync(RequestStop, cancellation.Token, () => false);
+			var input = CliLoop.RunAsync(RequestStop, cancellation.Token);
 			if (!started) await Task.WhenAny(exit.Task, input);
 			else await exit.Task;
 			var report = await HostExit.StopAsync();
@@ -76,7 +79,7 @@ internal static class Program {
 		DiscordGateway.Init(AppConfig.Discord.Token);
 		Components.Attach();
 		LoggerChannelForwarder.Start(AppConfig.Logging.Channels);
-		DiscordGateway.SubscribeInteraction(null, InteractionHost.ExecuteAsync);
+		DiscordGateway.SubscribeInteraction(InteractionHost.ExecuteAsync);
 		ModuleHost.LoadAll();
 		if (!AIPresetValidator.TryValidate(out _)) throw new InvalidOperationException(Loc.Get("StartupFailed"));
 		await InteractionHost.PublishInitialAsync();

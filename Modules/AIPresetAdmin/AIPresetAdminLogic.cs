@@ -60,15 +60,6 @@ public static class AIPresetAdminLogic {
 		return Loc.Format("PresetReplyUpdated", renamed);
 	}
 
-	public static string SetMany(string name, IReadOnlyList<KeyValuePair<string, string>> values) {
-		var existing = AIPresetStore.Find(name);
-		if (existing == null) return Loc.Format("PresetReplyNotFound", name);
-		if (!PresetEdit.TryBuildPatch(values.Select(pair => $"{pair.Key}={pair.Value}"), allowName: true, out var patch, out var failure)) return Describe(failure);
-		if (!AIPresetStore.Apply(name, patch, null, out var result)) return Describe(result);
-		var renamed = patch.Name.TryGet(out var newName) ? newName : name;
-		return Loc.Format("PresetReplyUpdated", renamed);
-	}
-
 	public static string Remove(string name) {
 		if (!AIPresetStore.RemovePatch(name, null, out var result)) return Describe(result);
 		return Loc.Format("PresetReplyRemoved", name);
@@ -92,5 +83,3 @@ public static class AIPresetAdminLogic {
 		return value.Length > 0 ? value : "-";
 	}
 }
-
-public sealed record AIPresetAddFields(string? ApiKey = null, string? BaseUrl = null, string? Project = null, string? Location = null, string? Model = null);

@@ -5,7 +5,7 @@ namespace Pengin1011.Tests;
 
 [Collection("BaseDirSerial")]
 public sealed class AIPresetEditTests : IDisposable {
-	private readonly string _directory = Path.Combine(Path.GetTempPath(), $"qq1011_edit_{Guid.NewGuid():N}");
+	private readonly string _directory = Path.Combine(Path.GetTempPath(), $"pengin1011_edit_{Guid.NewGuid():N}");
 	private readonly string _path;
 
 	public AIPresetEditTests() {
@@ -17,7 +17,7 @@ public sealed class AIPresetEditTests : IDisposable {
 	public void Dispose() {
 		AIPresetStore.ResetForTest();
 		AIPresetUsageRegistry.ForgetAll();
-		try { Directory.Delete(_directory, true); } catch (IOException) { }
+		if (Directory.Exists(_directory)) Directory.Delete(_directory, true);
 	}
 
 	private void Seed(params string[] names) {
@@ -124,7 +124,8 @@ public sealed class AIPresetEditTests : IDisposable {
 		Seed("prod");
 		var before = AIPresetStore.Snapshot;
 		var pathBefore = AIPresetStore.CurrentPath;
-		using var locked = new FileStream(_path, FileMode.Open, FileAccess.Read, FileShare.None);
+		File.Delete(_path);
+		Directory.CreateDirectory(_path);
 
 		Assert.False(AIPresetStore.Apply("prod", Patch("m2"), null, out var result));
 

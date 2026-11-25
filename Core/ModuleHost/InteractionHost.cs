@@ -1,7 +1,6 @@
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
-using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 using Pengin1011.Core.Modules;
 using Pengin1011.Services.Discord;
@@ -46,6 +45,7 @@ public static class InteractionHost {
 		try {
 			_shutdownCts.Cancel();
 		} catch (ObjectDisposedException) {
+			return;
 		}
 	}
 
@@ -161,20 +161,7 @@ public static class InteractionHost {
 
 	private static async Task RunReadySyncAsync() {
 		while (true) {
-			try {
-				using var linked = CancellationTokenSource.CreateLinkedTokenSource(CurrentShutdownToken());
-				await _controlGate.WaitAsync(linked.Token);
-				try {
-					if (!Exiting) {
-						await SyncBodyAsync(linked.Token);
-					}
-				} finally {
-					_controlGate.Release();
-				}
-			} catch (OperationCanceledException) {
-			} catch (Exception e) {
-				Logger.Error(typeof(InteractionHost), e, Loc.Get("ReadySyncFailed"));
-			}
+			await SyncOnReadyAsync(CurrentShutdownToken());
 			lock (_syncGate) {
 				if (!_syncPending || Exiting) {
 					_syncExecuting = false;
@@ -183,6 +170,21 @@ public static class InteractionHost {
 				}
 				_syncPending = false;
 			}
+		}
+	}
+
+	private static async Task SyncOnReadyAsync(CancellationToken ct) {
+		try {
+			await _controlGate.WaitAsync(ct);
+			try {
+				if (!Exiting) await SyncBodyAsync(ct);
+			} finally {
+				_controlGate.Release();
+			}
+		} catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+			return;
+		} catch (Exception e) {
+			Logger.Error(typeof(InteractionHost), e, Loc.Get("ReadySyncFailed"));
 		}
 	}
 
@@ -259,7 +261,6 @@ public static class InteractionHost {
 				var reason = Loc.Format("ReadySyncStopTimeout", SyncStopWaitForTest.TotalSeconds);
 				Logger.Error(typeof(InteractionHost), reason);
 				return new ServiceReleaseResult(false, reason);
-			} catch (OperationCanceledException) {
 			}
 		}
 		InteractionSnapshot? snapshot;
@@ -382,9 +383,3 @@ public static class InteractionHost {
 		}
 	}
 }
-
-public sealed record InteractionSnapshot(InteractionService Service, IReadOnlyList<LoadedModule> Modules);
-
-public sealed record ModuleAttachResult(IReadOnlyList<LoadedModule> Valid, IReadOnlyList<LoadedModule> Invalid, IReadOnlyList<string> Errors);
-
-public sealed record ServiceReleaseResult(bool Released, string? Reason);

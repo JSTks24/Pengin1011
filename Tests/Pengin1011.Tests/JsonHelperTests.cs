@@ -15,7 +15,7 @@ public sealed class JsonHelperTests {
 	}
 
 	private static string TempDir() {
-		return Path.Combine(Path.GetTempPath(), $"qq1011_{Guid.NewGuid():N}");
+		return Path.Combine(Path.GetTempPath(), $"pengin1011_{Guid.NewGuid():N}");
 	}
 
 	[Fact]
@@ -37,7 +37,7 @@ public sealed class JsonHelperTests {
 			Assert.Equal(["a", "b", "c"], loaded.Items);
 			Assert.Equal("nested", loaded.Nested!.Value);
 		} finally {
-			try { Directory.Delete(dir, true); } catch (IOException) { }
+			if (Directory.Exists(dir)) Directory.Delete(dir, true);
 		}
 	}
 
@@ -46,7 +46,11 @@ public sealed class JsonHelperTests {
 		var dir = TempDir();
 		Directory.CreateDirectory(dir);
 		var path = Path.Combine(dir, "missing.json");
-		Assert.Throws<FileNotFoundException>(() => JsonHelper.Load<SampleData>(path));
+		try {
+			Assert.Throws<FileNotFoundException>(() => JsonHelper.Load<SampleData>(path));
+		} finally {
+			Directory.Delete(dir);
+		}
 	}
 
 	[Fact]
@@ -58,7 +62,7 @@ public sealed class JsonHelperTests {
 			File.WriteAllText(path, "{ broken");
 			Assert.Throws<System.Text.Json.JsonException>(() => JsonHelper.Load<SampleData>(path));
 		} finally {
-			try { Directory.Delete(dir, true); } catch (IOException) { }
+			if (Directory.Exists(dir)) Directory.Delete(dir, true);
 		}
 	}
 
@@ -80,7 +84,7 @@ public sealed class JsonHelperTests {
 			Assert.Equal("n", loaded!.Name);
 			Assert.Equal(1, loaded.Count);
 		} finally {
-			try { Directory.Delete(dir, true); } catch (IOException) { }
+			if (Directory.Exists(dir)) Directory.Delete(dir, true);
 		}
 	}
 
@@ -94,7 +98,7 @@ public sealed class JsonHelperTests {
 			var loaded = JsonHelper.Load<SampleData>(path);
 			Assert.Equal("second", loaded!.Name);
 		} finally {
-			try { Directory.Delete(dir, true); } catch (IOException) { }
+			if (Directory.Exists(dir)) Directory.Delete(dir, true);
 		}
 	}
 
@@ -106,7 +110,7 @@ public sealed class JsonHelperTests {
 			Assert.True(JsonHelper.Save(path, new SampleData { Name = "x" }));
 			Assert.True(File.Exists(path));
 		} finally {
-			try { Directory.Delete(dir, true); } catch (IOException) { }
+			if (Directory.Exists(dir)) Directory.Delete(dir, true);
 		}
 	}
 
@@ -121,7 +125,7 @@ public sealed class JsonHelperTests {
 			Assert.Empty(Directory.GetFiles(dir, "*.tmp"));
 			Assert.Single(Directory.GetFiles(dir));
 		} finally {
-			try { Directory.Delete(dir, true); } catch (IOException) { }
+			if (Directory.Exists(dir)) Directory.Delete(dir, true);
 		}
 	}
 }

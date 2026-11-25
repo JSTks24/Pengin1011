@@ -15,4 +15,7 @@
 	<data name="SampleGreeting" xml:space="preserve">
 		<value>来自 __MODULE__ 的问候</value>
 	</data>
+	<data name="ConfigTemplateCreated" xml:space="preserve">
+		<value>配置模板已生成：config/__MODULE__.json</value>
+	</data>
 </root>

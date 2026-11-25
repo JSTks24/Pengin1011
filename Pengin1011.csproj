@@ -3,6 +3,14 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
+    <Version>1.0.0</Version>
+    <PackageId>Pengin1011.ModuleSdk</PackageId>
+    <Authors>JSTks24</Authors>
+    <Description>Build independent C# modules for the Pengin1011 Discord bot host.</Description>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageReadmeFile>ModuleSdk.md</PackageReadmeFile>
+    <DefaultAllowedOutputExtensionsInPackageBuildOutputFolder>.dll;.xml</DefaultAllowedOutputExtensionsInPackageBuildOutputFolder>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);PackModuleGenerator</TargetsForTfmSpecificContentInPackage>
     <RootNamespace>Pengin1011</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -14,13 +22,32 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="Generator\Pengin1011Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="Generator\Pengin1011Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Update="LICENSE;ModuleSdk.md" Pack="true" PackagePath="" />
+    <None Update="build/Pengin1011.ModuleSdk.props" Pack="true" PackagePath="build/$(PackageId).props" />
+    <None Update="Directory.Build.targets" Pack="true" PackagePath="build/$(PackageId).targets" />
+  </ItemGroup>
+
+  <Target Name="PackModuleGenerator">
+    <MSBuild Projects="@(ProjectReference->WithMetadataValue('OutputItemType', 'Analyzer'))" Targets="GetTargetPath" RemoveProperties="TargetFramework;RuntimeIdentifier;SelfContained">
+      <Output TaskParameter="TargetOutputs" ItemName="_ModuleGenerator" />
+    </MSBuild>
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="@(_ModuleGenerator)" PackagePath="analyzers/dotnet/cs/" />
+      <TfmSpecificPackageFile Include="@(_ModuleGenerator->'%(RootDir)%(Directory)zh-CN/%(Filename).resources.dll')" PackagePath="analyzers/dotnet/cs/zh-CN/" />
+    </ItemGroup>
+    <Error Condition="'@(_ModuleGenerator)' == ''" Text="The module source generator is missing from the package inputs." />
+  </Target>
 
   <ItemGroup>
     <PackageReference Include="Discord.Net" Version="3.20.1" />
     <PackageReference Include="Google.GenAI" Version="1.21.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+    <PackageReference Include="MySql.EntityFrameworkCore" Version="10.0.12" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -29,36 +56,40 @@
   </ItemGroup>
 
   <Target Name="NewModule">
-    <Error Condition="'$(Module)' == ''" Text="用法：dotnet build -t:NewModule -p:Module=&lt;模块名&gt;" />
+    <Error Condition="'$(Module)' == ''" Text="用法：dotnet build Pengin1011.csproj -t:NewModule -p:Module=&lt;模块名&gt;" />
     <Error Condition="Exists('$(MSBuildProjectDirectory)/Modules/$(Module)')" Text="模块目录已存在：Modules/$(Module)" />
-    <MakeDir Directories="$(MSBuildProjectDirectory)/Modules/$(Module)" />
-    <Exec Command="dotnet run --project tools/Scaffolder -c Release -- $(Module) $(MSBuildProjectDirectory)/BuildTemplates $(MSBuildProjectDirectory)/Modules/$(Module) $(WithDatabase)" />
-    <Exec Command="dotnet sln Pengin1011.sln add Modules/$(Module)/$(Module).csproj" />
+    <Exec Command="dotnet run --project tools/Scaffolder -c Release -- &quot;$(Module)&quot; &quot;$(MSBuildProjectDirectory)/BuildTemplates&quot; &quot;$(MSBuildProjectDirectory)/Modules/$(Module)&quot; &quot;$(WithDatabase)&quot; &quot;$(MSBuildProjectDirectory)/Pengin1011.sln&quot;" />
     <Message Importance="high" Text="模块骨架已生成：Modules/$(Module)/（已加入 Pengin1011.sln）" />
-    <Message Importance="high" Text="下一步：dotnet build -t:AddModuleMigration -p:Module=$(Module) -p:MigrationName=Init（有数据库需求时）" />
+    <Message Condition="'$(WithDatabase)' != 'true'" Importance="high" Text="下一步：dotnet build Pengin1011.csproj -t:BuildModule -p:Module=$(Module)" />
+    <Message Condition="'$(WithDatabase)' == 'true'" Importance="high" Text="下一步：dotnet build Pengin1011.csproj -t:AddModuleMigration -p:Module=$(Module) -p:Context=$(Module)DbContext -p:MigrationName=Init -p:Provider=SQLite（另为 MySQL、PostgreSQL 生成迁移）" />
   </Target>
 
   <Target Name="BuildModule">
-    <Error Condition="'$(Module)' == ''" Text="用法：dotnet build -t:BuildModule -p:Module=&lt;模块名&gt;" />
+    <Error Condition="'$(Module)' == ''" Text="用法：dotnet build Pengin1011.csproj -t:BuildModule -p:Module=&lt;模块名&gt;" />
     <Error Condition="!Exists('$(MSBuildProjectDirectory)/Modules/$(Module)/$(Module).csproj')" Text="模块项目不存在：Modules/$(Module)/$(Module).csproj" />
-    <Exec Command="dotnet build Modules/$(Module)/$(Module).csproj -c $(Configuration)" />
+    <Exec Command="dotnet build &quot;Modules/$(Module)/$(Module).csproj&quot; -c $(Configuration)" />
   </Target>
 
   <Target Name="BuildAllModules">
     <ItemGroup>
       <_ModuleProject Include="Modules/*/*.csproj" />
     </ItemGroup>
-    <Exec Command="dotnet build %(_ModuleProject.FullPath) -c $(Configuration)" />
+    <Exec Command="dotnet build &quot;%(_ModuleProject.FullPath)&quot; -c $(Configuration)" />
   </Target>
 
   <Target Name="AddModuleMigration">
     <PropertyGroup>
-      <_MigrationContextArgument Condition="'$(Context)' != ''">--context $(Context)</_MigrationContextArgument>
+      <Provider Condition="'$(Provider)' == ''">SQLite</Provider>
+      <_MigrationTool>dotnet tool run dotnet-ef --</_MigrationTool>
+      <_MigrationTool Condition="'$(EfToolPath)' != ''">&quot;$(EfToolPath)&quot;</_MigrationTool>
+      <_MigrationContext>$(Context)</_MigrationContext>
+      <_MigrationContext Condition="'$(Provider)' != 'SQLite'">$(Context)$(Provider)</_MigrationContext>
     </PropertyGroup>
-    <Error Condition="'$(Module)' == '' Or '$(MigrationName)' == ''" Text="用法：dotnet build -t:AddModuleMigration -p:Module=&lt;模块名&gt; -p:MigrationName=&lt;迁移名&gt;" />
+    <Error Condition="'$(Module)' == '' Or '$(MigrationName)' == '' Or '$(Context)' == ''" Text="用法：dotnet build Pengin1011.csproj -t:AddModuleMigration -p:Module=&lt;模块名&gt; -p:Context=&lt;业务上下文&gt; -p:MigrationName=&lt;迁移名&gt; -p:Provider=SQLite|MySQL|PostgreSQL" />
+    <Error Condition="'$(Provider)' != 'SQLite' And '$(Provider)' != 'MySQL' And '$(Provider)' != 'PostgreSQL'" Text="Provider 必须为 SQLite、MySQL 或 PostgreSQL。" />
     <Error Condition="!Exists('$(MSBuildProjectDirectory)/Modules/$(Module)/$(Module).csproj')" Text="模块项目不存在：Modules/$(Module)/$(Module).csproj" />
-    <Exec Command="dotnet restore Modules/$(Module)/$(Module).csproj" />
-    <Exec Command="dotnet ef migrations add $(MigrationName) --project Modules/$(Module)/$(Module).csproj --startup-project Modules/$(Module)/$(Module).csproj $(_MigrationContextArgument) --output-dir Migrations" />
+    <Exec Command="dotnet restore &quot;Modules/$(Module)/$(Module).csproj&quot;" />
+    <Exec Command="$(_MigrationTool) migrations add &quot;$(MigrationName)&quot; --configuration $(Configuration) --project &quot;Modules/$(Module)/$(Module).csproj&quot; --startup-project &quot;Modules/$(Module)/$(Module).csproj&quot; --context &quot;$(_MigrationContext)&quot; --output-dir &quot;Migrations/$(Context)Migrations/$(Provider)&quot;" />
   </Target>
 
   <Target Name="PublishAll">

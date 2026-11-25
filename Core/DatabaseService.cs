@@ -20,13 +20,18 @@ internal sealed class DatabaseService {
 		public required Func<string, DbContext> Create { get; init; }
 		public DatabaseState State { get; set; }
 		public Task<DatabasePrepareResult>? PrepareTask { get; set; }
+		public string? CurrentHistory { get; set; }
+		public string? Failure { get; set; }
 	}
 
 	public string DataDirectory { get; private set; } = DataDirectoryResolver.Default;
 	public bool DataDirectoryConfigured { get; private set; }
+	public DatabaseProvider Provider { get; private set; }
+	internal string ExternalConnectionString { get; private set; } = "";
 	internal SemaphoreSlim MaintenanceGate => _maintenanceGate;
 
 	internal void AcquireOwnership() {
+		if (Provider != DatabaseProvider.SQLite) return;
 		lock (_gate) {
 			if (_ownership != null) return;
 			if (!DataDirectoryOwnership.TryAcquire(DataDirectory, out _ownership, out var reason)) {
@@ -99,6 +104,10 @@ internal sealed class DatabaseService {
 		lock (_gate) return _entries.TryGetValue(id, out var entry) ? entry.State : DatabaseState.Unprepared;
 	}
 
+	internal DatabaseEntry? FindEntry(string id) {
+		lock (_gate) return _entries.GetValueOrDefault(id);
+	}
+
 	internal IReadOnlyList<string> Ids() {
 		lock (_gate) return _entries.Keys.ToArray();
 	}
@@ -124,9 +133,19 @@ internal sealed class DatabaseService {
 		}
 	}
 
+	internal void ConfigureProvider(DatabaseConfig config) {
+		if (!DatabaseOptions.TryValidate(config, out var failure)) throw new ArgumentException(failure, nameof(config));
+		lock (_gate) {
+			if (_entries.Count != 0 || _ownership != null) throw new InvalidOperationException(Loc.Get("DatabaseWorkPending"));
+			Provider = DatabaseOptions.ProviderOf(config);
+			ExternalConnectionString = Provider == DatabaseProvider.SQLite ? "" : DatabaseOptions.ConnectionString(config);
+		}
+	}
+
 	internal string PathOf(string id) => Path.Combine(DataDirectory, DatabaseIdentity.FileName(id));
 
 	internal string ConnectionStringFor(DatabaseEntry entry, bool creating) {
+		if (Provider != DatabaseProvider.SQLite) return ExternalConnectionString;
 		return creating ? SqliteConnectionPolicy.ForCreatingDatabase(PathOf(entry.Id)) : SqliteConnectionPolicy.ForExistingDatabase(PathOf(entry.Id));
 	}
 
@@ -135,15 +154,21 @@ internal sealed class DatabaseService {
 	}
 
 	private Task<DatabasePrepareResult> PrepareAsync(DatabaseEntry entry, CancellationToken ct) {
+		Task<DatabasePrepareResult> rejected;
+		string failure;
 		lock (_gate) {
 			if (entry.PrepareTask != null) return entry.PrepareTask;
-			if (_lifetime.IsCancellationRequested) {
-				entry.State = DatabaseState.Failed;
-				return entry.PrepareTask = Task.FromResult(new DatabasePrepareResult(false, entry.State, Loc.Get("DatabaseWorkPending")));
+			if (!_lifetime.IsCancellationRequested) {
+				entry.State = DatabaseState.Preparing;
+				return entry.PrepareTask = Task.Run(() => PrepareCoreAsync(entry, ct));
 			}
-			entry.State = DatabaseState.Preparing;
-			return entry.PrepareTask = Task.Run(() => PrepareCoreAsync(entry, ct));
+			entry.State = DatabaseState.Failed;
+			failure = Provider == DatabaseProvider.SQLite ? Loc.Get("DatabaseWorkPending") : DatabaseOptions.Failure(new OperationCanceledException(), cancelled: true);
+			entry.Failure = failure;
+			rejected = entry.PrepareTask = Task.FromResult(new DatabasePrepareResult(false, entry.State, failure));
 		}
+		Logger.Error(typeof(DatabaseService), Loc.Format("DatabasePrepareFailed", entry.Id) + " " + failure);
+		return rejected;
 	}
 
 	private async Task<DatabasePrepareResult> PrepareCoreAsync(DatabaseEntry entry, CancellationToken ct) {
@@ -152,16 +177,24 @@ internal sealed class DatabaseService {
 		budget.CancelAfter(PrepareBudget);
 		try {
 			budget.Token.ThrowIfCancellationRequested();
-			AcquireOwnership();
-			result = DatabaseMaintenance.Exists(DataDirectory, entry.Id)
-				? new DatabasePrepareResult(false, DatabaseState.MaintenanceRequired, Loc.Format("DatabaseMaintenanceRequired", entry.Id))
-				: await DatabasePrepareEngine.RunAsync(this, entry, budget.Token).ConfigureAwait(false);
+			if (Provider != DatabaseProvider.SQLite) {
+				result = await ExternalDatabasePrepareEngine.RunAsync(this, entry, budget.Token).ConfigureAwait(false);
+			} else {
+				AcquireOwnership();
+				result = DatabaseMaintenance.Exists(DataDirectory, entry.Id)
+					? new DatabasePrepareResult(false, DatabaseState.MaintenanceRequired, Loc.Format("DatabaseMaintenanceRequired", entry.Id))
+					: await DatabasePrepareEngine.RunAsync(this, entry, budget.Token).ConfigureAwait(false);
+			}
 		} catch (Exception e) {
-			Logger.Error(typeof(DatabaseService), e, Loc.Format("DatabasePrepareFailed", entry.Id));
-			result = new DatabasePrepareResult(false, DatabaseState.Failed, e.Message);
+			var failure = Provider == DatabaseProvider.SQLite ? e.Message : DatabaseOptions.Failure(e,
+				cancelled: ct.IsCancellationRequested || _lifetime.IsCancellationRequested, timedOut: budget.IsCancellationRequested);
+			if (Provider == DatabaseProvider.SQLite) Logger.Error(typeof(DatabaseService), e, Loc.Format("DatabasePrepareFailed", entry.Id));
+			else Logger.Error(typeof(DatabaseService), Loc.Format("DatabasePrepareFailed", entry.Id) + " " + failure);
+			result = new DatabasePrepareResult(false, DatabaseState.Failed, failure);
 		}
 		lock (_gate) {
 			entry.State = result.State;
+			entry.Failure = result.Failure;
 		}
 		return result;
 	}
@@ -176,6 +209,8 @@ internal sealed class DatabaseService {
 			_lifetime = new CancellationTokenSource();
 			DataDirectory = directory ?? DataDirectoryResolver.Default;
 			DataDirectoryConfigured = directory != null;
+			Provider = DatabaseProvider.SQLite;
+			ExternalConnectionString = "";
 		}
 	}
 }

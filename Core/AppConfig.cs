@@ -1,22 +1,8 @@
 using System.Text.Json;
-using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 using Pengin1011.Helper;
 
 namespace Pengin1011.Core;
-
-public sealed class DiscordConfig {
-	public string Token { get; init; } = "";
-	public IReadOnlyList<ulong> AdminRoleIds { get; init; } = [];
-}
-
-public sealed class LoggerConfig {
-	public IReadOnlyList<ulong> Channels { get; init; } = [];
-}
-
-public sealed class DatabaseConfig {
-	public string? DataDirectory { get; init; }
-}
 
 public static class AppConfig {
 	private const string Template = """
@@ -26,7 +12,9 @@ public static class AppConfig {
 		    "AdminRoleIds": []
 		  },
 		  "Databases": {
-		    "DataDirectory": null
+		    "DataDirectory": null,
+		    "MySQL": null,
+		    "PostgreSQL": null
 		  },
 		  "Logger": {
 		    "Channels": []
@@ -38,6 +26,7 @@ public static class AppConfig {
 	public static LoggerConfig Logging { get; private set; } = new();
 
 	internal static bool PathConfigurationValid { get; private set; }
+	internal static bool DatabaseConfigurationValid { get; private set; }
 
 	public static DatabaseConfig Databases { get; private set; } = new();
 
@@ -48,7 +37,9 @@ public static class AppConfig {
 		var configPath = path ?? DefaultPath;
 		var file = ReadFile(configPath, list, out var templateCreated);
 		PathConfigurationValid = file != null || templateCreated;
-		Databases = new DatabaseConfig { DataDirectory = file?.Databases?.DataDirectory };
+		Databases = file?.Databases ?? new DatabaseConfig();
+		DatabaseConfigurationValid = DatabaseOptions.TryValidate(Databases, out var databaseFailure) && PathConfigurationValid;
+		if (PathConfigurationValid && !DatabaseConfigurationValid) list.Add(new ConfigError(databaseFailure!));
 		DiscordConfig discord;
 		LoggerConfig logger;
 		if (file != null && TryBuild(file, list, out discord, out logger)) {
@@ -139,5 +130,3 @@ public static class AppConfig {
 		public List<string>? Channels { get; set; }
 	}
 }
-
-internal sealed record ConfigError(string Message, Exception? Exception = null);

@@ -1,4 +1,3 @@
-using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 using Pengin1011.Services.AI;
 using Pengin1011.Services.Discord;

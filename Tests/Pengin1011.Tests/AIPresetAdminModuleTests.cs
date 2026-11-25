@@ -8,7 +8,7 @@ namespace Pengin1011.Tests;
 public sealed class AIPresetAdminModuleTests : IDisposable {
 	private static readonly System.Reflection.Assembly _module = typeof(AIPresetAdminLogic).Assembly;
 
-	private readonly string _directory = Path.Combine(Path.GetTempPath(), $"qq1011_module_preset_{Guid.NewGuid():N}");
+	private readonly string _directory = Path.Combine(Path.GetTempPath(), $"pengin1011_module_preset_{Guid.NewGuid():N}");
 	private readonly string _path;
 
 	public AIPresetAdminModuleTests() {
@@ -31,7 +31,7 @@ public sealed class AIPresetAdminModuleTests : IDisposable {
 	public void Dispose() {
 		AIPresetStore.ResetForTest();
 		AIPresetUsageRegistry.ForgetAll();
-		try { Directory.Delete(_directory, true); } catch (IOException) { }
+		if (Directory.Exists(_directory)) Directory.Delete(_directory, true);
 	}
 
 	private void Seed(params string[] presets) {

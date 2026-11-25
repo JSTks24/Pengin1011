@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Reflection;
-using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 using Pengin1011.Core.Modules;
 
@@ -112,14 +111,6 @@ public static class ModuleBridgeDispatcher {
 		lock (_gate) {
 			foreach (var export in _exports.Values) {
 				if (ReferenceEquals(export.Owner, run)) export.AdmissionOpen = false;
-			}
-		}
-	}
-
-	internal static void OpenAdmission(LoadedModule run) {
-		lock (_gate) {
-			foreach (var export in _exports.Values) {
-				if (ReferenceEquals(export.Owner, run)) export.AdmissionOpen = true;
 			}
 		}
 	}

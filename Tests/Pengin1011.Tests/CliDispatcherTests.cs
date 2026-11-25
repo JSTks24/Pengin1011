@@ -1,3 +1,4 @@
+using Pengin1011.Core.Logging;
 using System.Globalization;
 using Pengin1011;
 using Pengin1011.Core;
@@ -6,6 +7,34 @@ namespace Pengin1011.Tests;
 
 [Collection("BaseDirSerial")]
 public sealed class CliDispatcherTests {
+	private sealed class CancelOnRead(string input, CancellationTokenSource cancellation) : StringReader(input) {
+		public override string? ReadLine() {
+			cancellation.Cancel();
+			return base.ReadLine();
+		}
+	}
+
+	[Fact]
+	public async Task DiscardedInputLogsOnlyTheCommandName() {
+		var path = Path.Combine(Path.GetTempPath(), $"pengin1011_cli_{Guid.NewGuid():N}.log");
+		var previous = Console.In;
+		using var cancellation = new CancellationTokenSource();
+		using var input = new CancelOnRead("preset set prod ApiKey=synthetic-secret", cancellation);
+		try {
+			Logger.SetInfoPathForTest(path);
+			Console.SetIn(input);
+			await CliLoop.RunAsync(() => Assert.Fail("Discarded input requested exit"), cancellation.Token);
+			var log = File.ReadAllText(path);
+			Assert.Contains(string.Format(L.Get("CliInputDiscarded"), "preset"), log);
+			Assert.DoesNotContain("synthetic-secret", log);
+			Assert.DoesNotContain("prod", log);
+		} finally {
+			Console.SetIn(previous);
+			Logger.SetInfoPathForTest(null);
+			File.Delete(path);
+		}
+	}
+
 	[Fact]
 	public async Task Help_ListsCommands() {
 		var result = await CliDispatcher.ExecuteAsync("help");
@@ -27,9 +56,11 @@ public sealed class CliDispatcherTests {
 		try {
 			var result = await CliDispatcher.ExecuteAsync("status");
 			var statusLines = L.Get("CliStatus").Split('\n');
-			Assert.Contains(statusLines[1].Split('{')[0].TrimEnd(), result.Output);
-			Assert.Contains(statusLines[3].Split('{')[0].TrimEnd(), result.Output);
+			var version = System.Diagnostics.FileVersionInfo.GetVersionInfo(typeof(CliDispatcher).Assembly.Location).ProductVersion!.Split('+')[0];
+			Assert.StartsWith($"Pengin1011 {version}\n", result.Output.ReplaceLineEndings("\n"));
+			Assert.Contains(statusLines[2].Split('{')[0].TrimEnd(), result.Output);
 			Assert.Contains(statusLines[4].Split('{')[0].TrimEnd(), result.Output);
+			Assert.Contains(statusLines[5].Split('{')[0].TrimEnd(), result.Output);
 		} finally {
 			CultureInfo.CurrentCulture = originalCulture;
 			CultureInfo.CurrentUICulture = originalUICulture;
@@ -38,7 +69,7 @@ public sealed class CliDispatcherTests {
 
 	[Fact]
 	public async Task Status_UnconfiguredModel_ShowsPlaceholder() {
-		var path = Path.Combine(Path.GetTempPath(), $"qq1011_status_{Guid.NewGuid():N}.json");
+		var path = Path.Combine(Path.GetTempPath(), $"pengin1011_status_{Guid.NewGuid():N}.json");
 		File.WriteAllText(path, """
 			{
 			  "Discord": { "Token": "tok" }
@@ -51,7 +82,7 @@ public sealed class CliDispatcherTests {
 
 			Assert.Contains(L.Get("AIModelNotConfigured"), result.Output);
 		} finally {
-			try { File.Delete(path); } catch (IOException) { }
+			File.Delete(path);
 		}
 	}
 
@@ -83,8 +114,15 @@ public sealed class CliDispatcherTests {
 
 	[Fact]
 	public async Task Db_WithoutSubcommand_UsageHint() {
-		var result = await CliDispatcher.ExecuteAsync("db");
-		Assert.Contains(L.Get("DbInternalUsage"), result.Output);
+		var path = Path.Combine(Path.GetTempPath(), "pengin_cli_config_" + Guid.NewGuid().ToString("N") + ".json");
+		try {
+			File.WriteAllText(path, "{\"Discord\":{\"Token\":\"test\"}}");
+			Assert.True(AppConfig.TryLoad(path, out _));
+			var result = await CliDispatcher.ExecuteAsync("db");
+			Assert.Contains(L.Get("DbInternalUsage"), result.Output);
+		} finally {
+			File.Delete(path);
+		}
 	}
 
 	[Fact]

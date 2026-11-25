@@ -18,7 +18,7 @@ public sealed class ShutdownTests : IDisposable {
 	private readonly TimeSpan _cleanupBudget = ModuleHost.CleanupBudget;
 
 	private static string TempBase() {
-		return Path.Combine(Path.GetTempPath(), $"qq1011_shutdown_{Guid.NewGuid():N}");
+		return Path.Combine(Path.GetTempPath(), $"pengin1011_shutdown_{Guid.NewGuid():N}");
 	}
 
 	private static string DataDir(string baseDir) {
@@ -107,11 +107,7 @@ public sealed class ShutdownTests : IDisposable {
 		await InteractionHost.PublishInitialAsync();
 		foreach (var run in ModuleHost.Modules) {
 			if (run.InitTask == null) continue;
-			try {
-				await run.InitTask.WaitAsync(TimeSpan.FromSeconds(2));
-			} catch (TimeoutException) {
-			} catch (Exception) {
-			}
+			await run.InitTask.WaitAsync(TimeSpan.FromSeconds(5));
 		}
 		return InteractionHost.Current.Service;
 	}
@@ -416,7 +412,7 @@ public sealed class ShutdownTests : IDisposable {
 			Assert.Equal(1, ModuleProbe.RuntimeStaticInt(run, "InitCount"));
 
 			var received = 0;
-			DiscordGateway.SubscribeMessage(null, (_, _) => {
+			DiscordGateway.SubscribeMessage((_, _) => {
 				Interlocked.Increment(ref received);
 				return Task.CompletedTask;
 			});
@@ -435,7 +431,7 @@ public sealed class ShutdownTests : IDisposable {
 		var baseDir = TempBase();
 		DatabaseTestSetup.SetDirectory(DataDir(baseDir));
 		Databases.Init();
-		var logPath = Path.Combine(Path.GetTempPath(), $"qq1011_s07_{Guid.NewGuid():N}.log");
+		var logPath = Path.Combine(Path.GetTempPath(), $"pengin1011_s07_{Guid.NewGuid():N}.log");
 		Logger.SetLogPathForTest(logPath);
 		await BootAsync();
 		try {
@@ -460,7 +456,7 @@ public sealed class ShutdownTests : IDisposable {
 			Logger.SetLogPathForTest(null);
 			DatabaseTestSetup.SetDirectory(null);
 			Cleanup(baseDir);
-			try { File.Delete(logPath); } catch (IOException) { }
+			File.Delete(logPath);
 			await TeardownAsync();
 		}
 	}
@@ -521,7 +517,7 @@ public sealed class ShutdownTests : IDisposable {
 		var retiredBefore = InteractionHost.RetiredServiceCountForTest;
 		var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 		var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-		using var handle = DiscordGateway.SubscribeMessage(null, async (_, ct) => {
+		using var handle = DiscordGateway.SubscribeMessage(async (_, ct) => {
 			entered.SetResult();
 			await release.Task;
 		});
@@ -620,7 +616,7 @@ public sealed class ShutdownTests : IDisposable {
 	public async Task EXIT_05_FirstDrainTimeout_CancelThenComplete_ExitSucceeds() {
 		await BootAsync();
 		var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-		using var handle = DiscordGateway.SubscribeMessage(null, async (_, ct) => {
+		using var handle = DiscordGateway.SubscribeMessage(async (_, ct) => {
 			entered.SetResult();
 			await Task.Delay(Timeout.Infinite, ct);
 		});
@@ -685,7 +681,7 @@ public sealed class ShutdownTests : IDisposable {
 
 	[Fact]
 	public async Task EXIT_07_FailureSummaryReachesLoggerAndNonZeroExitCode() {
-		var logPath = Path.Combine(Path.GetTempPath(), $"qq1011_exit07_{Guid.NewGuid():N}.log");
+		var logPath = Path.Combine(Path.GetTempPath(), $"pengin1011_exit07_{Guid.NewGuid():N}.log");
 		Logger.SetLogPathForTest(logPath);
 		await BootAsync();
 		try {
@@ -706,7 +702,7 @@ public sealed class ShutdownTests : IDisposable {
 			Assert.Contains("EXIT-07 网关停止失败", log);
 		} finally {
 			Logger.SetLogPathForTest(null);
-			try { File.Delete(logPath); } catch (IOException) { }
+			File.Delete(logPath);
 			await TeardownAsync();
 		}
 	}

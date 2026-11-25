@@ -21,25 +21,25 @@ public sealed class LocalizationTests {
 	[Fact]
 	public void Format_PositionalPlaceholder_BothCultures() {
 		Assert.Equal(
-			"Gateway did not become ready within 45s; startup failed.",
-			Loc.Format(CultureInfo.InvariantCulture, "GatewayStartupTimeout", 45d));
+			"Unknown command: demo (type help to see the command list)",
+			Loc.Format(CultureInfo.InvariantCulture, "UnknownCommand", "demo"));
 		Assert.Equal(
-			"网关未在 45s 内就绪，按启动失败处理。",
-			Loc.Format(new CultureInfo("zh-CN"), "GatewayStartupTimeout", 45d));
+			"未知命令：demo（输入 help 查看命令列表）",
+			Loc.Format(new CultureInfo("zh-CN"), "UnknownCommand", "demo"));
 	}
 
 	[Fact]
 	public void Format_MultipleArgs_Invariant() {
 		Assert.Equal(
-			"Configuration loaded Presets=2 Default=prod MaxParallel=5",
-			Loc.Format(CultureInfo.InvariantCulture, "ConfigLoaded", 2, "prod", 5));
+			"Full database backup finished (2/5 databases succeeded)",
+			Loc.Format(CultureInfo.InvariantCulture, "DbBackupCompleted", 2, 5));
 	}
 
 	[Fact]
 	public void Format_MultipleArgs_ZhCN() {
 		Assert.Equal(
-			"配置加载成功 预设数=2 默认=prod MaxParallel=5",
-			Loc.Format(new CultureInfo("zh-CN"), "ConfigLoaded", 2, "prod", 5));
+			"全库备份完成（成功 2/5 库）",
+			Loc.Format(new CultureInfo("zh-CN"), "DbBackupCompleted", 2, 5));
 	}
 
 	[Fact]

@@ -2,18 +2,6 @@ using Discord;
 
 namespace Pengin1011.Modules.FakeModule;
 
-public sealed class FakeInteractionContext : IInteractionContext {
-	public FakeInteractionContext(FakeInteraction interaction) {
-		Interaction = interaction;
-	}
-
-	public IDiscordClient Client => null!;
-	public IGuild Guild => null!;
-	public IMessageChannel Channel => null!;
-	public IUser User => null!;
-	public IDiscordInteraction Interaction { get; }
-}
-
 public sealed class FakeInteraction : ISlashCommandInteraction {
 	public FakeInteraction(string commandName) {
 		Data = new FakeCommandData(commandName);
@@ -120,15 +108,4 @@ public sealed class FakeInteraction : ISlashCommandInteraction {
 	public Task RespondWithPremiumRequiredAsync(RequestOptions? options = null) {
 		throw new NotSupportedException();
 	}
-}
-
-public sealed class FakeCommandData : IApplicationCommandInteractionData {
-	public FakeCommandData(string name) {
-		Name = name;
-	}
-
-	public string Name { get; }
-	public ulong Id => 1;
-	public ApplicationCommandType Type => ApplicationCommandType.Slash;
-	public IReadOnlyCollection<IApplicationCommandInteractionDataOption> Options => [];
 }

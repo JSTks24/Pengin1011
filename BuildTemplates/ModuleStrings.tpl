@@ -15,4 +15,7 @@
 	<data name="SampleGreeting" xml:space="preserve">
 		<value>Hello from __MODULE__</value>
 	</data>
+	<data name="ConfigTemplateCreated" xml:space="preserve">
+		<value>Created configuration template at config/__MODULE__.json</value>
+	</data>
 </root>

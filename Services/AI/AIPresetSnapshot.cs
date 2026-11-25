@@ -1,19 +1,12 @@
-
 namespace Pengin1011.Services.AI;
 
-public sealed class AIPresetData {
-	public int MaxParallel { get; init; } = 5;
-
-	public IReadOnlyList<AIPreset> Presets { get; init; } = [];
-}
-
 public sealed class AIPresetSnapshot {
-	public static readonly AIPresetSnapshot Empty = new(0, new AIPresetData());
+	public static readonly AIPresetSnapshot Empty = new(0, new AIPresetDocument());
 
-	internal AIPresetSnapshot(long version, AIPresetData data) {
+	internal AIPresetSnapshot(long version, AIPresetDocument document) {
 		Version = version;
-		MaxParallel = data.MaxParallel;
-		Presets = [.. data.Presets];
+		MaxParallel = document.MaxParallel;
+		Presets = [.. document.Presets];
 	}
 
 	public long Version { get; }

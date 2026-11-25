@@ -134,7 +134,7 @@ public sealed class LoggerChannelForwarderTests : IDisposable {
 
 	[Fact]
 	public void Overflow_DropsOldestEntries() {
-		var infoPath = Path.Combine(Path.GetTempPath(), $"qq1011_{Guid.NewGuid():N}", "logs", "info.log");
+		var infoPath = Path.Combine(Path.GetTempPath(), $"pengin1011_{Guid.NewGuid():N}", "logs", "info.log");
 		Logger.SetInfoPathForTest(infoPath);
 		try {
 			_connected = false;

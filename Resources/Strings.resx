@@ -12,12 +12,6 @@
 	<resheader name="writer">
 		<value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
 	</resheader>
-	<data name="ConfigLoaded" xml:space="preserve">
-		<value>Configuration loaded Presets={0} Default={1} MaxParallel={2}</value>
-	</data>
-	<data name="GatewayStartupTimeout" xml:space="preserve">
-		<value>Gateway did not become ready within {0}s; startup failed.</value>
-	</data>
 	<data name="StartedHint" xml:space="preserve">
 		<value>Pengin1011 started; type help for commands, Ctrl+C to exit</value>
 	</data>
@@ -58,7 +52,8 @@ exit                 Exit the framework</value>
 		<value>Unknown command: {0} (type help to see the command list)</value>
 	</data>
 	<data name="CliStatus" xml:space="preserve">
-		<value>Uptime: {0:dd\.hh\:mm\:ss} (started at {1:yyyy-MM-dd HH:mm:ss})
+		<value>Pengin1011 {8}
+Uptime: {0:dd\.hh\:mm\:ss} (started at {1:yyyy-MM-dd HH:mm:ss})
 Gateway state: {2}
 AI presets: {3} (default: {4})
 Modules: {5}
@@ -147,17 +142,11 @@ Databases: {6}
 	<data name="MigrationContractText" xml:space="preserve">
 		<value>Generate a migration with Migration, Designer and ModelSnapshot, rebuild the module, then let the host initialize its declared databases.</value>
 	</data>
-	<data name="DbFileConflict" xml:space="preserve">
-		<value>Database file conflict: {0} is already owned by {1}; {2} cannot use the same file</value>
-	</data>
 	<data name="DbMigrationContractViolated" xml:space="preserve">
 		<value>Database contract violation: {0} has no migrations ({1})</value>
 	</data>
 	<data name="BackupSkippedBusy" xml:space="preserve">
 		<value>Previous backup still running; skipping this scheduled round</value>
-	</data>
-	<data name="ModuleNameDeriveFailed" xml:space="preserve">
-		<value>Cannot derive a module name from DbContext type name {0}</value>
 	</data>
 	<data name="BackupFailedSeeLog" xml:space="preserve">
 		<value>Backup failed; see the error log for details</value>
@@ -221,9 +210,6 @@ Databases: {6}
 	</data>
 	<data name="FinalBackupIncomplete" xml:space="preserve">
 		<value>Final backup incomplete: {0}/{1} databases succeeded</value>
-	</data>
-	<data name="InteractionReleaseIncomplete" xml:space="preserve">
-		<value>Interaction service release incomplete: {0}</value>
 	</data>
 	<data name="CancelActiveWorkFailed" xml:space="preserve">
 		<value>Failed to cancel in-flight business work</value>
@@ -711,9 +697,6 @@ Databases: {6}
 	<data name="AIBackendDisposeFailed" xml:space="preserve">
 		<value>Disposing the AI backend for connection {0} failed</value>
 	</data>
-	<data name="AIBackendRetiredDuringCreation" xml:space="preserve">
-		<value>The AI backend for connection {0} was retired while it was being created</value>
-	</data>
 	<data name="SecretNotConfigured" xml:space="preserve">
 		<value>not configured</value>
 	</data>
@@ -734,9 +717,6 @@ Databases: {6}
 	</data>
 	<data name="ModuleRegistrationRollbackFailed" xml:space="preserve">
 		<value>Rolling back the failed registration of module {0} hit an error</value>
-	</data>
-	<data name="ModuleBridgeCallsStillRunning" xml:space="preserve">
-		<value>Module {0} still has {1} bridge call(s) in flight after the drain budget; its resources were not released</value>
 	</data>
 	<data name="BlockerLoggerForwarder" xml:space="preserve">
 		<value>logger forwarder did not stop</value>
@@ -761,9 +741,6 @@ Databases: {6}
 	</data>
 	<data name="DatabasePrepareFailed" xml:space="preserve">
 		<value>Preparing database {0} failed</value>
-	</data>
-	<data name="DatabaseMissing" xml:space="preserve">
-		<value>Database {0} does not exist in the resolved data directory</value>
 	</data>
 	<data name="DatabaseSnapshotMissing" xml:space="preserve">
 		<value>Database {0} has no complete model snapshot; every context must ship a generated ModelSnapshot</value>
@@ -810,9 +787,6 @@ Databases: {6}
 	<data name="BackupForeignKeyFailed" xml:space="preserve">
 		<value>The snapshot failed its foreign key check and was not published</value>
 	</data>
-	<data name="BackupIncomplete" xml:space="preserve">
-		<value>Backup {0} is incomplete (snapshot or metadata missing)</value>
-	</data>
 	<data name="BackupIdentityMismatch" xml:space="preserve">
 		<value>Backup {0} metadata identity does not match its directory or database</value>
 	</data>
@@ -857,6 +831,9 @@ Databases: {6}
 	</data>
 	<data name="DbInspectHeader" xml:space="preserve">
 		<value>{0}: state={1} size={2} wal={3} history={4} backups={5} pending={6}</value>
+	</data>
+	<data name="DbNoBackups" xml:space="preserve">
+		<value>Database {0} has no backups.</value>
 	</data>
 	<data name="DbBackupsHeader" xml:space="preserve">
 		<value>{0} {1} {2} {3}</value>
@@ -921,4 +898,23 @@ Databases: {6}
   <data name="DbOfflineUsage" xml:space="preserve"><value>Offline restore: Pengin1011 db restore &lt;database&gt; &lt;backup&gt; --data-dir &lt;directory&gt; --confirm</value></data>
   <data name="RestoreOfflineCompleted" xml:space="preserve"><value>Database restored. Start the bot manually.</value></data>
   <data name="RestoreOfflineFailed" xml:space="preserve"><value>Offline database restore failed.</value></data>
+  <data name="DatabaseProvidersConflict" xml:space="preserve"><value>Configure only one of Databases.MySQL and Databases.PostgreSQL.</value></data>
+  <data name="DatabaseConfigInvalid" xml:space="preserve"><value>Invalid or missing Databases.{0}.{1}.</value></data>
+  <data name="DatabaseConfigurationUnavailable" xml:space="preserve"><value>Database configuration is invalid; no database backend has been initialized.</value></data>
+  <data name="DatabaseIdentifierTooLong" xml:space="preserve"><value>A prefixed database identifier exceeds 63 UTF-8 bytes. Shorten the declaration or model name.</value></data>
+  <data name="ExternalDatabaseFailed" xml:space="preserve"><value>{0} ({1}). SQLite fallback is disabled.</value></data>
+  <data name="ExternalDatabaseIdentifierInvalid" xml:space="preserve"><value>External database declaration identifiers must not contain underscores. Table names may contain underscores.</value></data>
+  <data name="ExternalDatabaseSplitUnsupported" xml:space="preserve"><value>External databases do not support SplitToTable or split view mappings.</value></data>
+  <data name="ExternalDatabaseTptUnsupported" xml:space="preserve"><value>External databases do not support TPT mappings. Use a single-table mapping.</value></data>
+  <data name="ExternalDatabaseTpcUnsupported" xml:space="preserve"><value>External databases do not support TPC mappings. Use a single-table mapping.</value></data>
+  <data name="ExternalDatabaseMissing" xml:space="preserve"><value>The target database does not exist</value></data>
+  <data name="ExternalDatabaseAuthentication" xml:space="preserve"><value>Database authentication failed</value></data>
+  <data name="ExternalDatabasePermission" xml:space="preserve"><value>Database permissions are insufficient</value></data>
+  <data name="ExternalDatabaseConnection" xml:space="preserve"><value>The database connection failed</value></data>
+  <data name="ExternalDatabaseTimeout" xml:space="preserve"><value>The database operation timed out</value></data>
+  <data name="ExternalDatabaseCancelled" xml:space="preserve"><value>The database operation was cancelled</value></data>
+  <data name="ExternalDatabaseOperation" xml:space="preserve"><value>The external database operation failed</value></data>
+  <data name="ExternalDatabaseBackupUnsupported" xml:space="preserve"><value>Built-in backup, verification and restore support SQLite only. Use the external database tools.</value></data>
+  <data name="ExternalDatabaseVersion" xml:space="preserve"><value>Backend: {0}; server: {1}; driver: {2}.</value></data>
+  <data name="ExternalDatabaseStatus" xml:space="preserve"><value>{0}: {1}; backend={2}; migration={3}</value></data>
 </root>

@@ -1,7 +1,6 @@
 using Discord;
 using Pengin1011.Core;
 using Discord.WebSocket;
-using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 
 namespace Pengin1011.Services.Discord;

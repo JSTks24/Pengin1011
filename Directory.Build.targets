@@ -7,13 +7,14 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<_BridgeDependencyProject Include="@(BridgeDependency->'..\%(Identity)\%(Identity).csproj')" Exclude="@(ProjectReference)" />
-		<ProjectReference Include="@(_BridgeDependencyProject)" ReferenceOutputAssembly="false" />
-		<AdditionalFiles Include="@(BridgeDependency->'..\%(Identity)\$(BridgeGeneratedRelativeRoot)$(BridgeManifestFileName)')" />
+		<_BridgeProvider Include="@(BridgeDependency->'..\%(Identity)\%(Identity).csproj')" />
+		<ProjectReference Include="@(_BridgeProvider)" Exclude="@(ProjectReference)" ReferenceOutputAssembly="false" />
+		<_BridgeProvider Include="@(ProjectReference->WithMetadataValue('BridgeDependency', 'true'))" Exclude="@(_BridgeProvider)" />
+		<AdditionalFiles Include="@(_BridgeProvider->'%(RootDir)%(Directory)$(BridgeGeneratedRelativeRoot)$(BridgeManifestFileName)')" />
 	</ItemGroup>
 
-	<Target Name="ValidateBridgeManifests" Condition="'@(BridgeDependency)' != ''" BeforeTargets="CoreCompile">
-		<Error Condition="!Exists('..\%(BridgeDependency.Identity)\$(BridgeGeneratedRelativeRoot)$(BridgeManifestFileName)')" Text="Bridge manifest missing: dependency module %(BridgeDependency.Identity) has not been built for configuration $(Configuration)/$(TargetFramework), or its ModuleBridge generator is disabled. Build that dependency module first." />
+	<Target Name="ValidateBridgeManifests" Condition="'@(_BridgeProvider)' != ''" BeforeTargets="CoreCompile">
+		<Error Condition="!Exists('%(_BridgeProvider.RootDir)%(_BridgeProvider.Directory)$(BridgeGeneratedRelativeRoot)$(BridgeManifestFileName)')" Text="Bridge manifest missing: dependency module %(_BridgeProvider.Filename) has not been built for configuration $(Configuration)/$(TargetFramework), or its ModuleBridge generator is disabled. Build that dependency module first." />
 	</Target>
 
 </Project>

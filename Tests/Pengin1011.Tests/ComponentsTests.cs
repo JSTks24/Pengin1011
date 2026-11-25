@@ -1,4 +1,3 @@
-using System.Runtime.Loader;
 using Discord;
 using Pengin1011.Core;
 using Pengin1011.Core.Modules;
@@ -422,14 +421,5 @@ public sealed class ComponentsTests : IDisposable {
 		await Components.RouteByIdAsync("a06-host-btn", null);
 
 		Assert.True(invoked);
-	}
-}
-public sealed class FakeTimeProvider : TimeProvider {
-	private DateTimeOffset _now = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
-
-	public override DateTimeOffset GetUtcNow() => _now;
-
-	public void Advance(TimeSpan delta) {
-		_now += delta;
 	}
 }

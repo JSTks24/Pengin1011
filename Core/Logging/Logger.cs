@@ -1,5 +1,3 @@
-using Pengin1011.Core.Localization;
-
 namespace Pengin1011.Core.Logging;
 
 public enum LogLevel {
@@ -7,8 +5,6 @@ public enum LogLevel {
 	Warn,
 	Error,
 }
-
-public sealed record LogEntry(DateTime Time, LogLevel Level, Type Source, string Message, Exception? Exception);
 
 public static class Logger {
 	private static readonly object _gate = new();

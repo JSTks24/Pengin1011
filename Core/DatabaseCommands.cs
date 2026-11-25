@@ -38,7 +38,11 @@ public static class DatabaseCommands {
 			|| name is "version" or "backup" && count != 0 || name == "status" && count > 1
 			|| name == "backups" && count != 1 || name == "verify" && count != 2
 			|| arguments.Skip(2).Any(value => !DatabaseIdentity.IsSafeIdentifier(value) || value.StartsWith("--", StringComparison.Ordinal))) return Loc.Get("DbInternalUsage");
-		if (name != "version" && !Databases.DataDirectoryConfigured) return Loc.Get("ConfigPathsUnavailable");
+		if (Databases.Provider != DatabaseProvider.SQLite) {
+			if (name is "backup" or "backups" or "verify") return Loc.Get("ExternalDatabaseBackupUnsupported");
+			if (name == "version") return await Databases.ExternalVersionAsync();
+		}
+		if (name != "version" && Databases.Provider == DatabaseProvider.SQLite && !Databases.DataDirectoryConfigured) return Loc.Get("ConfigPathsUnavailable");
 		if (name == "backup") {
 			var result = await Databases.BackupNowAsync();
 			return result.Success ? Loc.Format("DbBackupCompleted", result.Succeeded, result.Total)
@@ -65,13 +69,15 @@ public static class DatabaseCommands {
 			case "status":
 				var statuses = id == null ? Databases.GetStatus() : [Databases.GetStatus(id)];
 				return statuses.Count == 0 ? Loc.Get("NoDatabases") : string.Join("\n", statuses.Select(status =>
-					Loc.Format("DbInspectHeader", status.Database, status.State, status.SizeBytes, status.WalSizeBytes, status.CurrentHistory ?? "-",
-						status.CompletedBackupCount, status.PendingMaintenance ? "pending" : "-") + string.Join("", status.Notes.Select(note => "\n" + note))));
+					(status.Provider == DatabaseProvider.SQLite
+						? Loc.Format("DbInspectHeader", status.Database, status.State, status.SizeBytes, status.WalSizeBytes, status.CurrentHistory ?? "-", status.CompletedBackupCount, status.PendingMaintenance ? "pending" : "-")
+						: Loc.Format("ExternalDatabaseStatus", status.Database, status.State, status.Provider, status.CurrentHistory ?? "-"))
+					+ string.Join("", status.Notes.Select(note => "\n" + note))));
 			case "backups":
 				var entries = new[] { DatabaseBackupStore.RollingCategory, DatabaseBackupStore.PreMigrationCategory }
 					.SelectMany(category => Databases.ListBackups(id!, category))
 					.Select(backup => Loc.Format("DbBackupsHeader", backup.Category, backup.BackupId, backup.CreatedUtc.ToString("O"), backup.SizeBytes));
-				return string.Join("\n", entries);
+				return string.Join("\n", entries.DefaultIfEmpty(Loc.Format("DbNoBackups", id)));
 			case "verify":
 				foreach (var category in new[] { DatabaseBackupStore.RollingCategory, DatabaseBackupStore.PreMigrationCategory }) {
 					if (DatabaseBackupStore.TryVerify(Databases.DataDirectory, id!, category, value!, out _, out _)) return Loc.Format("DbCommandCompleted", value);

@@ -90,7 +90,7 @@ public sealed class AppConfigTests {
 
 	[Fact]
 	public void TryLoad_MissingFile_CreatesFromTemplate() {
-		var path = Path.Combine(Path.GetTempPath(), $"dcfox_missing_{Guid.NewGuid():N}.json");
+		var path = Path.Combine(Path.GetTempPath(), $"pengin1011_missing_{Guid.NewGuid():N}.json");
 		try {
 			Assert.False(AppConfig.TryLoad(path, out var errors));
 			Assert.Contains(errors, static e => e.Contains(L.Prefix("ConfigCreatedFromTemplate")));
@@ -101,7 +101,7 @@ public sealed class AppConfigTests {
 			Assert.Contains("\"Token\"", content);
 			Assert.DoesNotContain("\"AI\"", content);
 		} finally {
-			try { File.Delete(path); } catch (IOException) { }
+			File.Delete(path);
 		}
 	}
 
@@ -225,25 +225,12 @@ public sealed class AppConfigTests {
 	}
 
 	private static string TempErrorLog() {
-		return Path.Combine(Path.GetTempPath(), $"qq1011_cfg_{Guid.NewGuid():N}", "error.log");
+		return Path.Combine(Path.GetTempPath(), $"pengin1011_cfg_{Guid.NewGuid():N}", "error.log");
 	}
 
 	private static void CleanupErrorLog(string path) {
 		Logger.SetLogPathForTest(null);
 		var directory = Path.GetDirectoryName(path)!;
 		if (Directory.Exists(directory)) Directory.Delete(directory, true);
-	}
-}
-
-file sealed class TempConfigFile : IDisposable {
-	public string Path { get; }
-
-	public TempConfigFile(string content) {
-		Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"dcfox_{Guid.NewGuid():N}.json");
-		File.WriteAllText(Path, content);
-	}
-
-	public void Dispose() {
-		try { File.Delete(Path); } catch (IOException) { }
 	}
 }

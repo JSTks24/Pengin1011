@@ -7,12 +7,12 @@ internal static class DatabaseTestSetup {
 		Databases.SetDataDirectoryForTest(directory);
 		if (directory == null) return;
 		var registrar = new DatabaseRegistrar();
-		registrar.Add<FakeDbContext>("Fake", options => new FakeDbContext(options));
-		registrar.Add<OtherDbContext>("Other", options => new OtherDbContext(options));
-		registrar.Add<BareDbContext>("Bare", options => new BareDbContext(options));
-		registrar.Add<ClashDbContext>("Clash", options => new ClashDbContext(options));
-		registrar.Add<ShutdownDbContext>("Shutdown", options => new ShutdownDbContext(options));
-		registrar.Add<DriftedDbContext>("Drifted", options => new DriftedDbContext(options));
+		registrar.Add<FakeDbContext>("Fake", (provider, connection) => new FakeDbContext(DatabaseOptions.Create<FakeDbContext>(provider, connection, "Fake")));
+		registrar.Add<OtherDbContext>("Other", (provider, connection) => new OtherDbContext(DatabaseOptions.Create<OtherDbContext>(provider, connection, "Other")));
+		registrar.Add<BareDbContext>("Bare", (provider, connection) => new BareDbContext(DatabaseOptions.Create<BareDbContext>(provider, connection, "Bare")));
+		registrar.Add<ClashDbContext>("Clash", (provider, connection) => new ClashDbContext(DatabaseOptions.Create<ClashDbContext>(provider, connection, "Clash")));
+		registrar.Add<ShutdownDbContext>("Shutdown", (provider, connection) => new ShutdownDbContext(DatabaseOptions.Create<ShutdownDbContext>(provider, connection, "Shutdown")));
+		registrar.Add<DriftedDbContext>("Drifted", (provider, connection) => new DriftedDbContext(DatabaseOptions.Create<DriftedDbContext>(provider, connection, "Drifted")));
 		Databases.RegisterForTest(registrar);
 	}
 }

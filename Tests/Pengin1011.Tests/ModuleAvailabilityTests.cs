@@ -1,4 +1,3 @@
-using System.Runtime.Loader;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
@@ -6,14 +5,13 @@ using Pengin1011.Core;
 using Pengin1011.Core.Logging;
 using Pengin1011.Core.Modules;
 using Pengin1011.Services.Discord;
-using Pengin1011.Modules.FakeModule;
 using Pengin1011.Modules.FakeSecond;
 
 namespace Pengin1011.Tests;
 
 [Collection("BaseDirSerial")]
 public sealed class ModuleAvailabilityTests {
-	private async Task<InteractionService> BootAsync(Action<LoadedModule>? beforeInit = null) {
+	private async Task<InteractionService> BootAsync(Action<LoadedModule>? beforeInit = null, ModuleState fakeState = ModuleState.Ready) {
 		ModuleHostTests.ResetModules();
 		InteractionHost.ResetForTest();
 		DiscordGateway.Init(new DiscordSocketClient());
@@ -25,25 +23,17 @@ public sealed class ModuleAvailabilityTests {
 		}
 		await InteractionHost.PublishInitialAsync();
 		foreach (var run in ModuleHost.Modules) {
-			if (run.InitTask != null) {
-				try {
-					await run.InitTask.WaitAsync(TimeSpan.FromSeconds(2));
-				} catch (TimeoutException) {
-				} catch (Exception) {
-				}
-			}
+			if (run.InitTask != null) await ModuleHostTests.WaitStateAsync(run, run.Name == "FakeModule" ? fakeState : ModuleState.Ready);
 		}
-		await Task.Delay(100);
 		return InteractionHost.Current.Service;
 	}
 
-	private Task TeardownAsync() {
+	private async Task TeardownAsync() {
 		foreach (var run in ModuleHost.Modules) {
-			run.Lifecycle.Cancel();
+			await ModuleHost.StopAsync(run);
 		}
 		InteractionHost.ResetForTest();
 		ModuleHostTests.ResetModules();
-		return Task.CompletedTask;
 	}
 
 	private static LoadedModule FakeRun() {
@@ -82,7 +72,7 @@ public sealed class ModuleAvailabilityTests {
 			if (run.Name == "FakeModule") {
 				ModuleProbe.SetRuntimeStatic(run, "OnInitFailure", failure);
 			}
-		});
+		}, ModuleState.Disabled);
 		try {
 			var run = FakeRun();
 			Assert.Equal(ModuleState.Disabled, run.State);
@@ -104,7 +94,7 @@ public sealed class ModuleAvailabilityTests {
 			if (run.Name == "FakeModule") {
 				ModuleProbe.SetRuntimeStatic(run, "InitGate", initGate);
 			}
-		});
+		}, ModuleState.Starting);
 		try {
 			var run = FakeRun();
 			Assert.Equal(ModuleState.Starting, run.State);
@@ -127,7 +117,7 @@ public sealed class ModuleAvailabilityTests {
 			if (run.Name == "FakeModule") {
 				ModuleProbe.SetRuntimeStatic(run, "OnInitFailure", failure);
 			}
-		});
+		}, ModuleState.Disabled);
 		try {
 			var run = FakeRun();
 			var (context, interaction) = MakeContext(run, "fakeping");
@@ -143,7 +133,7 @@ public sealed class ModuleAvailabilityTests {
 
 	[Fact]
 	public async Task Execute_CommandThrows_ExceptionLoggedWithFullChain() {
-		var logPath = Path.Combine(Path.GetTempPath(), $"qq1011_log_{Guid.NewGuid():N}.log");
+		var logPath = Path.Combine(Path.GetTempPath(), $"pengin1011_log_{Guid.NewGuid():N}.log");
 		var service = await BootAsync();
 		try {
 			Pengin1011.Core.Logging.Logger.SetLogPathForTest(logPath);
@@ -204,7 +194,7 @@ public sealed class ModuleAvailabilityTests {
 	[Fact]
 	public async Task C01_Startup_MixedBareModule_LegalServes_BareRejected() {
 		CopyBareIntoModuleDir();
-		var logPath = Path.Combine(Path.GetTempPath(), $"qq1011_c01_{Guid.NewGuid():N}.log");
+		var logPath = Path.Combine(Path.GetTempPath(), $"pengin1011_c01_{Guid.NewGuid():N}.log");
 		Logger.SetLogPathForTest(logPath);
 		try {
 			var service = await BootAsync();
@@ -315,7 +305,7 @@ public sealed class ModuleAvailabilityTests {
 	public async Task C05_AllModulesIllegal_ZeroBusinessHost_WithDiagnostics() {
 		MoveOutAllFakeDlls();
 		CopyBareIntoModuleDir();
-		var logPath = Path.Combine(Path.GetTempPath(), $"qq1011_c05_{Guid.NewGuid():N}.log");
+		var logPath = Path.Combine(Path.GetTempPath(), $"pengin1011_c05_{Guid.NewGuid():N}.log");
 		Logger.SetLogPathForTest(logPath);
 		try {
 			var service = await BootAsync();
@@ -337,16 +327,5 @@ public sealed class ModuleAvailabilityTests {
 			RestoreAllFakeDlls();
 			await TeardownAsync();
 		}
-	}
-}
-
-[ModuleAvailability(typeof(FakeSecondRuntime))]
-public class C02AsyncOverrideModule : InteractionModuleBase<FakeInteractionContext> {
-	public static int CommandCount;
-
-	[SlashCommand("c02_async_override", "RunMode 覆盖拒绝用例", false, RunMode.Async)]
-	public Task Body() {
-		CommandCount++;
-		return Task.CompletedTask;
 	}
 }

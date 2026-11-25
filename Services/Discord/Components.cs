@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using Discord;
 using Discord.WebSocket;
 using Pengin1011.Core;
-using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 using Pengin1011.Core.Modules;
 
@@ -23,9 +22,9 @@ public static class Components {
 	public static void Attach() {
 		if (!_attached) {
 			_attached = true;
-			_handles.Add(DiscordGateway.SubscribeButton(null, (component, ct) => RouteAsync(component, ct)));
-			_handles.Add(DiscordGateway.SubscribeSelectMenu(null, (component, ct) => RouteAsync(component, ct)));
-			_handles.Add(DiscordGateway.SubscribeModal(null, (modal, ct) => RouteAsync(modal, ct)));
+			_handles.Add(DiscordGateway.SubscribeButton((component, ct) => RouteAsync(component, ct)));
+			_handles.Add(DiscordGateway.SubscribeSelectMenu((component, ct) => RouteAsync(component, ct)));
+			_handles.Add(DiscordGateway.SubscribeModal((modal, ct) => RouteAsync(modal, ct)));
 		}
 		EnsureSweeper();
 	}
@@ -49,29 +48,31 @@ public static class Components {
 			_sweepCts = null;
 		}
 		if (cts == null || task == null) return;
-		cts.Cancel();
-		try {
+		using (cts) {
+			cts.Cancel();
 			await task;
-		} catch (OperationCanceledException) {
 		}
 	}
 
-	public static void Register(string customId, Func<SocketInteraction, CancellationToken, Task> handler, TimeSpan? ttl = null) {
-		Register(null, customId, handler, ttl);
+	internal static void Register(string customId, Func<SocketInteraction, CancellationToken, Task> handler, TimeSpan? ttl = null) {
+		RegisterEntry(null, customId, null, handler, ttl);
 	}
 
-	public static void Register(LoadedModule? owner, string customId, Func<SocketInteraction, CancellationToken, Task> handler, TimeSpan? ttl = null) {
-		if (string.IsNullOrEmpty(customId)) throw new ArgumentException(Loc.Get("CustomIdRequired"), nameof(customId));
-		ArgumentNullException.ThrowIfNull(handler);
+	public static void Register(LoadedModule owner, string customId, Func<SocketInteraction, CancellationToken, Task> handler, TimeSpan? ttl = null) {
+		ArgumentNullException.ThrowIfNull(owner);
 		RegisterEntry(owner, customId, null, handler, ttl);
 	}
 
-	public static void Register<TState>(string customId, TState state, TimeSpan? ttl, Func<TState, SocketInteraction, CancellationToken, Task> handler) {
-		Register(null, customId, state, ttl, handler);
+	internal static void Register<TState>(string customId, TState state, TimeSpan? ttl, Func<TState, SocketInteraction, CancellationToken, Task> handler) {
+		RegisterState(null, customId, state, ttl, handler);
 	}
 
-	public static void Register<TState>(LoadedModule? owner, string customId, TState state, TimeSpan? ttl, Func<TState, SocketInteraction, CancellationToken, Task> handler) {
-		if (string.IsNullOrEmpty(customId)) throw new ArgumentException(Loc.Get("CustomIdRequired"), nameof(customId));
+	public static void Register<TState>(LoadedModule owner, string customId, TState state, TimeSpan? ttl, Func<TState, SocketInteraction, CancellationToken, Task> handler) {
+		ArgumentNullException.ThrowIfNull(owner);
+		RegisterState(owner, customId, state, ttl, handler);
+	}
+
+	private static void RegisterState<TState>(LoadedModule? owner, string customId, TState state, TimeSpan? ttl, Func<TState, SocketInteraction, CancellationToken, Task> handler) {
 		ArgumentNullException.ThrowIfNull(handler);
 		RegisterEntry(owner, customId, state, (interaction, ct) => handler(state, interaction, ct), ttl);
 	}
@@ -199,6 +200,8 @@ public static class Components {
 	}
 
 	private static void RegisterEntry(LoadedModule? owner, string customId, object? state, Func<SocketInteraction, CancellationToken, Task> handler, TimeSpan? ttl) {
+		if (string.IsNullOrEmpty(customId)) throw new ArgumentException(Loc.Get("CustomIdRequired"), nameof(customId));
+		ArgumentNullException.ThrowIfNull(handler);
 		var lifetime = ttl ?? DefaultTtl;
 		Entry entry;
 		if (lifetime <= TimeSpan.Zero) {
@@ -224,7 +227,7 @@ public static class Components {
 		while (!ct.IsCancellationRequested) {
 			try {
 				await Task.Delay(SweepInterval, ct);
-			} catch (OperationCanceledException) {
+			} catch (OperationCanceledException) when (ct.IsCancellationRequested) {
 				break;
 			}
 			SweepExpired();

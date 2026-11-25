@@ -1,6 +1,5 @@
 using Discord;
 using Pengin1011.Core;
-using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 
 namespace Pengin1011.Services.Discord;

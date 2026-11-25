@@ -6,7 +6,7 @@ namespace Pengin1011.Tests;
 [Collection("BaseDirSerial")]
 public sealed class ModuleBridgeBadProviderTests {
 	private static string TempDir() {
-		var dir = Path.Combine(Path.GetTempPath(), $"qq1011_badbridge_{Guid.NewGuid():N}");
+		var dir = Path.Combine(Path.GetTempPath(), $"pengin1011_badbridge_{Guid.NewGuid():N}");
 		Directory.CreateDirectory(dir);
 		return dir;
 	}

@@ -4,20 +4,6 @@ using Pengin1011.Core.Logging;
 
 namespace Pengin1011.Services.Discord;
 
-public sealed record ForwarderChannelFailure(ulong ChannelId, int Count, string LastError);
-
-public sealed record ForwarderStopResult(
-	bool Stopped,
-	bool Pending,
-	int EntriesDeliveredAny,
-	int EntriesDropped,
-	int ChannelBatchSucceeded,
-	int ChannelBatchPartial,
-	int ChannelBatchFailed,
-	int RemainingQueued,
-	int ActiveSends,
-	IReadOnlyList<ForwarderChannelFailure> Failures);
-
 public static class LoggerChannelForwarder {
 	public const int QueueLimit = 1000;
 	public const int FlushBatchLimit = 20;
@@ -56,8 +42,6 @@ public static class LoggerChannelForwarder {
 			lock (_gate) return _session == null ? (0, 0) : (_session.Queue.Count, _session.Dropped);
 		}
 	}
-
-	internal static ForwarderStopResult? LastStopForTest => _lastStop;
 
 	private sealed class Session {
 		public required IReadOnlyList<ulong> Channels { get; init; }

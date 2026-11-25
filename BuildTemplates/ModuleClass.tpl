@@ -1,4 +1,5 @@
 using Discord.Interactions;
+using Pengin1011.Core;
 using Pengin1011.Core.Modules;
 
 namespace Pengin1011.Modules.__MODULE__;
@@ -7,6 +8,6 @@ namespace Pengin1011.Modules.__MODULE__;
 public class __MODULE__ : InteractionModuleBase<SocketInteractionContext> {
 	[SlashCommand("example", "示例命令，请修改命令名与实现")]
 	public async Task Example() {
-		await RespondAsync("ok", ephemeral: true);
+		await RespondAsync(Loc.Get("SampleGreeting"), ephemeral: true);
 	}
 }

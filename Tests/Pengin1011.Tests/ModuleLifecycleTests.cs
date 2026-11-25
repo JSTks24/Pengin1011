@@ -146,7 +146,7 @@ public sealed class ModuleLifecycleTests {
 		ModuleHostTests.ResetModules();
 		var run = NewRun();
 		ModuleHost.Adopt(run);
-		var logPath = Path.Combine(Path.GetTempPath(), $"qq1011_lc_{Guid.NewGuid():N}", "error.log");
+		var logPath = Path.Combine(Path.GetTempPath(), $"pengin1011_lc_{Guid.NewGuid():N}", "error.log");
 		Logger.SetLogPathForTest(logPath);
 		SetStatic(run, "InitEntered", NewGate());
 		SetStatic(run, "InitGate", NewGate());

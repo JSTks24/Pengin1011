@@ -57,8 +57,8 @@ public sealed class DatabaseLifecycleTests : IDisposable {
 	public async Task PartialModulePreparationKeepsEveryDeclarationAndBacksUpTheSuccessfulDatabase() {
 		Databases.SetDataDirectoryForTest(_directory);
 		var registrar = new DatabaseRegistrar();
-		registrar.Add<FakeDbContext>("AReady", options => new FakeDbContext(options));
-		registrar.Add<BareDbContext>("ZMissing", options => new BareDbContext(options));
+		registrar.Add<FakeDbContext>("AReady", (provider, connection) => new FakeDbContext(DatabaseOptions.Create<FakeDbContext>(provider, connection, "AReady")));
+		registrar.Add<BareDbContext>("ZMissing", (provider, connection) => new BareDbContext(DatabaseOptions.Create<BareDbContext>(provider, connection, "ZMissing")));
 		Databases.RegisterForTest(registrar);
 		Databases.Init();
 		await Assert.ThrowsAsync<InvalidOperationException>(() => Databases.PrepareModuleAsync(typeof(Databases).Assembly, CancellationToken.None));
@@ -74,11 +74,11 @@ public sealed class DatabaseLifecycleTests : IDisposable {
 	public void FailedRegistrationAndRollbackLeaveNoPhantomDeclarations() {
 		Databases.SetDataDirectoryForTest(_directory);
 		var first = new DatabaseRegistrar();
-		first.Add<FakeDbContext>("Shared", options => new FakeDbContext(options));
+		first.Add<FakeDbContext>("Shared", (provider, connection) => new FakeDbContext(DatabaseOptions.Create<FakeDbContext>(provider, connection, "Shared")));
 		Databases.RegisterForTest(first);
 		var second = new DatabaseRegistrar();
-		second.Add<OtherDbContext>("Unused", options => new OtherDbContext(options));
-		second.Add<ClashContext>("shared", options => new ClashContext(options));
+		second.Add<OtherDbContext>("Unused", (provider, connection) => new OtherDbContext(DatabaseOptions.Create<OtherDbContext>(provider, connection, "Unused")));
+		second.Add<ClashContext>("shared", (provider, connection) => new ClashContext(DatabaseOptions.Create<ClashContext>(provider, connection, "shared")));
 		Assert.Throws<InvalidOperationException>(() => Databases.RegisterForTest(second));
 		Assert.Equal(["Shared"], Databases.DatabaseIds());
 		Databases.UnregisterModule(typeof(Databases).Assembly);
@@ -146,21 +146,37 @@ public sealed class DatabaseLifecycleTests : IDisposable {
 		}
 	}
 
-	[Fact]
-	public async Task PreparationAfterShutdownKeepsItsRejectedResultWithoutCreatingFiles() {
+	[Theory]
+	[InlineData(DatabaseProvider.SQLite)]
+	[InlineData(DatabaseProvider.MySQL)]
+	[InlineData(DatabaseProvider.PostgreSQL)]
+	public async Task PreparationAfterShutdownKeepsItsRejectedResultWithoutCreatingFiles(DatabaseProvider provider) {
 		var service = new DatabaseService();
 		service.Configure(_directory);
-		var registrar = new DatabaseRegistrar();
-		registrar.Add<FakeDbContext>("Fake", options => new FakeDbContext(options));
+		service.ConfigureProvider(ExternalDatabaseTests.Configuration(provider));
+		var calls = 0;
+		var registrar = new DatabaseRegistrar(provider);
+		registrar.Add<FakeDbContext>("Fake", (_, _) => {
+			Interlocked.Increment(ref calls);
+			throw new InvalidOperationException("The context must not be created after shutdown.");
+		});
 		service.Register(typeof(FakeDbContext).Assembly, registrar.Definitions);
 		await service.StopPreparingAsync();
-		var first = service.PrepareAsync<FakeDbContext>(CancellationToken.None);
-		var second = service.PrepareAsync<FakeDbContext>(CancellationToken.None);
-		Assert.Same(first, second);
-		Assert.False((await first).Success);
+		var callers = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Task.Factory.StartNew(() => service.PrepareAsync<FakeDbContext>(CancellationToken.None))));
+		var first = callers[0];
+		Assert.All(callers, task => Assert.Same(first, task));
+		Assert.True(first.IsCompletedSuccessfully);
+		var result = await first;
+		Assert.False(result.Success);
+		Assert.Equal(result.Failure, service.EntryOf(typeof(FakeDbContext)).Failure);
+		Assert.NotNull(result.Failure);
+		if (provider != DatabaseProvider.SQLite) Assert.Contains(L.Get("ExternalDatabaseCancelled"), result.Failure);
 		Assert.Equal(DatabaseState.Failed, service.StateOf<FakeDbContext>());
+		Assert.Equal(0, calls);
 		Assert.False(File.Exists(Path.Combine(_directory, "Fake.db")));
 		Assert.False(DatabaseMaintenance.Exists(_directory, "Fake"));
+		await service.StopPreparingAsync();
+		service.ReleaseOwnership();
 	}
 
 	[Fact]

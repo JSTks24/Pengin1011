@@ -39,7 +39,7 @@ public sealed class DatabaseGenerator : IIncrementalGenerator {
 		foreach (var item in declarations.OrderBy(item => item.Type.ToDisplayString(), StringComparer.Ordinal)) {
 			var type = item.Type;
 			var location = type.Locations.FirstOrDefault();
-			if (type.DeclaredAccessibility != Accessibility.Public || type.IsAbstract || type.IsStatic || type.Arity != 0 || type.ContainingType != null
+			if (type.DeclaredAccessibility != Accessibility.Public || type.IsAbstract || type.IsSealed || type.IsStatic || type.Arity != 0 || type.ContainingType != null
 				|| type.BaseType?.ToDisplayString() != "Microsoft.EntityFrameworkCore.DbContext"
 				|| type.DeclaringSyntaxReferences.Any(reference => reference.GetSyntax() is not ClassDeclarationSyntax syntax || !syntax.Modifiers.Any(SyntaxKind.PartialKeyword))) {
 				context.ReportDiagnostic(Diagnostic.Create(_shape, location, type.Name));
@@ -55,7 +55,8 @@ public sealed class DatabaseGenerator : IIncrementalGenerator {
 			}
 			var ns = type.ContainingNamespace.IsGlobalNamespace ? "" : type.ContainingNamespace.ToDisplayString() + ".";
 			if (type.InstanceConstructors.Any(ctor => !ctor.IsImplicitlyDeclared) || type.GetMembers("OnConfiguring").Length != 0
-				|| compilation.GetTypeByMetadataName(ns + type.Name + "DesignFactory") != null
+				|| type.GetMembers("OnModelCreating").OfType<IMethodSymbol>().Any(method => method.IsSealed)
+				|| new[] { "DesignFactory", "MySQL", "MySQLDesignFactory", "PostgreSQL", "PostgreSQLDesignFactory" }.Any(suffix => compilation.GetTypeByMetadataName(ns + type.Name + suffix) != null)
 				|| compilation.GetTypeByMetadataName("Pengin1011.Generated.__ModuleDatabaseProvider") != null) {
 				context.ReportDiagnostic(Diagnostic.Create(_collision, location, type.Name));
 				continue;
@@ -66,12 +67,17 @@ public sealed class DatabaseGenerator : IIncrementalGenerator {
 			var builder = new StringBuilder("#nullable enable\n");
 			if (ns.Length > 0) builder.Append("namespace ").Append(ns.TrimEnd('.')).Append(";\n\n");
 			builder.Append("public partial class ").Append(name).Append(" {\n\tpublic ").Append(name)
-				.Append("(global::Microsoft.EntityFrameworkCore.DbContextOptions<").Append(fullName).Append("> options) : base(options) {\n\t}\n}\n\n");
-			builder.Append("public sealed class @").Append(type.Name).Append("DesignFactory : global::Microsoft.EntityFrameworkCore.Design.IDesignTimeDbContextFactory<")
-				.Append(fullName).Append("> {\n\tpublic ").Append(fullName).Append(" CreateDbContext(string[] args) {\n")
-				.Append("\t\tvar options = global::Microsoft.EntityFrameworkCore.SqliteDbContextOptionsBuilderExtensions.UseSqlite(new global::Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<")
-				.Append(fullName).Append(">(), ").Append(SymbolDisplay.FormatLiteral("Data Source=" + item.Id + "-design.db", true)).Append(").Options;\n")
-				.Append("\t\treturn new ").Append(fullName).Append("(options);\n\t}\n}\n");
+				.Append("(global::Microsoft.EntityFrameworkCore.DbContextOptions<").Append(fullName).Append("> options) : base(options) {\n\t}\n")
+				.Append("\tprotected ").Append(name).Append("(global::Microsoft.EntityFrameworkCore.DbContextOptions options) : base(options) {\n\t}\n}\n\n");
+			AppendFactory(builder, name, fullName, "SQLite", item.Id!);
+			foreach (var backend in new[] { "MySQL", "PostgreSQL" }) {
+				var derived = fullName + backend;
+				builder.Append("public sealed class ").Append(name).Append(backend).Append(" : ").Append(fullName).Append(" {\n\tpublic ").Append(name).Append(backend)
+					.Append("(global::Microsoft.EntityFrameworkCore.DbContextOptions<").Append(derived).Append("> options) : base(options) {\n\t}\n")
+					.Append("\tprotected override void OnModelCreating(global::Microsoft.EntityFrameworkCore.ModelBuilder modelBuilder) {\n\t\tbase.OnModelCreating(modelBuilder);\n")
+					.Append("\t\tglobal::Pengin1011.Core.DatabaseOptions.ApplyPrefix(modelBuilder, ").Append(SymbolDisplay.FormatLiteral(item.Id!, true)).Append(", global::Pengin1011.Core.DatabaseProvider.").Append(backend).Append(");\n\t}\n}\n\n");
+				AppendFactory(builder, name + backend, derived, backend, item.Id!);
+			}
 			context.AddSource(type.ToDisplayString() + ".Database.g.cs", SourceText.From(builder.ToString(), new UTF8Encoding(false)));
 		}
 		if (valid.Count == 0) return;
@@ -79,10 +85,26 @@ public sealed class DatabaseGenerator : IIncrementalGenerator {
 		foreach (var item in valid) {
 			var type = item.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 			provider.Append("\t\tregistrar.Add<").Append(type).Append(">(").Append(SymbolDisplay.FormatLiteral(item.Id, true))
-				.Append(", static options => new ").Append(type).Append("(options));\n");
+				.Append(", static (provider, connection) => provider switch {\n");
+			foreach (var backend in new[] { "SQLite", "MySQL", "PostgreSQL" }) {
+				var target = type + (backend == "SQLite" ? "" : backend);
+				provider.Append("\t\t\tglobal::Pengin1011.Core.DatabaseProvider.").Append(backend).Append(" => new ").Append(target)
+					.Append("(global::Pengin1011.Core.DatabaseOptions.Create<").Append(target).Append(">(provider, connection, ").Append(SymbolDisplay.FormatLiteral(item.Id, true)).Append(")),\n");
+			}
+			provider.Append("\t\t\t_ => throw new global::System.ArgumentOutOfRangeException(nameof(provider)),\n\t\t});\n");
 		}
 		provider.Append("\t}\n}\n");
 		context.AddSource("ModuleDatabases.g.cs", SourceText.From(provider.ToString(), new UTF8Encoding(false)));
+	}
+
+	private static void AppendFactory(StringBuilder builder, string name, string fullName, string provider, string id) {
+		var connection = provider == "SQLite" ? "Data Source=" + id + "-design.db" : "Host=localhost;Database=design;Username=design;Password=";
+		if (provider == "MySQL") connection = "Server=localhost;Database=design;User ID=design;Password=";
+		builder.Append("public sealed class ").Append(name).Append("DesignFactory : global::Microsoft.EntityFrameworkCore.Design.IDesignTimeDbContextFactory<")
+			.Append(fullName).Append("> {\n\tpublic ").Append(fullName).Append(" CreateDbContext(string[] args) {\n")
+			.Append("\t\treturn new ").Append(fullName).Append("(global::Pengin1011.Core.DatabaseOptions.Create<").Append(fullName)
+			.Append(">(global::Pengin1011.Core.DatabaseProvider.").Append(provider).Append(", ").Append(SymbolDisplay.FormatLiteral(connection, true))
+			.Append(", ").Append(SymbolDisplay.FormatLiteral(id, true)).Append("));\n\t}\n}\n\n");
 	}
 
 	private static bool IsIdentifier(string? id) {

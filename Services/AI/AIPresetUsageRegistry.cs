@@ -89,12 +89,6 @@ public static class AIPresetUsageRegistry {
 		}
 	}
 
-	internal static void RemoveOwner(string owner) {
-		lock (_gate) {
-			RemoveOwnerCore(owner);
-		}
-	}
-
 	private static void RemoveOwnerCore(string owner) {
 		var stale = new List<string>();
 		foreach (var registration in _registrations.Values) {

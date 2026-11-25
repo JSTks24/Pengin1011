@@ -1,12 +1,8 @@
-using System.Net.Http;
 using Pengin1011.Core;
 using Discord;
-using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 
 namespace Pengin1011.Services.Discord;
-
-public sealed record AttachmentData(byte[] Data, string MimeType, string Filename);
 
 public static class Attachments {
 	public const int DefaultMaxBytes = 25 * 1024 * 1024;

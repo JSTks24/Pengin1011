@@ -16,7 +16,7 @@ public sealed class ModuleHostTests {
 	private static readonly string _databaseDirectory = Path.Combine(Path.GetTempPath(), "pengin_module_tests_" + Guid.NewGuid().ToString("N"));
 
 	private static string TempBase() {
-		return Path.Combine(Path.GetTempPath(), $"qq1011_mod_{Guid.NewGuid():N}");
+		return Path.Combine(Path.GetTempPath(), $"pengin1011_mod_{Guid.NewGuid():N}");
 	}
 
 	private static string DataDir(string baseDir) {
@@ -210,6 +210,15 @@ public sealed class ModuleHostTests {
 			ResetModules();
 		}
 	}
+
+	internal static async Task AwaitFinalStopAsync(LoadedModule run) {
+		var deadline = DateTime.UtcNow.AddSeconds(5);
+		while (run.FinalStopResult == null && DateTime.UtcNow < deadline) {
+			await Task.Delay(25);
+		}
+		Assert.NotNull(run.FinalStopResult);
+	}
+
 
 	internal static async Task WaitStateAsync(LoadedModule run, ModuleState expected, int timeoutMs = 5000) {
 		var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);

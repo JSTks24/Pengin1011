@@ -24,26 +24,8 @@ public sealed class ModuleStartupTests {
 		return path;
 	}
 
-	private static async Task AwaitInitAsync(LoadedModule run, int timeoutMs = 5000) {
-		if (run.InitTask == null) return;
-		try {
-			await run.InitTask.WaitAsync(TimeSpan.FromMilliseconds(timeoutMs));
-		} catch (TimeoutException) {
-		} catch (Exception) {
-		}
-		if (!run.InitTask.IsCompleted) {
-			ReleaseGate(run, "InitGate");
-			try {
-				await run.InitTask.WaitAsync(TimeSpan.FromSeconds(5));
-			} catch (TimeoutException) {
-			} catch (Exception) {
-			}
-		}
-	}
-
-	private static void ReleaseGate(LoadedModule run, string field) {
-		var info = ModuleProbe.RuntimeType(run).GetField(field, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-		(info?.GetValue(null) as TaskCompletionSource)?.TrySetResult();
+	private static async Task AwaitInitAsync(LoadedModule run) {
+		if (run.InitTask != null) await run.InitTask.WaitAsync(TimeSpan.FromSeconds(5));
 	}
 
 	private static async Task WaitStateSettledAsync(LoadedModule run, ModuleState expected, int timeoutMs = 15000) {
@@ -165,6 +147,32 @@ public sealed class ModuleStartupTests {
 		}
 	}
 
+	[Theory]
+	[InlineData(DatabaseProvider.MySQL)]
+	[InlineData(DatabaseProvider.PostgreSQL)]
+	public async Task MissingExternalMigrationsPreventRuntimeEntryWithoutSQLiteFallback(DatabaseProvider provider) {
+		ModuleHostTests.ResetModules();
+		var directory = Path.Combine(Path.GetTempPath(), "pengin_external_start_" + Guid.NewGuid().ToString("N"));
+		Databases.SetDataDirectoryForTest(directory);
+		Databases.ConfigureProvider(ExternalDatabaseTests.Configuration(provider));
+		InteractionHost.ResetForTest();
+		DiscordGateway.Init(new DiscordSocketClient());
+		ModuleHost.LoadAll();
+		try {
+			await InteractionHost.PublishInitialAsync();
+			var run = ModuleHost.Modules.Single(module => module.Name == "FakeModule");
+			await Assert.ThrowsAsync<InvalidOperationException>(() => AwaitInitAsync(run));
+			await WaitStateSettledAsync(run, ModuleState.Disabled);
+			Assert.Equal(0, ModuleProbe.RuntimeStaticInt(run, "InitCount"));
+			Assert.Equal(DatabaseState.Failed, Databases.GetStatus("FakeModule").State);
+			Assert.Equal(provider, Databases.Provider);
+			Assert.False(Directory.Exists(directory));
+		} finally {
+			await TeardownAsync();
+			Databases.SetDataDirectoryForTest(null);
+		}
+	}
+
 	[Fact]
 	public async Task DatabaseFailurePreventsRuntimeEntryWhileModulesWithoutDatabasesStart() {
 		ModuleHostTests.ResetModules();
@@ -176,7 +184,7 @@ public sealed class ModuleStartupTests {
 		try {
 			await InteractionHost.PublishInitialAsync();
 			var databaseModule = ModuleHost.Modules.Single(run => run.Name == "FakeModule");
-			await AwaitInitAsync(databaseModule);
+			await Assert.ThrowsAsync<InvalidOperationException>(() => AwaitInitAsync(databaseModule));
 			await WaitStateSettledAsync(databaseModule, ModuleState.Disabled);
 			Assert.Equal(0, ModuleProbe.RuntimeStaticInt(databaseModule, "InitCount"));
 			var other = ModuleHost.Modules.Single(run => run.Name == "FakeSecond");
@@ -258,7 +266,7 @@ public sealed class ModuleStartupTests {
 	public async Task S02c_ZeroModules_RepeatedPublish_KeepsSingleService() {
 		ModuleHostTests.ResetModules();
 		InteractionHost.ResetForTest();
-		var baseDir = Path.Combine(Path.GetTempPath(), $"qq1011_zero_{Guid.NewGuid():N}");
+		var baseDir = Path.Combine(Path.GetTempPath(), $"pengin1011_zero_{Guid.NewGuid():N}");
 		Directory.CreateDirectory(baseDir);
 		ModuleHost.ModuleDirectoryOverrideForTest = baseDir;
 		DiscordGateway.Init(new DiscordSocketClient());
@@ -335,7 +343,7 @@ public sealed class ModuleStartupTests {
 	[Fact]
 	public void S06_ModuleDirectoryLoad_KeepsOneAssemblyPerFile() {
 		ModuleHostTests.ResetModules();
-		var baseDir = Path.Combine(Path.GetTempPath(), $"qq1011_alc_{Guid.NewGuid():N}");
+		var baseDir = Path.Combine(Path.GetTempPath(), $"pengin1011_alc_{Guid.NewGuid():N}");
 		Directory.CreateDirectory(baseDir);
 		File.Copy(Path.Combine(ModuleDir(), "FakeModule.dll"), Path.Combine(baseDir, "FakeModule.dll"));
 		ModuleHost.ModuleDirectoryOverrideForTest = baseDir;
@@ -356,7 +364,7 @@ public sealed class ModuleStartupTests {
 	[Fact]
 	public void S07_ZeroModules_EmptyDirectoryScannedOnce() {
 		ModuleHostTests.ResetModules();
-		var baseDir = Path.Combine(Path.GetTempPath(), $"qq1011_zero_{Guid.NewGuid():N}");
+		var baseDir = Path.Combine(Path.GetTempPath(), $"pengin1011_zero_{Guid.NewGuid():N}");
 		Directory.CreateDirectory(baseDir);
 		ModuleHost.ModuleDirectoryOverrideForTest = baseDir;
 		try {
@@ -411,7 +419,7 @@ public sealed class ModuleStartupTests {
 			await InteractionHost.PublishInitialAsync();
 			var failed = ModuleHost.Modules.Single(module => module.Name == "FakeSecond");
 			var healthy = ModuleHost.Modules.Single(module => module.Name == "FakeModule");
-			await AwaitInitAsync(failed);
+			await Assert.ThrowsAsync<InvalidOperationException>(() => AwaitInitAsync(failed));
 			await WaitStateSettledAsync(failed, ModuleState.Disabled);
 			await WaitStateSettledAsync(healthy, ModuleState.Ready);
 			await WaitStopCountAsync(failed, 1);
@@ -444,7 +452,7 @@ public sealed class ModuleStartupTests {
 
 	[Fact]
 	public async Task S11_RestartPersistence_TwoIndependentProcesses() {
-		var baseDir = Path.Combine(Path.GetTempPath(), $"qq1011_restart_{Guid.NewGuid():N}");
+		var baseDir = Path.Combine(Path.GetTempPath(), $"pengin1011_restart_{Guid.NewGuid():N}");
 		Directory.CreateDirectory(baseDir);
 		File.WriteAllText(Path.Combine(baseDir, "config.json"), """
 			{

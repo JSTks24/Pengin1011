@@ -31,15 +31,7 @@ public sealed class GatewayDispatchTests : IDisposable {
 			}
 		}
 		await InteractionHost.PublishInitialAsync();
-		var fakeRun = ModuleHost.Modules.Single(module => module.Name == "FakeModule");
-		if (fakeRun.InitTask != null) {
-			try {
-				await fakeRun.InitTask.WaitAsync(TimeSpan.FromSeconds(2));
-			} catch (TimeoutException) {
-			} catch (Exception) {
-			}
-		}
-		return fakeRun;
+		return ModuleHost.Modules.Single(module => module.Name == "FakeModule");
 	}
 
 	private async Task TeardownAsync() {
@@ -57,10 +49,27 @@ public sealed class GatewayDispatchTests : IDisposable {
 	}
 
 	[Fact]
+	public void PublicRegistrationsRequireAModuleOwner() {
+		var registrations = typeof(DiscordGateway).GetMethods().Where(method => method.Name.StartsWith("Subscribe", StringComparison.Ordinal))
+			.Concat(typeof(Components).GetMethods().Where(method => method.Name == "Register"));
+		Assert.All(registrations, method => Assert.Equal(typeof(LoadedModule), method.GetParameters()[0].ParameterType));
+		Assert.Throws<ArgumentNullException>(() => Components.Register(null!, "probe", (_, _) => Task.CompletedTask));
+		Assert.Throws<ArgumentNullException>(() => Components.Register(null!, "probe", 1, null, (_, _, _) => Task.CompletedTask));
+		Assert.Throws<ArgumentNullException>(() => DiscordGateway.SubscribeMessage(null!, (_, _) => Task.CompletedTask));
+		Assert.Throws<ArgumentNullException>(() => DiscordGateway.SubscribeReady(null!, _ => Task.CompletedTask));
+		Assert.Throws<ArgumentNullException>(() => DiscordGateway.SubscribeGuildAvailable(null!, (_, _) => Task.CompletedTask));
+		Assert.Throws<ArgumentNullException>(() => DiscordGateway.SubscribeGuildJoined(null!, (_, _) => Task.CompletedTask));
+		Assert.Throws<ArgumentNullException>(() => DiscordGateway.SubscribeInteraction(null!, (_, _) => Task.CompletedTask));
+		Assert.Throws<ArgumentNullException>(() => DiscordGateway.SubscribeButton(null!, (_, _) => Task.CompletedTask));
+		Assert.Throws<ArgumentNullException>(() => DiscordGateway.SubscribeSelectMenu(null!, (_, _) => Task.CompletedTask));
+		Assert.Throws<ArgumentNullException>(() => DiscordGateway.SubscribeModal(null!, (_, _) => Task.CompletedTask));
+	}
+
+	[Fact]
 	public async Task Gateway_ReturnsImmediately_WhileHandlerBlocks() {
 		var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 		var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-		DiscordGateway.SubscribeMessage(null, (message, ct) => {
+		DiscordGateway.SubscribeMessage((message, ct) => {
 			started.TrySetResult();
 			return gate.Task;
 		});
@@ -89,7 +98,7 @@ public sealed class GatewayDispatchTests : IDisposable {
 	[Fact]
 	public async Task Gateway_NotAttached_MessageDroppedWithoutRejection() {
 		DiscordGateway.DetachForTest();
-		DiscordGateway.SubscribeMessage(null, (message, ct) => Task.CompletedTask);
+		DiscordGateway.SubscribeMessage((message, ct) => Task.CompletedTask);
 		var before = DiscordGateway.RejectedMessageCountForTest;
 		await DiscordGateway.DispatchMessageForTest(null);
 		Assert.Equal(before, DiscordGateway.RejectedMessageCountForTest);
@@ -98,7 +107,7 @@ public sealed class GatewayDispatchTests : IDisposable {
 	[Fact]
 	public async Task Gateway_ExitClose_Terminal_RejectionWithExitingText() {
 		DiscordGateway.RequestExitClose();
-		var handle = DiscordGateway.SubscribeMessage(null, (message, ct) => Task.CompletedTask);
+		var handle = DiscordGateway.SubscribeMessage((message, ct) => Task.CompletedTask);
 		try {
 			var before = DiscordGateway.RejectedMessageCountForTest;
 			await DiscordGateway.DispatchMessageForTest(null);
@@ -142,7 +151,7 @@ public sealed class GatewayDispatchTests : IDisposable {
 			Interlocked.Increment(ref calls);
 			return Task.CompletedTask;
 		});
-		using var other = DiscordGateway.SubscribeMessage(null, (message, ct) => {
+		using var other = DiscordGateway.SubscribeMessage((message, ct) => {
 			Interlocked.Increment(ref otherCalls);
 			return Task.CompletedTask;
 		});
@@ -161,7 +170,7 @@ public sealed class GatewayDispatchTests : IDisposable {
 	[Fact]
 	public async Task SubscriptionHandle_DisposeRemovesHandler() {
 		var calls = 0;
-		var handle = DiscordGateway.SubscribeMessage(null, (message, ct) => {
+		var handle = DiscordGateway.SubscribeMessage((message, ct) => {
 			Interlocked.Increment(ref calls);
 			return Task.CompletedTask;
 		});
@@ -180,13 +189,16 @@ public sealed class GatewayDispatchTests : IDisposable {
 	[Fact]
 	public async Task A01_MessageEvent_StartingZero_ReadyOne() {
 		var initGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+		var subscribed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 		var run = await BootFakeModuleAsync(m => {
 			if (m.Name == "FakeModule") {
 				ModuleProbe.SetRuntimeStatic(m, "EnableBackgroundWork", true);
+				ModuleProbe.SetRuntimeStatic(m, "InitEntered", subscribed);
 				ModuleProbe.SetRuntimeStatic(m, "InitGate", initGate);
 			}
 		});
 		try {
+			await subscribed.Task.WaitAsync(TimeSpan.FromSeconds(5));
 			Assert.Equal(ModuleState.Starting, run.State);
 			await DispatchAndCountAsync(run, 0);
 
@@ -194,6 +206,7 @@ public sealed class GatewayDispatchTests : IDisposable {
 			await ModuleHostTests.WaitStateAsync(run, ModuleState.Ready);
 			await DispatchAndCountAsync(run, 1);
 		} finally {
+			initGate.TrySetResult();
 			await TeardownAsync();
 		}
 	}
@@ -241,7 +254,7 @@ public sealed class GatewayDispatchTests : IDisposable {
 
 	[Fact]
 	public async Task A04_StopFailedResidualEntry_ClickZeroBusiness_NoDuplicateInitErrorLog() {
-		var logPath = Path.Combine(Path.GetTempPath(), $"qq1011_a04_{Guid.NewGuid():N}.log");
+		var logPath = Path.Combine(Path.GetTempPath(), $"pengin1011_a04_{Guid.NewGuid():N}.log");
 		Logger.SetLogPathForTest(logPath);
 		Components.Clear();
 		Components.SetTimeProviderForTest(null);
@@ -253,6 +266,8 @@ public sealed class GatewayDispatchTests : IDisposable {
 				}
 			});
 			await ModuleHostTests.WaitStateAsync(run, ModuleState.Disabled);
+			await ModuleHostTests.AwaitFinalStopAsync(run);
+			Assert.Equal(ModuleStopOutcome.Failed, run.FinalStopResult!.Outcome);
 			Assert.Contains(run, ModuleHost.Modules);
 
 			var clicks = 0;
@@ -269,8 +284,8 @@ public sealed class GatewayDispatchTests : IDisposable {
 			var content = File.ReadAllText(logPath);
 			Assert.Contains("配置损坏", content);
 			Assert.Contains("清理失败", content);
-			var initFailures = content.Split("模块初始化失败", StringSplitOptions.None).Length - 1;
-			var cleanupFailures = content.Split("模块实际清理失败", StringSplitOptions.None).Length - 1;
+			var initFailures = content.Split(Loc.Format("ModuleInitFailed", run.Name), StringSplitOptions.None).Length - 1;
+			var cleanupFailures = content.Split(Loc.Format("ModuleCleanupFailed", run.Name), StringSplitOptions.None).Length - 1;
 			Assert.Equal(1, initFailures);
 			Assert.Equal(1, cleanupFailures);
 		} finally {
@@ -278,6 +293,7 @@ public sealed class GatewayDispatchTests : IDisposable {
 			Components.Clear();
 			Components.SetTimeProviderForTest(null);
 			await TeardownAsync();
+			File.Delete(logPath);
 		}
 	}
 

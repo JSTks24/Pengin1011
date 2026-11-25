@@ -1,7 +1,9 @@
+using System.Data.Common;
 using System.Reflection;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Pengin1011.Core.Localization;
+using MySql.Data.MySqlClient;
+using Npgsql;
 using Pengin1011.Core.Logging;
 
 namespace Pengin1011.Core;
@@ -22,6 +24,22 @@ public static class Databases {
 	public static string DataDirectory => _service.DataDirectory;
 
 	public static bool DataDirectoryConfigured => _service.DataDirectoryConfigured;
+	public static DatabaseProvider Provider => _service.Provider;
+	internal static void ConfigureProvider(DatabaseConfig config) => _service.ConfigureProvider(config);
+
+	internal static async Task<string> ExternalVersionAsync() {
+		using var timeout = new CancellationTokenSource(DatabaseService.PrepareBudget);
+		try {
+			await using DbConnection connection = Provider == DatabaseProvider.MySQL
+				? new MySqlConnection(_service.ExternalConnectionString) : new NpgsqlConnection(_service.ExternalConnectionString);
+			await connection.OpenAsync(timeout.Token);
+			return Loc.Format("ExternalDatabaseVersion", Provider, connection.ServerVersion, connection.GetType().Assembly.GetName().Version);
+		} catch (Exception e) {
+			var failure = DatabaseOptions.Failure(e, timedOut: timeout.IsCancellationRequested);
+			Logger.Error(typeof(Databases), failure);
+			return failure;
+		}
+	}
 
 	internal static SemaphoreSlim BackupGate => _service.MaintenanceGate;
 
@@ -38,6 +56,7 @@ public static class Databases {
 	internal static void AcquireOwnership() => _service.AcquireOwnership();
 
 	internal static void Init() {
+		if (Provider != DatabaseProvider.SQLite) return;
 		if (!_service.DataDirectoryConfigured) _service.Configure(DataDirectoryResolver.Default);
 		_service.AcquireOwnership();
 		var discovered = Directory.EnumerateFiles(_service.DataDirectory, "*.db", SearchOption.TopDirectoryOnly)
@@ -53,7 +72,7 @@ public static class Databases {
 		var attribute = assembly.GetCustomAttribute<ModuleDatabaseProviderAttribute>();
 		if (attribute == null) return false;
 		var provider = (IModuleDatabaseProvider)Activator.CreateInstance(attribute.ProviderType)!;
-		var registrar = new DatabaseRegistrar();
+		var registrar = new DatabaseRegistrar(Provider);
 		provider.Register(registrar);
 		return _service.Register(assembly, registrar.Definitions);
 	}
@@ -74,7 +93,7 @@ public static class Databases {
 
 	public static TContext Open<TContext>() where TContext : DbContext {
 		var entry = _service.EntryOf(typeof(TContext));
-		if (entry.State != DatabaseState.Prepared || DatabaseMaintenance.Exists(DataDirectory, entry.Id)) {
+		if (entry.State != DatabaseState.Prepared || Provider == DatabaseProvider.SQLite && DatabaseMaintenance.Exists(DataDirectory, entry.Id)) {
 			throw new InvalidOperationException(Loc.Format("DatabasePrepareRequired", entry.Id));
 		}
 		_service.AcquireOwnership();
@@ -82,6 +101,7 @@ public static class Databases {
 	}
 
 	public static async Task<BackupResult> BackupNowAsync(CancellationToken ct = default) {
+		if (Provider != DatabaseProvider.SQLite) return new BackupResult(0, 0, [new BackupFailure("", Loc.Get("ExternalDatabaseBackupUnsupported"))]);
 		await _service.MaintenanceGate.WaitAsync(ct);
 		try {
 			_service.AcquireOwnership();
@@ -108,11 +128,13 @@ public static class Databases {
 	}
 
 	public static IReadOnlyList<DatabaseBackupInfo> ListBackups(string id, string category) {
+		if (Provider != DatabaseProvider.SQLite) throw new NotSupportedException(Loc.Get("ExternalDatabaseBackupUnsupported"));
 		return DatabaseBackupStore.ListCompleted(_service.DataDirectory, id, category);
 	}
 
 	internal static async Task<BackupResult> ShutdownAsync() {
 		await _service.StopPreparingAsync();
+		if (Provider != DatabaseProvider.SQLite) return new BackupResult(0, 0, []);
 		Timer? timer;
 		lock (_gate) {
 			timer = _backupTimer;
@@ -156,6 +178,7 @@ public static class Databases {
 	}
 
 	private static List<string> Ids(bool forBackup = false) {
+		if (Provider != DatabaseProvider.SQLite) return forBackup ? [] : _service.Ids().OrderBy(id => id, StringComparer.Ordinal).ToList();
 		HashSet<string> discovered;
 		lock (_gate) discovered = new HashSet<string>(_discovered, StringComparer.OrdinalIgnoreCase);
 		var ids = new HashSet<string>(_service.Ids(), StringComparer.OrdinalIgnoreCase);
@@ -166,6 +189,11 @@ public static class Databases {
 	}
 
 	private static DatabaseStatus BuildStatus(string id) {
+		if (Provider != DatabaseProvider.SQLite) {
+			var entry = _service.FindEntry(id);
+			return new DatabaseStatus(id, entry?.State ?? DatabaseState.NotPresent, null, null, entry?.CurrentHistory, null,
+				null, null, null, false, 0, entry?.Failure is { } failure ? [failure] : [], Provider);
+		}
 		var path = Path.Combine(_service.DataDirectory, DatabaseIdentity.FileName(id));
 		var exists = File.Exists(path);
 		var rolling = DatabaseBackupStore.ListCompleted(_service.DataDirectory, id, DatabaseBackupStore.RollingCategory);
@@ -281,9 +309,3 @@ public static class Databases {
 		}
 	}
 }
-
-public sealed record BackupResult(int Total, int Succeeded, IReadOnlyList<BackupFailure> Failures, bool RetentionWarning = false) {
-	public bool Success => Failures.Count == 0 && Succeeded == Total;
-}
-
-public sealed record BackupFailure(string File, string Reason);

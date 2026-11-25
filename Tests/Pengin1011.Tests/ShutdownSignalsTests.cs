@@ -117,9 +117,3 @@ public sealed class ShutdownSignalsTests {
 		}
 	}
 }
-
-file sealed class UnixSignalFactAttribute : FactAttribute {
-	public UnixSignalFactAttribute() {
-		if (OperatingSystem.IsWindows()) Skip = "The real SIGTERM process test requires Unix; Windows console close uses a different operating system signal.";
-	}
-}

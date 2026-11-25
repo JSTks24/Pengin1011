@@ -93,7 +93,9 @@ public sealed class GoogleAIEndpointTests {
 
 		Assert.Equal(HttpStatusCode.Found, response.StatusCode);
 		Assert.Equal("http://127.0.0.1:1/leak", response.Headers.Location?.AbsoluteUri);
-		Assert.Contains("x-goog-api-key: fake-key", await received);
+		const string headerName = "x-goog-api-key:";
+		var header = Assert.Single((await received).Split('\n'), line => line.StartsWith(headerName, StringComparison.OrdinalIgnoreCase));
+		Assert.Equal("fake-key", header[headerName.Length..].Trim());
 	}
 
 	private static async Task<string> ServeRedirectAsync(TcpListener listener, CancellationToken ct) {

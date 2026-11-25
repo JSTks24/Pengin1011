@@ -12,12 +12,6 @@
 	<resheader name="writer">
 		<value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
 	</resheader>
-	<data name="ConfigLoaded" xml:space="preserve">
-		<value>配置加载成功 预设数={0} 默认={1} MaxParallel={2}</value>
-	</data>
-	<data name="GatewayStartupTimeout" xml:space="preserve">
-		<value>网关未在 {0}s 内就绪，按启动失败处理。</value>
-	</data>
 	<data name="StartedHint" xml:space="preserve">
 		<value>Pengin1011 已启动，输入 help 查看命令，Ctrl+C 退出</value>
 	</data>
@@ -58,7 +52,8 @@ exit                 退出框架</value>
 		<value>未知命令：{0}（输入 help 查看命令列表）</value>
 	</data>
 	<data name="CliStatus" xml:space="preserve">
-		<value>运行时长：{0:dd\.hh\:mm\:ss}（启动于 {1:yyyy-MM-dd HH:mm:ss}）
+		<value>Pengin1011 {8}
+运行时长：{0:dd\.hh\:mm\:ss}（启动于 {1:yyyy-MM-dd HH:mm:ss}）
 网关状态：{2}
 AI 预设：{3} 个（默认：{4}）
 模块：{5} 个
@@ -147,17 +142,11 @@ AI 预设：{3} 个（默认：{4}）
 	<data name="MigrationContractText" xml:space="preserve">
 		<value>请生成包含 Migration、Designer、ModelSnapshot 的迁移并重新构建模块，由宿主初始化已声明的数据库。</value>
 	</data>
-	<data name="DbFileConflict" xml:space="preserve">
-		<value>库文件冲突：{0} 已被 {1} 占用，{2} 无法使用同一文件</value>
-	</data>
 	<data name="DbMigrationContractViolated" xml:space="preserve">
 		<value>数据库契约违约：{0} 没有任何 Migration（{1}）</value>
 	</data>
 	<data name="BackupSkippedBusy" xml:space="preserve">
 		<value>上一轮备份仍在进行，本轮定时备份跳过</value>
-	</data>
-	<data name="ModuleNameDeriveFailed" xml:space="preserve">
-		<value>DbContext 类型名 {0} 无法推导模块名</value>
 	</data>
 	<data name="BackupFailedSeeLog" xml:space="preserve">
 		<value>备份失败，详见错误日志</value>
@@ -221,9 +210,6 @@ AI 预设：{3} 个（默认：{4}）
 	</data>
 	<data name="FinalBackupIncomplete" xml:space="preserve">
 		<value>终备份不完整：成功 {0}/{1} 库</value>
-	</data>
-	<data name="InteractionReleaseIncomplete" xml:space="preserve">
-		<value>交互服务释放未完成：{0}</value>
 	</data>
 	<data name="CancelActiveWorkFailed" xml:space="preserve">
 		<value>取消在途业务工作失败</value>
@@ -711,9 +697,6 @@ AI 预设：{3} 个（默认：{4}）
 	<data name="AIBackendDisposeFailed" xml:space="preserve">
 		<value>释放连接 {0} 的 AI 后端失败</value>
 	</data>
-	<data name="AIBackendRetiredDuringCreation" xml:space="preserve">
-		<value>连接 {0} 的 AI 后端在创建期间已被退役</value>
-	</data>
 	<data name="SecretNotConfigured" xml:space="preserve">
 		<value>未配置</value>
 	</data>
@@ -734,9 +717,6 @@ AI 预设：{3} 个（默认：{4}）
 	</data>
 	<data name="ModuleRegistrationRollbackFailed" xml:space="preserve">
 		<value>回滚模块 {0} 的失败注册时出错</value>
-	</data>
-	<data name="ModuleBridgeCallsStillRunning" xml:space="preserve">
-		<value>模块 {0} 在排空预算后仍有 {1} 个在途桥调用；其资源未被释放</value>
 	</data>
 	<data name="BlockerLoggerForwarder" xml:space="preserve">
 		<value>日志转发器未停止</value>
@@ -761,9 +741,6 @@ AI 预设：{3} 个（默认：{4}）
 	</data>
 	<data name="DatabasePrepareFailed" xml:space="preserve">
 		<value>准备数据库 {0} 失败</value>
-	</data>
-	<data name="DatabaseMissing" xml:space="preserve">
-		<value>解析出的数据目录中不存在数据库 {0}</value>
 	</data>
 	<data name="DatabaseSnapshotMissing" xml:space="preserve">
 		<value>数据库 {0} 缺少完整模型快照；每个 context 都必须携带生成的 ModelSnapshot</value>
@@ -810,9 +787,6 @@ AI 预设：{3} 个（默认：{4}）
 	<data name="BackupForeignKeyFailed" xml:space="preserve">
 		<value>快照外键检查失败，未发布</value>
 	</data>
-	<data name="BackupIncomplete" xml:space="preserve">
-		<value>备份 {0} 不完整（缺快照或元数据）</value>
-	</data>
 	<data name="BackupIdentityMismatch" xml:space="preserve">
 		<value>备份 {0} 的元数据身份与目录或数据库不一致</value>
 	</data>
@@ -857,6 +831,9 @@ AI 预设：{3} 个（默认：{4}）
 	</data>
 	<data name="DbInspectHeader" xml:space="preserve">
 		<value>{0}：状态={1} 大小={2} WAL={3} 历史={4} 备份={5} 未完成={6}</value>
+	</data>
+	<data name="DbNoBackups" xml:space="preserve">
+		<value>数据库 {0} 暂无备份。</value>
 	</data>
 	<data name="DbBackupsHeader" xml:space="preserve">
 		<value>{0} {1} {2} {3}</value>
@@ -921,4 +898,23 @@ AI 预设：{3} 个（默认：{4}）
   <data name="DbOfflineUsage" xml:space="preserve"><value>离线恢复：Pengin1011 db restore &lt;库&gt; &lt;备份&gt; --data-dir &lt;目录&gt; --confirm</value></data>
   <data name="RestoreOfflineCompleted" xml:space="preserve"><value>数据库恢复完成，请手动启动机器人。</value></data>
   <data name="RestoreOfflineFailed" xml:space="preserve"><value>离线数据库恢复失败。</value></data>
+  <data name="DatabaseProvidersConflict" xml:space="preserve"><value>Databases.MySQL 和 Databases.PostgreSQL 只能配置一种。</value></data>
+  <data name="DatabaseConfigInvalid" xml:space="preserve"><value>Databases.{0}.{1} 缺失或无效。</value></data>
+  <data name="DatabaseConfigurationUnavailable" xml:space="preserve"><value>数据库配置无效，未初始化任何数据库后端。</value></data>
+  <data name="DatabaseIdentifierTooLong" xml:space="preserve"><value>添加前缀后的数据库标识超过 63 个 UTF-8 字节，请缩短声明或模型名称。</value></data>
+  <data name="ExternalDatabaseFailed" xml:space="preserve"><value>{0}（{1}）。不会回退 SQLite。</value></data>
+  <data name="ExternalDatabaseIdentifierInvalid" xml:space="preserve"><value>外部数据库声明标识不能包含下划线；原始表名可以包含下划线。</value></data>
+  <data name="ExternalDatabaseSplitUnsupported" xml:space="preserve"><value>外部数据库不支持 SplitToTable 或拆分视图映射。</value></data>
+  <data name="ExternalDatabaseTptUnsupported" xml:space="preserve"><value>外部数据库不支持 TPT 映射，请使用单表映射。</value></data>
+  <data name="ExternalDatabaseTpcUnsupported" xml:space="preserve"><value>外部数据库不支持 TPC 映射，请使用单表映射。</value></data>
+  <data name="ExternalDatabaseMissing" xml:space="preserve"><value>目标数据库不存在</value></data>
+  <data name="ExternalDatabaseAuthentication" xml:space="preserve"><value>数据库身份认证失败</value></data>
+  <data name="ExternalDatabasePermission" xml:space="preserve"><value>数据库权限不足</value></data>
+  <data name="ExternalDatabaseConnection" xml:space="preserve"><value>数据库连接失败</value></data>
+  <data name="ExternalDatabaseTimeout" xml:space="preserve"><value>数据库操作超时</value></data>
+  <data name="ExternalDatabaseCancelled" xml:space="preserve"><value>数据库操作已取消</value></data>
+  <data name="ExternalDatabaseOperation" xml:space="preserve"><value>外部数据库操作失败</value></data>
+  <data name="ExternalDatabaseBackupUnsupported" xml:space="preserve"><value>内置备份、备份校验及恢复仅支持 SQLite；请使用外部数据库工具。</value></data>
+  <data name="ExternalDatabaseVersion" xml:space="preserve"><value>数据库后端：{0}；服务端：{1}；驱动：{2}。</value></data>
+  <data name="ExternalDatabaseStatus" xml:space="preserve"><value>{0}：{1}；后端={2}；迁移={3}</value></data>
 </root>

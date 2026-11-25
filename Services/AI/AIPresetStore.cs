@@ -83,7 +83,7 @@ public static class AIPresetStore {
 				return false;
 			}
 			_path = file;
-			Publish(document.ToData());
+			Publish(document);
 		}
 		AIClient.RefreshConnections();
 		errors = list;
@@ -107,7 +107,7 @@ public static class AIPresetStore {
 				}
 			}
 			var list = new List<AIPreset>(snapshot.Presets) { [index] = candidate };
-			if (!Commit(new AIPresetData { MaxParallel = snapshot.MaxParallel, Presets = list }, expectedVersion, out result)) return false;
+			if (!Commit(new AIPresetDocument { MaxParallel = snapshot.MaxParallel, Presets = list }, expectedVersion, out result)) return false;
 		}
 		AIClient.RefreshConnections();
 		return true;
@@ -117,7 +117,7 @@ public static class AIPresetStore {
 		lock (_gate) {
 			var snapshot = Snapshot;
 			var list = new List<AIPreset>(snapshot.Presets) { candidate };
-			if (!Commit(new AIPresetData { MaxParallel = snapshot.MaxParallel, Presets = list }, expectedVersion, out result)) return false;
+			if (!Commit(new AIPresetDocument { MaxParallel = snapshot.MaxParallel, Presets = list }, expectedVersion, out result)) return false;
 		}
 		AIClient.RefreshConnections();
 		return true;
@@ -142,7 +142,7 @@ public static class AIPresetStore {
 				result = AIPresetEditResult.Fail(Loc.Format("AIPresetDefaultInUse", name));
 				return false;
 			}
-			if (!Commit(new AIPresetData { MaxParallel = snapshot.MaxParallel, Presets = list }, expectedVersion, out result)) return false;
+			if (!Commit(new AIPresetDocument { MaxParallel = snapshot.MaxParallel, Presets = list }, expectedVersion, out result)) return false;
 		}
 		AIClient.RefreshConnections();
 		return true;
@@ -158,30 +158,30 @@ public static class AIPresetStore {
 		return problems;
 	}
 
-	private static bool Commit(AIPresetData data, long? expectedVersion, out AIPresetEditResult result) {
+	private static bool Commit(AIPresetDocument document, long? expectedVersion, out AIPresetEditResult result) {
 		var snapshot = Snapshot;
 		if (expectedVersion is long expected && expected != snapshot.Version) {
 			result = AIPresetEditResult.Fail(Loc.Format("AIPresetStaleVersion", expected, snapshot.Version));
 			return false;
 		}
-		var problems = ValidateDocumentCore(new AIPresetDocument { MaxParallel = data.MaxParallel, Presets = data.Presets });
-		var consistency = ValidateDependencies(data.Presets);
+		var problems = ValidateDocumentCore(document);
+		var consistency = ValidateDependencies(document.Presets);
 		if (consistency != null) problems.Add(consistency);
 		if (problems.Count > 0) {
 			result = AIPresetEditResult.Fail(string.Join("; ", problems));
 			return false;
 		}
-		if (!JsonHelper.Save(_path, new AIPresetDocument { MaxParallel = data.MaxParallel, Presets = data.Presets })) {
+		if (!JsonHelper.Save(_path, document)) {
 			result = AIPresetEditResult.Fail(Loc.Get("AIPresetsSaveFailed"));
 			return false;
 		}
-		Publish(data);
+		Publish(document);
 		result = AIPresetEditResult.Ok(Snapshot.Version);
 		return true;
 	}
 
-	private static void Publish(AIPresetData data) {
-		Volatile.Write(ref _snapshot, new AIPresetSnapshot(Snapshot.Version + 1, data));
+	private static void Publish(AIPresetDocument document) {
+		Volatile.Write(ref _snapshot, new AIPresetSnapshot(Snapshot.Version + 1, document));
 	}
 
 	private static string? ValidateDependencies(IReadOnlyList<AIPreset> presets) {
@@ -266,7 +266,7 @@ public static class AIPresetStore {
 	internal static void LoadForTest(AIPresetDocument document, string? path = null) {
 		lock (_gate) {
 			_path = path ?? DefaultPath;
-			Publish(document.ToData());
+			Publish(document);
 		}
 	}
 

@@ -2,8 +2,6 @@ using System.Globalization;
 
 namespace Pengin1011.Services.Discord;
 
-public sealed record MessageLinkParts(ulong GuildId, ulong ChannelId, ulong MessageId);
-
 public static class MessageLink {
 	public static bool TryParse(string? input, out MessageLinkParts? parts) {
 		parts = null;

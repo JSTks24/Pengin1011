@@ -18,7 +18,7 @@ public sealed class AIPresetUsageEndToEndTests {
 		""";
 
 	private static string TempErrorLog() {
-		return Path.Combine(Path.GetTempPath(), $"qq1011_e2e_{Guid.NewGuid():N}", "error.log");
+		return Path.Combine(Path.GetTempPath(), $"pengin1011_e2e_{Guid.NewGuid():N}", "error.log");
 	}
 
 	private static System.Reflection.Assembly CompileModule(string source) {

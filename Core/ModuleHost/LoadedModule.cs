@@ -1,5 +1,4 @@
 using System.Reflection;
-using Pengin1011.Core.Localization;
 using Pengin1011.Core.Logging;
 using Pengin1011.Core.Modules;
 
@@ -9,10 +8,6 @@ public enum ModuleStopOutcome {
 	Clean,
 	PendingTimeout,
 	Failed,
-}
-
-public sealed record ModuleStopResult(LoadedModule Module, ModuleStopOutcome Outcome, string? Reason) {
-	public bool Clean => Outcome == ModuleStopOutcome.Clean;
 }
 
 public sealed class LoadedModule {
